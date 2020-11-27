@@ -16,18 +16,18 @@ in their file, but for it to be consistent we can store with our identifiers.
 document = {
 	"ship_imo": 9591301,
 	"ship_name": "RTM COOK",
-	"date": Date("2016-05-18T16:00:00Z"),
+#	"date": Date("2016-05-18T16:00:00Z"),
 	"historical":True,
 	"nav_data_available":True,
 	"engine_data_available":True,
 	"nav_data_details":{
-				"upload_datetime": Date("2016-05-18T16:00:00Z"),
+			#	"upload_datetime": Date("2016-05-18T16:00:00Z"),
 				"file_name":"daily_data19June20.xlsx",
 				"file_url":"aws.s3.xyz.com",
 				"uploader_details":{"userid":"xyz","company":"sdf"},
 	},
 	"engine_data_details":{
-				"upload_datetime": Date("2016-05-18T16:00:00Z"),
+			#	"upload_datetime": Date("2016-05-18T16:00:00Z"),
 				"file_name":"daily_data19June20engine.xlsx",
 				"file_url":"aws.s3.xyz.com",
 				"uploader_details":{"userid":"xyz","company":"sdf"},
@@ -39,3 +39,6 @@ document = {
 		"speed":12
 	}
 }
+
+
+

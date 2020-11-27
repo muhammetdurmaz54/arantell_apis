@@ -26,7 +26,7 @@ document = {
 				"min": 46,
 				"max": 85,
 				"sample_size": 1000,
-				"updated_on": Date("2016-05-18T16:00:00Z"),
+			#	"updated_on": Date("2016-05-18T16:00:00Z"),
 			},
 			"speed":{
 				"mean": 12,
@@ -37,7 +37,7 @@ document = {
 				"min": 6,
 				"max": 16,
 				"samples": 1000,
-				"updated_on": Date("2016-05-18T16:00:00Z"),
+		#		"updated_on": Date("2016-05-18T16:00:00Z"),
 			},
 		}
 }

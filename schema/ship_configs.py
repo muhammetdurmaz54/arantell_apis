@@ -31,7 +31,7 @@ document = {
 		"ship_imo":9591301, # taken from sheet 1
 		"ship_name":"RTM COOK", # taken from sheet 1
 		"ship_description":"RTM COOK", # taken from sheet 1
-		"added_on": Date("2016-05-18T16:00:00Z"), #Date when ship was added. We dont take this from excel sheet.
+		#"added_on": Date("2016-05-18T16:00:00Z"), #Date when ship was added. We dont take this from excel sheet.
 
 		"static_data":{
 			"grt":1234, #static field #1
@@ -39,7 +39,7 @@ document = {
 			# About 19 identifiers fetched from Fuel data. Stored with destination identifers
 		},
 
-		"data_available_nav": ['amb_tmp','cpress','sea_st'], #FUel==Nav data
+		"data_available_nav": ['amb_tmp','cpress','sea_st','rpm','speed'], #FUel==Nav data
 		"data_available_engine": ['ext_temp1','ext_temp2','ext_temp3','sw1_pres'],
 
 		"identifier_mapping":{ #source:destination
@@ -49,20 +49,36 @@ document = {
 			"exhtmp1":"ext_temp1",
 			"exhtmp2":"ext_temp1",
 			"exhtmp3":"ext_temp1",
+			"rpm":"rpm",
+			"speed":"speed"
 		},
 
-		"limits":{
-			"amb_tmp":{
-				"type":"abs",
-				"min":-50,
-				"max":60,
+		"data":{
+			"rpm":{
+				"name":"RPM",
+				"unit":"rpm",
+				"category":"Distance And Time",
+				"subcategory":"Distance And Time",
+				"limits":{
+					"type":"abs",
+					"min":20,
+					"max":120
+			}
 			},
-			"cpress":{
-				"type":"abs",
-				"min": 0,
-				"max":1200,
+			"speed":{
+				"name":"Speed",
+				"unit":"knots",
+				"category":"Distance And Time",
+				"subcategory":"Distance And Time",
+				"limits":{
+					"type":"abs",
+					"min":5,
+					"max":25
 			},
+			}
+
 		},
+
 }
 
 

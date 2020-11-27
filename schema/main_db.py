@@ -1,7 +1,10 @@
+def process_rpm(self,value):
+    self.mydict['reported'] =
+
+
 document = {
    "ship_imo": 9876543,
    "date": Date("2016-05-18T16:00:00Z"),
-   "ship_name": "RMTCourier",
    "historical":False,
    "daily_data": [
    {
@@ -10,7 +13,7 @@ document = {
          "reported":70,
          "processed": 70,
          "is_outlier": False,
-         "preprocessor_results":"Passed",
+         "results":"Passed",
          "z_score": -2.1,
          "unit":"rpm",
          "statement":"RPM is Low",
@@ -61,7 +64,7 @@ document = {
            "value":73.856743
        }
    ],
-    "indexes": [
+    "indices": [
        {
            "identifier":"index1",
            "value":5
