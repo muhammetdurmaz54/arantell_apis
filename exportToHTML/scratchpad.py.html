@@ -1,0 +1,112 @@
+<html>
+<head>
+<title>scratchpad.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #f8f8f8;}
+.s1 { color: #cda869;}
+.s2 { color: #8f9d6a;}
+.s3 { color: #cf6a4c;}
+.s4 { color: #cc7832;}
+.s5 { color: #f9ee98;}
+.s6 { color: #5f5a60; font-style: italic;}
+</style>
+</head>
+<body bgcolor="#141414">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+scratchpad.py</font>
+</center></td></tr></table>
+<pre><span class="s0">document </span><span class="s1">= </span><span class="s0">{</span>
+   <span class="s2">&quot;ship_imo&quot;</span><span class="s1">: </span><span class="s3">9876543</span><span class="s4">,</span>
+   <span class="s2">&quot;date&quot;</span><span class="s1">: </span><span class="s0">Date(</span><span class="s2">&quot;2016-05-18T16:00:00Z&quot;</span><span class="s0">)</span><span class="s4">,</span>
+   <span class="s2">&quot;ship_name&quot;</span><span class="s1">: </span><span class="s2">&quot;RMTCourier&quot;</span><span class="s4">,</span>
+   <span class="s2">&quot;data&quot;</span><span class="s1">: </span><span class="s0">[</span>
+   {
+         <span class="s2">&quot;identifier&quot;</span><span class="s1">:</span><span class="s2">&quot;rpm&quot;</span><span class="s4">,</span>
+         <span class="s2">&quot;name&quot;</span><span class="s1">: </span><span class="s2">&quot;RPM&quot;</span><span class="s4">,</span>
+         <span class="s2">&quot;reported&quot;</span><span class="s1">:</span><span class="s3">70</span><span class="s4">,</span>
+         <span class="s2">&quot;processed&quot;</span><span class="s1">: </span><span class="s3">70</span><span class="s4">,</span>
+         <span class="s2">&quot;is_outlier&quot;</span><span class="s1">: </span><span class="s5">False</span><span class="s4">,</span>
+         <span class="s2">&quot;preprocessor_results&quot;</span><span class="s1">:</span><span class="s2">&quot;Passed&quot;</span><span class="s4">,</span>
+         <span class="s2">&quot;z_score&quot;</span><span class="s1">: -</span><span class="s3">2.1</span><span class="s4">,</span>
+         <span class="s2">&quot;unit&quot;</span><span class="s1">:</span><span class="s2">&quot;rpm&quot;</span><span class="s4">,</span>
+         <span class="s2">&quot;statement&quot;</span><span class="s1">:</span><span class="s2">&quot;RPM is Low&quot;</span><span class="s4">,</span>
+         <span class="s2">&quot;predictions&quot;</span><span class="s1">:</span><span class="s0">{</span>
+                <span class="s2">&quot;m3&quot;</span><span class="s1">:</span><span class="s0">[</span><span class="s3">71</span><span class="s4">,</span><span class="s3">72</span><span class="s4">,</span><span class="s3">73</span><span class="s0">]</span><span class="s4">,</span>
+                <span class="s2">&quot;m6&quot;</span><span class="s1">: </span><span class="s0">[</span><span class="s3">71</span><span class="s4">,</span><span class="s3">72</span><span class="s4">,</span><span class="s3">73</span><span class="s0">]</span><span class="s4">,</span>
+                <span class="s2">&quot;m12&quot;</span><span class="s1">: </span><span class="s0">[</span><span class="s3">71</span><span class="s4">,</span><span class="s3">72</span><span class="s4">,</span><span class="s3">73</span><span class="s0">]</span><span class="s4">,</span>
+                <span class="s2">&quot;ly&quot;</span><span class="s1">: </span><span class="s0">[</span><span class="s3">71</span><span class="s4">,</span><span class="s3">72</span><span class="s4">,</span><span class="s3">73</span><span class="s0">]</span><span class="s4">,</span>
+                <span class="s2">&quot;dd&quot;</span><span class="s1">: </span><span class="s0">[</span><span class="s3">71</span><span class="s4">,</span><span class="s3">72</span><span class="s4">,</span><span class="s3">73</span><span class="s0">]</span>
+         }
+   }<span class="s4">,</span>
+  <span class="s0">{</span>
+         <span class="s2">&quot;identifier&quot;</span><span class="s1">:</span><span class="s2">&quot;speed&quot;</span><span class="s4">,</span>
+         <span class="s2">&quot;name&quot;</span><span class="s1">: </span><span class="s2">&quot;Speed&quot;</span><span class="s4">,</span>
+         <span class="s2">&quot;reported&quot;</span><span class="s1">:</span><span class="s3">70</span><span class="s4">,</span>
+         <span class="s2">&quot;processed&quot;</span><span class="s1">: </span><span class="s3">70</span><span class="s4">,</span>
+         <span class="s2">&quot;is_outlier&quot;</span><span class="s1">: </span><span class="s5">False</span><span class="s4">,</span>
+         <span class="s2">&quot;preprocessor_results&quot;</span><span class="s1">:</span><span class="s2">&quot;Passed&quot;</span><span class="s4">,</span>
+         <span class="s2">&quot;z_score&quot;</span><span class="s1">: -</span><span class="s3">2.1</span><span class="s4">,</span>
+         <span class="s2">&quot;unit&quot;</span><span class="s1">:</span><span class="s2">&quot;rpm&quot;</span><span class="s4">,</span>
+         <span class="s2">&quot;statement&quot;</span><span class="s1">:</span><span class="s2">&quot;RPM is Low&quot;</span><span class="s4">,</span>
+         <span class="s2">&quot;predictions&quot;</span><span class="s1">:</span><span class="s0">{</span>
+                <span class="s2">&quot;m3&quot;</span><span class="s1">:</span><span class="s0">[</span><span class="s3">71</span><span class="s4">,</span><span class="s3">72</span><span class="s4">,</span><span class="s3">73</span><span class="s0">]</span><span class="s4">,</span>
+                <span class="s2">&quot;m6&quot;</span><span class="s1">: </span><span class="s0">[</span><span class="s3">71</span><span class="s4">,</span><span class="s3">72</span><span class="s4">,</span><span class="s3">73</span><span class="s0">]</span><span class="s4">,</span>
+                <span class="s2">&quot;m12&quot;</span><span class="s1">: </span><span class="s0">[</span><span class="s3">71</span><span class="s4">,</span><span class="s3">72</span><span class="s4">,</span><span class="s3">73</span><span class="s0">]</span><span class="s4">,</span>
+                <span class="s2">&quot;ly&quot;</span><span class="s1">: </span><span class="s0">[</span><span class="s3">71</span><span class="s4">,</span><span class="s3">72</span><span class="s4">,</span><span class="s3">73</span><span class="s0">]</span><span class="s4">,</span>
+                <span class="s2">&quot;dd&quot;</span><span class="s1">: </span><span class="s0">[</span><span class="s3">71</span><span class="s4">,</span><span class="s3">72</span><span class="s4">,</span><span class="s3">73</span><span class="s0">]</span>
+         }
+   }
+   ]<span class="s4">,</span>
+
+<span class="s0">}</span>
+
+
+b <span class="s1">= </span><span class="s0">{</span>
+   <span class="s2">&quot;ship_imo&quot;</span><span class="s1">: </span><span class="s3">9876543</span><span class="s4">,</span>
+  <span class="s6"># &quot;date&quot;: Date(&quot;2016-05-18T16:00:00Z&quot;),</span>
+   <span class="s2">&quot;ship_name&quot;</span><span class="s1">: </span><span class="s2">&quot;RMTCourier&quot;</span><span class="s4">,</span>
+   <span class="s2">&quot;data&quot;</span><span class="s1">: </span><span class="s0">{</span>
+       <span class="s2">&quot;rpm&quot;</span><span class="s1">:</span><span class="s0">{</span>
+             <span class="s2">&quot;name&quot;</span><span class="s1">: </span><span class="s2">&quot;RPM&quot;</span><span class="s4">,</span>
+             <span class="s2">&quot;reported&quot;</span><span class="s1">:</span><span class="s3">70</span><span class="s4">,</span>
+             <span class="s2">&quot;processed&quot;</span><span class="s1">: </span><span class="s3">70</span><span class="s4">,</span>
+             <span class="s2">&quot;is_outlier&quot;</span><span class="s1">: </span><span class="s5">False</span><span class="s4">,</span>
+             <span class="s2">&quot;preprocessor_results&quot;</span><span class="s1">:</span><span class="s2">&quot;Passed&quot;</span><span class="s4">,</span>
+             <span class="s2">&quot;z_score&quot;</span><span class="s1">: -</span><span class="s3">2.1</span><span class="s4">,</span>
+             <span class="s2">&quot;unit&quot;</span><span class="s1">:</span><span class="s2">&quot;rpm&quot;</span><span class="s4">,</span>
+             <span class="s2">&quot;statement&quot;</span><span class="s1">:</span><span class="s2">&quot;RPM is Low&quot;</span><span class="s4">,</span>
+             <span class="s2">&quot;predictions&quot;</span><span class="s1">:</span><span class="s0">{</span>
+                    <span class="s2">&quot;m3&quot;</span><span class="s1">:</span><span class="s0">[</span><span class="s3">71</span><span class="s4">,</span><span class="s3">72</span><span class="s4">,</span><span class="s3">73</span><span class="s0">]</span><span class="s4">,</span>
+                    <span class="s2">&quot;m6&quot;</span><span class="s1">: </span><span class="s0">[</span><span class="s3">71</span><span class="s4">,</span><span class="s3">72</span><span class="s4">,</span><span class="s3">73</span><span class="s0">]</span><span class="s4">,</span>
+                    <span class="s2">&quot;m12&quot;</span><span class="s1">: </span><span class="s0">[</span><span class="s3">71</span><span class="s4">,</span><span class="s3">72</span><span class="s4">,</span><span class="s3">73</span><span class="s0">]</span><span class="s4">,</span>
+                    <span class="s2">&quot;ly&quot;</span><span class="s1">: </span><span class="s0">[</span><span class="s3">71</span><span class="s4">,</span><span class="s3">72</span><span class="s4">,</span><span class="s3">73</span><span class="s0">]</span><span class="s4">,</span>
+                    <span class="s2">&quot;dd&quot;</span><span class="s1">: </span><span class="s0">[</span><span class="s3">71</span><span class="s4">,</span><span class="s3">72</span><span class="s4">,</span><span class="s3">73</span><span class="s0">]</span>
+             }
+       }<span class="s4">,</span>
+      <span class="s2">&quot;speed&quot;</span><span class="s1">:</span><span class="s0">{</span>
+             <span class="s2">&quot;name&quot;</span><span class="s1">: </span><span class="s2">&quot;Speed&quot;</span><span class="s4">,</span>
+             <span class="s2">&quot;reported&quot;</span><span class="s1">:</span><span class="s3">70</span><span class="s4">,</span>
+             <span class="s2">&quot;processed&quot;</span><span class="s1">: </span><span class="s3">70</span><span class="s4">,</span>
+             <span class="s2">&quot;is_outlier&quot;</span><span class="s1">: </span><span class="s5">False</span><span class="s4">,</span>
+             <span class="s2">&quot;preprocessor_results&quot;</span><span class="s1">:</span><span class="s2">&quot;Passed&quot;</span><span class="s4">,</span>
+             <span class="s2">&quot;z_score&quot;</span><span class="s1">: -</span><span class="s3">2.1</span><span class="s4">,</span>
+             <span class="s2">&quot;unit&quot;</span><span class="s1">:</span><span class="s2">&quot;rpm&quot;</span><span class="s4">,</span>
+             <span class="s2">&quot;statement&quot;</span><span class="s1">:</span><span class="s2">&quot;RPM is Low&quot;</span><span class="s4">,</span>
+             <span class="s2">&quot;predictions&quot;</span><span class="s1">:</span><span class="s0">{</span>
+                    <span class="s2">&quot;m3&quot;</span><span class="s1">:</span><span class="s0">[</span><span class="s3">71</span><span class="s4">,</span><span class="s3">72</span><span class="s4">,</span><span class="s3">73</span><span class="s0">]</span><span class="s4">,</span>
+                    <span class="s2">&quot;m6&quot;</span><span class="s1">: </span><span class="s0">[</span><span class="s3">71</span><span class="s4">,</span><span class="s3">72</span><span class="s4">,</span><span class="s3">73</span><span class="s0">]</span><span class="s4">,</span>
+                    <span class="s2">&quot;m12&quot;</span><span class="s1">: </span><span class="s0">[</span><span class="s3">71</span><span class="s4">,</span><span class="s3">72</span><span class="s4">,</span><span class="s3">73</span><span class="s0">]</span><span class="s4">,</span>
+                    <span class="s2">&quot;ly&quot;</span><span class="s1">: </span><span class="s0">[</span><span class="s3">71</span><span class="s4">,</span><span class="s3">72</span><span class="s4">,</span><span class="s3">73</span><span class="s0">]</span><span class="s4">,</span>
+                    <span class="s2">&quot;dd&quot;</span><span class="s1">: </span><span class="s0">[</span><span class="s3">71</span><span class="s4">,</span><span class="s3">72</span><span class="s4">,</span><span class="s3">73</span><span class="s0">]</span>
+             }
+       }
+   }
+
+
+}
+</pre>
+</body>
+</html>

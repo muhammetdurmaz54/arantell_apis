@@ -1,0 +1,46 @@
+<html>
+<head>
+<title>report_data.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f5a60; font-style: italic;}
+.s1 { color: #f8f8f8;}
+.s2 { color: #cda869;}
+.s3 { color: #8f9d6a;}
+.s4 { color: #cf6a4c;}
+.s5 { color: #cc7832;}
+.s6 { color: #f9ee98;}
+</style>
+</head>
+<body bgcolor="#141414">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+report_data.py</font>
+</center></td></tr></table>
+<pre><span class="s0"># Generic Report. Each report will have it's own collection.</span>
+
+
+<span class="s1">document </span><span class="s2">= </span><span class="s1">{</span>
+	<span class="s3">&quot;ship_imo&quot;</span><span class="s2">: </span><span class="s4">9876543</span><span class="s5">,</span>
+	<span class="s3">&quot;ship_name&quot;</span><span class="s2">: </span><span class="s3">&quot;RMTCourier&quot;</span><span class="s5">,</span>
+	<span class="s3">&quot;date&quot;</span><span class="s2">: </span><span class="s1">Date(</span><span class="s3">&quot;2016-05-18T16:00:00Z&quot;</span><span class="s1">)</span><span class="s5">,</span>
+	<span class="s3">&quot;historical&quot;</span><span class="s2">:</span><span class="s6">False</span><span class="s5">,</span>
+	<span class="s3">&quot;upload_datetime&quot;</span><span class="s2">: </span><span class="s1">Date(</span><span class="s3">&quot;2016-05-18T16:00:00Z&quot;</span><span class="s1">)</span><span class="s5">,</span>
+	<span class="s3">&quot;file_name&quot;</span><span class="s2">:</span><span class="s3">&quot;lub_oil_data_xyz.xlsx&quot;</span><span class="s5">,</span>
+	<span class="s3">&quot;file_url&quot;</span><span class="s2">:</span><span class="s3">&quot;aws.s3.xyz.com&quot;</span><span class="s5">,</span>
+	<span class="s3">&quot;uploader_details&quot;</span><span class="s2">:</span><span class="s1">{</span><span class="s3">&quot;userid&quot;</span><span class="s2">:</span><span class="s3">&quot;xyz&quot;</span><span class="s5">,</span><span class="s3">&quot;company&quot;</span><span class="s2">:</span><span class="s3">&quot;sdf&quot;</span><span class="s1">}</span><span class="s5">,</span>
+	<span class="s3">&quot;data_available&quot;</span><span class="s2">: </span><span class="s1">[</span><span class="s3">'viscocity'</span><span class="s5">,</span><span class="s3">'temp'</span><span class="s5">,</span><span class="s3">'basicity'</span><span class="s1">]</span><span class="s5">,</span>
+    <span class="s3">&quot;data&quot;</span><span class="s2">: </span><span class="s1">[</span>
+	{       <span class="s3">&quot;identifier&quot;</span><span class="s2">:</span><span class="s3">&quot;viscocity&quot;</span><span class="s5">,</span>
+			<span class="s3">&quot;reported&quot;</span><span class="s2">: </span><span class="s4">70</span>
+
+	<span class="s1">}</span><span class="s5">,</span>
+	<span class="s1">{       </span><span class="s3">&quot;identifier&quot;</span><span class="s2">:</span><span class="s3">&quot;temp&quot;</span><span class="s5">,</span>
+			<span class="s3">&quot;reported&quot;</span><span class="s2">: </span><span class="s4">46</span>
+	<span class="s1">}</span>
+	]
+}
+</pre>
+</body>
+</html>

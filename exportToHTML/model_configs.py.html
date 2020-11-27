@@ -1,0 +1,41 @@
+<html>
+<head>
+<title>model_configs.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #f8f8f8;}
+.s1 { color: #5f5a60; font-style: italic;}
+.s2 { color: #cda869;}
+.s3 { color: #8f9d6a;}
+.s4 { color: #cc7832;}
+.s5 { color: #cf6a4c;}
+.s6 { color: #f9ee98;}
+</style>
+</head>
+<body bgcolor="#141414">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+model_configs.py</font>
+</center></td></tr></table>
+<pre>
+<span class="s1">&quot;&quot;&quot; 
+Sample for Multiparametric model configurations. Similar for time- trending. 
+ 
+&quot;&quot;&quot;</span>
+
+<span class="s0">document </span><span class="s2">= </span><span class="s0">{</span><span class="s3">&quot;name&quot;</span><span class="s2">:</span><span class="s3">&quot;speedfoc&quot;</span><span class="s4">,</span>
+          <span class="s3">&quot;training_features&quot;</span><span class="s2">:</span><span class="s0">[</span><span class="s3">&quot;speed&quot;</span><span class="s4">,</span><span class="s3">'w_force'</span><span class="s4">,</span><span class="s3">&quot;slip&quot;</span><span class="s4">,</span><span class="s3">&quot;others&quot;</span><span class="s0">]</span><span class="s4">,</span>
+          <span class="s3">&quot;target_feature&quot;</span><span class="s2">:</span><span class="s3">&quot;foc&quot;</span><span class="s4">,</span>
+          <span class="s3">&quot;model_filename&quot;</span><span class="s2">:</span><span class="s3">&quot;speedfoc.pickle&quot;</span><span class="s4">,</span>
+          <span class="s3">&quot;durations&quot;</span><span class="s2">:</span><span class="s0">[</span><span class="s3">&quot;3m&quot;</span><span class="s4">,</span><span class="s3">&quot;6m&quot;</span><span class="s4">,</span><span class="s3">&quot;9m&quot;</span><span class="s4">,</span><span class="s3">&quot;12m&quot;</span><span class="s4">,</span><span class="s3">&quot;dd&quot;</span><span class="s0">]</span><span class="s4">,</span>
+          <span class="s3">&quot;model_type&quot;</span><span class="s2">:</span><span class="s3">&quot;abc&quot;</span><span class="s4">,</span>
+          <span class="s3">&quot;confidence_alpha&quot;</span><span class="s2">:</span><span class="s5">0.95</span><span class="s4">,</span>
+          <span class="s3">&quot;standardize&quot;</span><span class="s2">:</span><span class="s6">True</span><span class="s4">,</span>
+          <span class="s3">&quot;polynomials&quot;</span><span class="s2">:</span><span class="s5">2</span><span class="s4">,</span>
+          <span class="s3">&quot;polynomials_interaction&quot;</span><span class="s2">:</span><span class="s6">True</span><span class="s4">,</span>
+          <span class="s0">}</span>
+
+</pre>
+</body>
+</html>
