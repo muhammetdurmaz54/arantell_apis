@@ -21,6 +21,4 @@ document = [{
         "end_date":Date("2016-05-18T16:00:00Z"),
         "event_data":"Additional strings here"
 },
-
-
 ]

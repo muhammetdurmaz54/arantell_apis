@@ -19,8 +19,8 @@ which are expected to recieve daily.
 Suppose user wants to add new machinery to their ship i.e. he wants to upload new kind of daily data. 
 Say new cooler is fitted, then this 'data_available' should be modified. 
 
-Each time when preprocecssor code will be running, it will check this 'data_available' field to see which of the 
-fields to extract from dailydata.
+Each time when pre procecssor code will be running, it will check this 'data_available' field to see which of the 
+fields to extract from daily data.
 
 A new ship document will be added to this collection once new ship is oboarded on Aranti.
 
@@ -76,7 +76,6 @@ document = {
 					"max":25
 			},
 			}
-
 		},
 
 }

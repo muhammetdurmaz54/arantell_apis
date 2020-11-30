@@ -10,9 +10,6 @@ Whether to use fields names provided by user in DD file or to use fields names d
 As different ships might have different naming conventions. Example say for Wind Force it could be 'w_force','wind','wind_force'
 in their file, but for it to be consistent we can store with our identifiers.
 """
-
-
-
 document = {
 	"ship_imo": 9591301,
 	"ship_name": "RTM COOK",
