@@ -1,8 +1,11 @@
+
 from pymongo import MongoClient
 from pprint import pprint
 
-client = MongoClient()
-database = client.aranti
+from src.db.setup_mongo import connect_db
+
+database = connect_db()
+
 col = database.daily_data
 
 compound_index = [("ship_imo", 1),("date", 1)]

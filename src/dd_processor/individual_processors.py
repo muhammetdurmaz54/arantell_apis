@@ -12,3 +12,5 @@ class IndividualProcessors():
         base_dict['z_score'] = self.ship_stats
         return base_dict
 
+
+

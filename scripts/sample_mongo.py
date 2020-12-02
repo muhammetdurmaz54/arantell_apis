@@ -1,11 +1,13 @@
+import os
+
 from pymongo import MongoClient
 from schema.ship_configs import document as ship_configs_doc
 from schema.ship_stats import document as ship_stats_doc
 from schema.daily_data import document as daily_data_doc
+from src.db.setup_mongo import connect_db
 
+db = connect_db()
 
-client = MongoClient()
-db = client.aranti
 
 print(db.ship_configs.insert_one(ship_configs_doc).inserted_id)
 print(db.ship_stats.insert_one(ship_stats_doc).inserted_id)

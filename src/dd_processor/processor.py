@@ -1,7 +1,6 @@
-from pymongo import MongoClient
-from db.setup_mongo import database
-from processor.individual_processors import IndividualProcessors
-from configurations.logging_config import CommonLogger
+from src.db.setup_mongo import connect_db
+from src.dd_processor.individual_processors import IndividualProcessors
+from src.configurations.logging_config import CommonLogger
 
 log = CommonLogger(__name__,debug=True).setup_logger()
 
@@ -40,12 +39,12 @@ def check_status(func) -> object:
 
 class Processor(IndividualProcessors):
 
-    def __init__(self,imo,date):
+    def __init__(self,ship_imo,date):
         IndividualProcessors.__init__(self)
         self.database= None
         self.ship_configs = None
         self.daily_data = None
-        self.ship_imo = imo
+        self.ship_imo = ship_imo
         self.date = date
         self.error = False
         self.traceback_msg = None
@@ -72,7 +71,6 @@ class Processor(IndividualProcessors):
         self.process_position_api_data()
         self.process_indices()
         inserted_id = self.main_db_writer()
-
         if self.error:
             return False, str(self.traceback_msg)
         else:
@@ -103,8 +101,7 @@ class Processor(IndividualProcessors):
 
     @check_status
     def connect_db(self):
-        client = MongoClient()
-        self.database = client.aranti
+        self.database = connect_db()
 
     @check_status
     def get_ship_configs(self):
@@ -159,6 +156,5 @@ class Processor(IndividualProcessors):
         self.main_db['weather_api'] = self.weather_data
         self.main_db['position_api'] = self.position_data
         self.main_db['indices'] = self.indices_data
-
         return self.database.main_db.insert_one(self.main_db).inserted_id
 

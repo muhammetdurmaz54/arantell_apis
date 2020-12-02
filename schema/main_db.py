@@ -1,5 +1,3 @@
-def process_rpm(self,value):
-    self.mydict['reported'] =
 
 
 document = {
