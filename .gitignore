@@ -3,4 +3,8 @@
 /venv
 /idea
 /.idea
-.env
+.vs/
+.pk
+.pem
+.pub
+.env*
