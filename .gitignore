@@ -1,10 +1,12 @@
 *.pyc
 /__pycache__    
 /venv
-/idea
+/.idea
 /.idea
 .vs/
 .pk
 .pem
 .pub
 .env*
+.idea
+workspace.xml
