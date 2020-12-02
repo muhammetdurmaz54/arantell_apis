@@ -36,11 +36,9 @@ def check_status(func) -> object:
     return wrapper
 
 
-class Extractor():
+class ConfigExtractor():
 
     def __init__(self,
                  ship_imo,
-                 date,
-                 type,
                  file):
         pass

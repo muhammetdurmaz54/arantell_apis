@@ -3,3 +3,4 @@ fastapi==0.62.0
 numpy
 pandas
 python-dotenv
+python-multipart

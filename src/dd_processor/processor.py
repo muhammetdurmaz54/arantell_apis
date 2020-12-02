@@ -39,13 +39,14 @@ def check_status(func) -> object:
 
 class Processor(IndividualProcessors):
 
-    def __init__(self,ship_imo,date):
+    def __init__(self,ship_imo,date,override):
         IndividualProcessors.__init__(self)
         self.database= None
         self.ship_configs = None
         self.daily_data = None
         self.ship_imo = ship_imo
         self.date = date
+        self.override=override
         self.error = False
         self.traceback_msg = None
         pass
