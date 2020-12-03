@@ -10,6 +10,28 @@ from src.routers import process_dd
 app = FastAPI()
 app.include_router(process_dd.router)
 
+X_API_KEY = APIKeyHeader(name='X-API-Key')
+
+
+def check_authentication_header(x_api_key: str = Depends(X_API_KEY)):
+    """ takes the X-API-Key header and converts it into the matching user object from the database """
+
+    # this is where the SQL query for converting the API key into a user_id will go
+    if x_api_key == "1234567890":
+        # if passes validation check, return user data for API Key
+        # future DB query will go here
+        return {
+            "id": 1234567890,
+            "companies": [1, ],
+            "sites": [],
+        }
+    # else raise 401
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Invalid API Key",
+    )
+
+
 @app.get("/")
 def read_root():
     return {"status": "Ok"}
