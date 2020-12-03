@@ -1,5 +1,5 @@
 from src.db.setup_mongo import connect_db
-from src.dd_processor.individual_processors import IndividualProcessors
+from src.processors.dd_processor.individual_processors import IndividualProcessors
 from src.configurations.logging_config import CommonLogger
 
 log = CommonLogger(__name__,debug=True).setup_logger()

@@ -33,7 +33,7 @@ document = {
 	"data_available_engine": ['er_temp','er_hum','jwc1_fwin_temp'],
 	"data":{
 		"rpm":70,
-		"speed":12
+		"speed":12,
 	}
 }
 
