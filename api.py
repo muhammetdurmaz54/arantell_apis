@@ -1,72 +1,72 @@
-from fastapi import FastAPI,File, UploadFile, HTTPException
+from fastapi import FastAPI,File, UploadFile, HTTPException, Security,status,APIRouter
+from fastapi.security.api_key import APIKeyHeader
 import datetime
 import pandas as pd
 from enum import Enum
-from src.processors.dd_extractor import Extractor
+from src.processors.dd_extractor.extractor import Extractor
 from src.processors.config_extractor.extract_config import ConfigExtractor
-from src.processors.stats_generator import StatsGenerator
-from src.routers import process_dd
+from src.processors.stats_generator.stats_generator import StatsGenerator
+import os
+from dotenv import load_dotenv
+load_dotenv()
+
 
 app = FastAPI()
-app.include_router(process_dd.router)
-
-X_API_KEY = APIKeyHeader(name='X-API-Key')
-
-
-def check_authentication_header(x_api_key: str = Depends(X_API_KEY)):
-    """ takes the X-API-Key header and converts it into the matching user object from the database """
-
-    # this is where the SQL query for converting the API key into a user_id will go
-    if x_api_key == "1234567890":
-        # if passes validation check, return user data for API Key
-        # future DB query will go here
-        return {
-            "id": 1234567890,
-            "companies": [1, ],
-            "sites": [],
-        }
-    # else raise 401
-    raise HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Invalid API Key",
-    )
+router = APIRouter()
+api_key_header_auth = APIKeyHeader(name=os.getenv('API_KEY_NAME'), auto_error=True)
+class dd_type(str, Enum):
+    fuel = "fuel"
+    engine = "engine"
 
 
-@app.get("/")
-def read_root():
-    return {"status": "Ok"}
+async def get_api_key(api_key_header: str= Security(api_key_header_auth)):
+    if api_key_header != os.getenv('API_KEY'):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
+                            detail="Invalid API Key")
 
 
-@app.get("/status")
-def read_status():
-    return {"status": "Ok"}
+@router.get("/status")
+def get_status():
+    """
+    Returns API Status
+    """
+    return {"status": "ok"}
 
 
 
-@app.post("/extract_shipconfigs")
+@router.post("/extract_shipconfigs")
 def extract_ship_configs(ship_imo: int,
                          override: bool,
                          file: UploadFile = File(...)):
-    if file.filename.endswith('.csv'):
+    """
+        ## Extract ship configs  for particular ship
+        - **ship_imo** : IMO number 7 digits
+        - **override**: Override Existing records in database
+        - **file**: Excel file (xls or xlsx)
+        """
+    if file.filename.endswith('.xls') or file.filename.endswith('.xlsx'):
         df = pd.read_csv(file.file)
     else:
         raise HTTPException(status_code=400,
                             detail="Only CSV files allowed.")
 
-    extract = ConfigExtractor(ship_imo=ship_imo,
-                              file=df)
+    extract = ConfigExtractor(ship_imo=ship_imo,file=df)
     return {"filename": file.filename}
 
 
-class dd_type(str, Enum):
-    fuel = "fuel"
-    engine = "engine"
-
-@app.post("/extract_dd")
+@router.post("/extract_dd")
 def extract_daily_data(ship_imo: int,
                        date: datetime.date,
                        type: dd_type,
+                       override: bool,
                        file: UploadFile = File(...)):
+    """
+    ## Extract daily data  for particular ship
+    - **ship_imo** : IMO number 7 digits
+    - **date**: Date in format YYYY-MM-DD
+    - **override**: Override Existing records in database
+    - **file**: CSV file
+    """
     if file.filename.endswith('.csv'):
         df = pd.read_csv(file.file)
     else:
@@ -80,12 +80,20 @@ def extract_daily_data(ship_imo: int,
     return {"filename": file.filename}
 
 
-@app.post("/generate_stats")
+@router.post("/generate_stats")
 def extract_daily_data(ship_imo: int,
                        from_date: datetime.date,
                        to_date: datetime.date,
                        override : bool,
                        all: bool):
+    """
+    ## Generate Stats for particular ship
+    - **ship_imo** : IMO number 7 digits
+    - **from_date**: Date in format YYYY-MM-DD
+    - **to_date**: Date in format YYYY-MM-DD
+    - **override**: Override Existing records in database
+    - **all**: Ignore from and to dates and builds stats for all the dates
+    """
     if file.filename.endswith('.csv'):
         df = pd.read_csv(file.file)
     else:
@@ -98,3 +106,28 @@ def extract_daily_data(ship_imo: int,
                              all=all)
 
     return {"filename": file.filename}
+
+
+
+@router.post("/process_dd")
+def process_daily_data(ship_imo: int,
+                       override: bool,
+                       date: datetime.date):
+    """
+        ## Process daily data for particular ship
+        - **ship_imo** : IMO number 7 digits
+        - **date**: Date in format YYYY-MM-DD
+        - **override**: Override Existing records in database
+        """
+    process = Processor(ship_imo,
+                        date,
+                        override)
+    result, response = process.do_steps()
+    return {"details":response,"result":result}
+
+
+app.include_router(
+    router,
+    prefix='/api',
+    dependencies=[Security(get_api_key,scopes=['openid'])]
+)

@@ -1,10 +1,10 @@
 from fastapi import APIRouter
 import datetime
-from src.processors.dd_processor import Processor
+from src.processors.dd_processor.processor import Processor
 
 router = APIRouter()
 
-@router.post("/process_dd")
+@router.post("/")
 def process_daily_data(ship_imo: int,
                        override: bool,
                        date: datetime.date):
