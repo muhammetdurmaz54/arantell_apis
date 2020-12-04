@@ -1,8 +1,6 @@
-"""Script to export the ReDoc documentation page into a standalone HTML file."""
-
 import json
-
 from api import app
+from src.helpers.paths import get_docs_directory
 
 HTML_TEMPLATE = """<!DOCTYPE html>
 <html>
@@ -32,5 +30,5 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 """
 
 if __name__ == "__main__":
-    with open(f"api-docs-my-project.html", "w") as fd:
+    with open(get_docs_directory() +f"api_docs.html", "w") as fd:
         print(HTML_TEMPLATE % json.dumps(app.openapi()), file=fd)

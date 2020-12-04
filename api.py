@@ -8,6 +8,8 @@ from src.processors.config_extractor.extract_config import ConfigExtractor
 from src.processors.stats_generator.stats_generator import StatsGenerator
 from src.processors.historical_data_extractor.extract_historicaldd import Historical
 import os
+from pydantic import BaseModel
+from typing import Optional
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -21,10 +23,14 @@ class dd_type(str, Enum):
     engine = "engine"
 
 
+
+
 async def get_api_key(api_key_header: str= Security(api_key_header_auth)):
     if api_key_header != os.getenv('API_KEY'):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
                             detail="Invalid API Key")
+
+
 
 
 @router.get("/status")
@@ -56,7 +62,7 @@ def extract_ship_configs(ship_imo: int,
     return {"filename": file.filename}
 
 
-@router.post("/extract_dd")
+@router.post("/extract_dd",)
 def extract_daily_data(ship_imo: int,
                        date: datetime.date,
                        type: dd_type,

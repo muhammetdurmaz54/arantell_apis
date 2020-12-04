@@ -11,6 +11,9 @@
 
 http://127.0.0.1:8000/docs
 
+HTML documentation can be generated using src/scripts/export_docs.py
+Offline Doc stored in /docs
+
 #### Endpoints
 
 Endpoints present in api.py file.
