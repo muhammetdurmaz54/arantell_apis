@@ -6,9 +6,11 @@ from enum import Enum
 from src.processors.dd_extractor.extractor import Extractor
 from src.processors.config_extractor.extract_config import ConfigExtractor
 from src.processors.stats_generator.stats_generator import StatsGenerator
+from src.processors.historical_data_extractor.extract_historicaldd import Historical
 import os
 from dotenv import load_dotenv
 load_dotenv()
+
 
 
 app = FastAPI()
@@ -63,6 +65,7 @@ def extract_daily_data(ship_imo: int,
     """
     ## Extract daily data  for particular ship
     - **ship_imo** : IMO number 7 digits
+    - **type** : "fuel"/"engine" data
     - **date**: Date in format YYYY-MM-DD
     - **override**: Override Existing records in database
     - **file**: CSV file
@@ -126,8 +129,30 @@ def process_daily_data(ship_imo: int,
     return {"details":response,"result":result}
 
 
+@router.post("/extract_historical_dd")
+def extract_historical_dd(ship_imo: int,
+                       type: dd_type,
+                       override: bool,
+                       file: UploadFile = File(...)):
+    """
+    ## Extract Historical Data for particular ship
+    - **ship_imo** : IMO number 7 digits
+    - **type** : "fuel"/"engine" data
+    - **override**: Override Existing records in database
+    - **file**: CSV file
+    """
+
+    if file.filename.endswith('.csv'):
+        df = pd.read_csv(file.file)
+    else:
+        raise HTTPException(status_code=400,detail="Only CSV files allowed.")
+    process = Historical(ship_imo,
+                         type,
+                         override,
+                         file)
+
 app.include_router(
     router,
     prefix='/api',
-    dependencies=[Security(get_api_key,scopes=['openid'])]
+    dependencies=[Security(get_api_key, scopes=['openid'])]
 )
