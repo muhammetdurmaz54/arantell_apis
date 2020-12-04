@@ -14,15 +14,14 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-
 app = FastAPI()
+
 router = APIRouter()
+
 api_key_header_auth = APIKeyHeader(name=os.getenv('API_KEY_NAME'), auto_error=True)
 class dd_type(str, Enum):
     fuel = "fuel"
     engine = "engine"
-
-
 
 
 async def get_api_key(api_key_header: str= Security(api_key_header_auth)):
@@ -32,13 +31,12 @@ async def get_api_key(api_key_header: str= Security(api_key_header_auth)):
 
 
 
-
 @router.get("/status")
 def get_status():
     """
     Returns API Status
     """
-    return {"status": "ok"}
+    return {"status": "Yesss"}
 
 
 
@@ -56,10 +54,12 @@ def extract_ship_configs(ship_imo: int,
         df = pd.read_csv(file.file)
     else:
         raise HTTPException(status_code=400,
-                            detail="Only CSV files allowed.")
+                            detail="Only XLS/XLSX files allowed.")
 
     extract = ConfigExtractor(ship_imo=ship_imo,file=df)
+
     return {"filename": file.filename}
+
 
 
 @router.post("/extract_dd",)
