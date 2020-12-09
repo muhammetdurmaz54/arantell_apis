@@ -51,12 +51,13 @@ def extract_ship_configs(ship_imo: int,
         - **file**: Excel file (xls or xlsx)
         """
     if file.filename.endswith('.xls') or file.filename.endswith('.xlsx'):
-        df = pd.read_csv(file.file)
+        df = pd.read_excel(file.file)
     else:
         raise HTTPException(status_code=400,
                             detail="Only XLS/XLSX files allowed.")
 
     extract = ConfigExtractor(ship_imo=ship_imo,file=df)
+    result = extract.do_steps()
 
     return {"filename": file.filename}
 
