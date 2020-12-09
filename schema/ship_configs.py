@@ -31,7 +31,7 @@ document = {
 		"ship_imo":9591301, # taken from sheet 1
 		"ship_name":"RTM COOK", # taken from sheet 1
 		"ship_description":"RTM COOK", # taken from sheet 1
-		#"added_on": Date("2016-05-18T16:00:00Z"), #Date when ship was added. We dont take this from excel sheet.
+		"added_on": Date("2016-05-18T16:00:00Z"), #Date when ship was added. We dont take this from excel sheet.
 
 		"static_data":{
 			"grt":1234, #static field #1

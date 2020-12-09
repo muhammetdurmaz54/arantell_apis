@@ -43,4 +43,36 @@ class Extractor():
                  date,
                  type,
                  file):
+        self.ship_imo = ship_imo
+        pass
+
+    def do_steps(self):
+        self.connect_db()
+        self.get_schcema()
+        self.get_ship_configs()
+        self.process()
+        insertedId = self.write_dd()
+        if self.error:
+            return False, str(self.traceback_msg)
+        else:
+            return True, str(inserted_id)
+
+    @check_status
+    def connect_db(self):
+        pass
+
+    @check_status
+    def get_schema(self):
+        pass
+
+    @check_status
+    def get_ship_configs(self):
+        pass
+
+    @check_status
+    def process(self):
+        pass
+
+    @check_status
+    def write_dd(self):
         pass
