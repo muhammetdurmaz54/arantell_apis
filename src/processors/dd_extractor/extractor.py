@@ -1,47 +1,13 @@
 from src.db.setup_mongo import connect_db
 from src.configurations.logging_config import CommonLogger
 from mongoengine import *
+from src.helpers import check_status
 from datetime import datetime
 import pandas as pd
 from pymongo import MongoClient
-from shipconfig_schema import Ship_config
+from shipconfig_schema import Ship_config #importing ship config schema
 
 log = CommonLogger(__name__, debug=True).setup_logger()
-
-
-def check_status(func) -> object:
-    """
-    Decorator for functions in class.
-    Working:
-        Decorator check the error flag each time before executing the function. If error present it skips function.
-        Error is set using raise_error() function whenever there is error and it is neede to return to request.
-        This function is outside class ad it works with self parameters.
-
-        Only few first and last function are not applied with this decorator.
-
-        Example: There's error in set_data which is set using raise_error. Then next functions which have this decorator will \
-        first check that flag to find that there was error set, hence it will skip.
-
-
-    """
-
-    def wrapper(self, *arg, **kw):
-        if self.error == False:
-            try:
-                res = func(self, *arg, **kw)
-                log.info(f"Executed {func.__name__}")
-            except Exception as e:
-                res = None
-                self.error = True
-                self.traceback_msg = f"Error in {func.__name__}(): {e}"
-                log.info(f"Error in {func.__name__}(): {e}")
-
-        else:
-            res = None
-            log.info(f"Did not execute {func.__name__}")
-        return res
-
-    return wrapper
 
 
 class DailyData(Document):
@@ -88,9 +54,9 @@ class Extractor:
 
     @check_status
     def get_ship_configs(self):
-        self.data_avail_navdd = []  # Stores data_available_nav from config collection in dd header form
-        self.data_avail_enginedd = []  # Stores data_available_engine from config collection in dd header form
-        for i in Ship_config.objects():
+        self.data_avail_navdd = []  # Stores data_available_nav from config collection in dd header format
+        self.data_avail_enginedd = []  # Stores data_available_engine from config collection in dd header format
+        for i in "Ship_schema_class".objects():
             if i.ship_imo == self.ship_imo:  # Checks if imo passed in POST exists in config db.
                 self.ship_name = i.ship_name
                 self.identifier_mapping = i.identifier_mapping
@@ -100,7 +66,7 @@ class Extractor:
                 for k, v in self.identifier_mapping.items():
                     if v in data_available_nav_config:
                         self.data_avail_navdd.append(k)
-                        # 3.2. Map config engine headers to dd headers
+                # 3.2. Map config engine headers to dd headers
                 data_available_engine_config = list(
                     i.data_available_engine)  # list of avail engine headers in config file
                 for k, v in self.identifier_mapping.items():
