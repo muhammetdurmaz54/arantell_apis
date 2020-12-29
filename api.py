@@ -91,11 +91,12 @@ def extract_daily_data(ship_imo: int,
 
 
 @router.post("/generate_stats")
-def extract_daily_data(ship_imo: int,
+def extract_stats(ship_imo: int,
                        from_date: datetime.date,
                        to_date: datetime.date,
                        override : bool,
-                       all: bool):
+                       all: bool
+                       file: UploadFile = File(...)):
     """
     ## Generate Stats for particular ship
     - **ship_imo** : IMO number 7 digits
