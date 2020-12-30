@@ -12,25 +12,19 @@ class ConfigExtractor():
 
     def __init__(self,
                  ship_imo,
-                 file,
-                 df_configurations,
-                 df_variables,
-                 ship_name,
-                 ship_description,
-                 data_available_nav,
-                 data_available_engine,
-                 identifier_mapping,
-                 data):
+                 file):
         self.ship_imo = ship_imo
         self.file = file
-        self.df_configurations = df_configurations
-        self.df_variables = df.variables
-        self.ship_name = ship_name
-        self.ship_description = ship_description
-        self.data_available_nav = data_available_nav
-        self.data_available_engine = data_available_engine
-        self.identifier_mapping = identifier_mapping
-        self.data = data
+        # self.df_configurations = df_configurations
+        # self.df_variables = df.variables
+        # self.ship_name = ship_name
+        # self.ship_description = ship_description
+        # self.data_available_nav = data_available_nav
+        # self.data_available_engine = data_available_engine
+        # self.identifier_mapping = identifier_mapping
+        # self.data = data
+
+
         
 
 
