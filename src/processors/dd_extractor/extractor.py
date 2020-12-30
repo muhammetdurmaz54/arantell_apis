@@ -1,27 +1,10 @@
 from src.db.setup_mongo import connect_db
 from src.configurations.logging_config import CommonLogger
-from mongoengine import *
-from src.helpers import check_status
-from datetime import datetime
-import pandas as pd
-from pymongo import MongoClient
-from shipconfig_schema import Ship_config #importing ship config schema
+from src.helpers.check_status import check_status
+from src.db.schema.ship import Ship  # importing ship config schema
+from src.db.schema.ddschema import DailyData  # importing dd schema
 
 log = CommonLogger(__name__, debug=True).setup_logger()
-
-
-class DailyData(Document):
-    ship_imo = IntField(max_length=7)
-    ship_name = StringField()
-    date = DateTimeField()
-    historical = BooleanField()
-    nav_data_available = BooleanField()
-    engine_data_available = BooleanField()
-    nav_data_details = DictField()
-    engine_data_details = DictField()
-    data_available_nav = ListField()
-    data_available_engine = ListField()
-    data = DictField()
 
 
 class Extractor:
@@ -32,8 +15,8 @@ class Extractor:
                  type,
                  file):
         self.ship_imo = ship_imo
-        # self.enginedataframe
-        # self.navdataframe
+        self.df = file
+        self.type = type
         pass
 
     def do_steps(self):
@@ -45,96 +28,98 @@ class Extractor:
         if self.error:
             return False, str(self.traceback_msg)
         else:
-            return True, str(inserted_id)
+            return True, str(insertedId)
 
     @check_status
     def connect_db(self):
-        connect('dbname')
+        self.database = connect_db()
         pass
 
     @check_status
     def get_ship_configs(self):
-        self.data_avail_navdd = []  # Stores data_available_nav from config collection in dd header format
-        self.data_avail_enginedd = []  # Stores data_available_engine from config collection in dd header format
-        for i in "Ship_schema_class".objects():
-            if i.ship_imo == self.ship_imo:  # Checks if imo passed in POST exists in config db.
+
+        for i in Ship.objects():  # Iterates over each MongoDB document of Ship_config MongoDB Collection
+            if i.ship_imo == self.ship_imo:  # Checks if imo passed in API hit exists in Ship_config MongoDb.
                 self.ship_name = i.ship_name
                 self.identifier_mapping = i.identifier_mapping
 
-                # 3.1. Map config nav headers to dd headers
-                data_available_nav_config = list(i.data_available_nav)  # list of avail nav headers in config file
-                for k, v in self.identifier_mapping.items():
-                    if v in data_available_nav_config:
-                        self.data_avail_navdd.append(k)
-                # 3.2. Map config engine headers to dd headers
-                data_available_engine_config = list(
-                    i.data_available_engine)  # list of avail engine headers in config file
-                for k, v in self.identifier_mapping.items():
-                    if v in data_available_engine_config:
-                        self.data_avail_enginedd.append(k)
+                # 1. Map config nav headers to dd headers
+                if self.type == "fuel":
+                    self.nav_configtoDDh = []  # To store data_available_nav from config collection in dd header format
+                    nav_config = list(i.data_available_nav)  # extracts list of nav headers from Ship config MongoDB
+                    for k, v in self.identifier_mapping.items():  # k is dd header, v is config header
+                        if v in nav_config:
+                            self.nav_configtoDDh.append(k)  # Stores data_available_nav from config collection in dd header format
+
+                # 2. Map config engine headers to dd headers
+                if self.type == "engine":
+                    self.engine_configtoDDh = []  # To store data_available_engine from config collection in dd header format
+                    engine_config = list(i.data_available_engine)  # extracts list of engine headers from Ship config MongoDB
+                    for k, v in self.identifier_mapping.items():  # v is config header, k is dd header
+                        if v in engine_config:
+                            self.engine_configtoDDh.append(k)
+            else:
+                return "There is no ship with IMO ", self.ship_imo, " in the Ship Config MongoDB collection"
         pass
 
     @check_status
     def process(self):
-        # creating list of available engine headers in dd from mapped config headers in 3.1
-        data_avail_engine_dd = []
-        for k in self.data_avail_enginedd:
-            if k in list("self.engine_data".columns):
-                data_avail_engine_dd.append(k)
 
-        # creating list of available nav headers in dd from mapped config headers in 3.2
-        data_avail_nav_dd = []
-        for k in self.data_avail_navdd:
-            if k in list("self.nav_data".columns):
-                data_avail_nav_dd.append(k)
+        self.data = {}
 
-        self.document = {'ship_imo': self.ship_imo, 'vsl_name': self.ship_name, 'engine_data_available': False,
-                         'nav_data_available': False,
-                         "nav_data_details": {"upload_datetime": "Date(2016-05-18T16:00:00Z)",
-                                              "file_name": "daily_data19June20.xlsx",
-                                              "file_url": "aws.s3.xyz.com",
-                                              "uploader_details": {"userid": "xyz", "company": "sdf"}},
-                         "engine_data_details": {
-                             "upload_datetime": "Date(2016-05-18T16:00:00Z)",
-                             "file_name": "daily_data19June20engine.xlsx",
-                             "file_url": "aws.s3.xyz.com",
-                             "uploader_details": {"userid": "xyz", "company": "sdf"}}, 'data': {}}
+        if self.type == "fuel":
+            self.data_available_nav = []
+            for k in self.navconfig_DDh:
+                if k in list(self.df.columns):
+                    self.data_available_nav.append(k)
+            if len(self.data_available_nav) != 0:
+                self.nav_data_available = True
+                self.data.update(self.df[self.data_available_nav].to_dict(orient='records')[0])
 
-        if len(data_avail_engine_dd) != 0:
-            self.document['engine_data_available'] = True
-            self.document['data_available_engine'] = data_avail_engine_dd
-            self.document['data'].update("self.engine_data"[data_avail_engine_dd].to_dict(orient='records')[0])
+        if self.type == "engine":
+            self.data_available_engine = []
+            for k in self.engine_configtoDDh:
+                if k in list(self.df.columns):
+                    self.data_available_engine.append(k)
+            if len(self.data_available_engine) != 0:
+                self.engine_data_available = True
+                self.data.update(self.df[self.data_available_engine].to_dict(orient='records')[0])
 
-        if len(data_avail_nav_dd) != 0:
-            self.document['nav_data_available'] = True
-            self.document['data_available_nav'] = data_avail_nav_dd
-            self.document['data'].update("self.nav_data"[data_avail_nav_dd].to_dict(orient='records')[0])
+        self.nav_data_details = {"upload_datetime": "Date(2016-05-18T16:00:00Z)",
+                                 "file_name": "daily_data19June20.xlsx",
+                                 "file_url": "aws.s3.xyz.com",
+                                 "uploader_details": {"userid": "xyz", "company": "sdf"}}
+
+        self.engine_data_details = {"upload_datetime": "Date(2016-05-18T16:00:00Z)",
+                                    "file_name": "daily_data19June20engine.xlsx",
+                                    "file_url": "aws.s3.xyz.com",
+                                    "uploader_details": {"userid": "xyz", "company": "sdf"}}
         pass
 
     @check_status
     def write_dd(self):
+
         ship1 = DailyData()
 
-        ship1.ship_imo = self.document['ship_imo']  # Retrieves the imo no from config file
-        ship1.ship_name = self.document['vsl_name']
-        ship1.engine_data_details = self.document["engine_data_details"]
-        ship1.nav_data_details = self.document["nav_data_details"]
+        ship1.ship_imo = self.ship_imo  # Retrieves the imo no from config file
+        ship1.ship_name = self.ship_name
+        ship1.engine_data_details = self.engine_data_details
+        ship1.nav_data_details = self.nav_data_details
         # ship1.date = ,
         # ship1.historical = ,
-        ship1.nav_data_available = self.document['nav_data_available']
-        ship1.engine_data_available = self.document['engine_data_available']
 
-        if self.document['engine_data_available']:
-            ship1.data_available_engine = self.document['data_available_engine']
+        if self.type == "fuel":
+            ship1.nav_data_available = self.nav_data_available
+            ship1.data_available_nav = self.data_available_nav
 
-        if self.document['nav_data_available']:
-            ship1.data_available_nav = self.document['data_available_nav']
+        if self.type == "engine":
+            ship1.engine_data_available = self.engine_data_available
+            ship1.data_available_engine = self.data_available_engine
 
-        ship1.data = self.document['data']
+        ship1.data = self.data
 
         ship1.save()
         pass
 
-
-#run = Extractor()
-#run.do_steps()
+# run = Extractor()
+# run.do_steps()
