@@ -14,9 +14,16 @@ One document per ship.
 
 """
 
+import datetime
+
+
 document = {
 		"ship_imo":9591301,
-		"data":{
+		"added_on":datetime.datetime(2020, 5, 17),
+		"from_date":datetime.datetime(2020, 5, 17),
+		"to_date":datetime.datetime(2020, 5, 17),
+		"samples":1000,
+		"daily_data":{
 			"rpm": {
 				"mean": 70,
 				"median": 72,
@@ -25,8 +32,6 @@ document = {
 				"standard_deviation": 10,
 				"min": 46,
 				"max": 85,
-				"sample_size": 1000,
-			#	"updated_on": Date("2016-05-18T16:00:00Z"),
 			},
 			"speed":{
 				"mean": 12,
@@ -36,10 +41,13 @@ document = {
 				"standard_deviation": 2.23,
 				"min": 6,
 				"max": 16,
-				"samples": 1000,
 		#		"updated_on": Date("2016-05-18T16:00:00Z"),
 			},
-		}
+		},
+	"weather_api":{},
+	"position_api":{},
+	"indices":{}
+
 }
 
 
