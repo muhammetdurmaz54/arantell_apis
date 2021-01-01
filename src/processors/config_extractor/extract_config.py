@@ -12,18 +12,13 @@ class ConfigExtractor():
 
     def __init__(self,
                  ship_imo,
-                 file):
+                 file,
+                 override):
         self.ship_imo = ship_imo
         self.file = file
-        # self.df_configurations = df_configurations
-        # self.df_variables = df.variables
-        # self.ship_name = ship_name
-        # self.ship_description = ship_description
-        # self.data_available_nav = data_available_nav
-        # self.data_available_engine = data_available_engine
-        # self.identifier_mapping = identifier_mapping
-        # self.data = data
-
+        self.override = override
+        self.error = False
+        self.traceback_msg = None
 
         
 
@@ -58,16 +53,16 @@ class ConfigExtractor():
         self.ship_name = self.df_configurations['Value'][1]
         self.ship_description = self.df_configurations['Value'][2]
 
-        self.data_available_nav = list(variables[variables['Type']=='fuel']['Identifier NEW'])
+        self.data_available_nav = list(self.df_variables[self.df_variables['Type']=='fuel']['IdentifierNEW'])
 
-        self.data_available_engine = list(variables[variables['Type']=='engine']['Identifier NEW'])
+        self.data_available_engine = list(self.df_variables[self.df_variables['Type']=='engine']['IdentifierNEW'])
 
-        self.identifier_mapping = dict(zip(variables[variables['Type'] != np.NaN]['Source Identifier'], variables[variables['Type'] != np.NaN]['Identifier NEW']))
-        self.identifier_mapping = dict((k, v) for k, v in identifier_mapping.items() if not (type(k) == float and np.isnan(k)))
+        self.identifier_mapping = dict(zip(self.df_variables[self.df_variables['Type'] != np.NaN]['SourceIdentifier'], self.df_variables[self.df_variables['Type'] != np.NaN]['IdentifierNEW']))
+        self.identifier_mapping = dict((k, v) for k, v in self.identifier_mapping.items() if not (type(k) == float and np.isnan(k)))
 
         
 
-        for row in variables.itertuples():
+        for row in self.df_variables.itertuples():
 	        if row.Type == 'static':
 		        continue
 	        else:
@@ -79,7 +74,7 @@ class ConfigExtractor():
         
         limit = dict((k,v) for k, v in limit.items() if not (type(k) == float and np.isnan(k)))
 
-        for row in variables.itertuples():
+        for row in self.df_variables.itertuples():
             if row.Type == 'static':
                 continue
             else:
@@ -100,6 +95,7 @@ class ConfigExtractor():
     @check_status
     def write_configs(self):
 
+
         ship = Ship(
             ship_imo = self.ship_imo,
             ship_name = self.ship_name,
@@ -110,4 +106,14 @@ class ConfigExtractor():
             data = self.data
         )
 
-        ship.save()
+        if self.override:
+            if not Ship.objects(ship_imo = self.ship_imo):
+                ship.save()
+            else:
+                Ship.objects.get(ship_imo = self.ship_imo).delete()
+                ship.save()
+        else:
+            if not Ship.objects(ship_imo = self.ship_imo):
+                ship.save()
+            else:
+                return "Record already exists!"
