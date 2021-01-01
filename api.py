@@ -78,10 +78,12 @@ def extract_daily_data(ship_imo: int,
     - **override**: Override Existing records in database
     - **file**: CSV file
     """
-    if file.filename.endswith('.csv'):
+    if file.filename.endswith('csv'):
         df = pd.read_csv(file.file)
+    elif file.filename.endswith('xlsx'):
+        df = pd.read_excel(file.file)
     else:
-        raise HTTPException(status_code=400,detail="Only CSV files allowed.")
+        raise HTTPException(status_code=400,detail="Only CSV/XLSX files allowed.")
 
     extract = Extractor(ship_imo=ship_imo,
                         date=date,
