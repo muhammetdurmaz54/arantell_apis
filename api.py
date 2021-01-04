@@ -5,6 +5,7 @@ import pandas as pd
 from enum import Enum
 from src.processors.dd_extractor.extractor import Extractor
 from src.processors.config_extractor.extract_config import ConfigExtractor
+from src.processors.dd_processor.processor import Processor
 from src.processors.stats_generator.stats_generator import StatsGenerator
 from src.processors.historical_data_extractor.extract_historicaldd import Historical
 import os
@@ -77,10 +78,12 @@ def extract_daily_data(ship_imo: int,
     - **override**: Override Existing records in database
     - **file**: CSV file
     """
-    if file.filename.endswith('.csv'):
+    if file.filename.endswith('csv'):
         df = pd.read_csv(file.file)
+    elif file.filename.endswith('xlsx'):
+        df = pd.read_excel(file.file)
     else:
-        raise HTTPException(status_code=400,detail="Only CSV files allowed.")
+        raise HTTPException(status_code=400,detail="Only CSV/XLSX files allowed.")
 
     extract = Extractor(ship_imo=ship_imo,
                         date=date,
@@ -91,11 +94,12 @@ def extract_daily_data(ship_imo: int,
 
 
 @router.post("/generate_stats")
-def extract_daily_data(ship_imo: int,
+def extract_stats(ship_imo: int,
                        from_date: datetime.date,
                        to_date: datetime.date,
                        override : bool,
-                       all: bool):
+                       all: bool,
+                       file: UploadFile = File(...)):
     """
     ## Generate Stats for particular ship
     - **ship_imo** : IMO number 7 digits
