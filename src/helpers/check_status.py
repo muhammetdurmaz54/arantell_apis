@@ -1,3 +1,7 @@
+from src.configurations.logging_config import CommonLogger
+
+log = CommonLogger(__name__,debug=True).setup_logger()
+
 def check_status(func) -> object:
     """
     Decorator for functions in class.

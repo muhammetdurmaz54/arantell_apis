@@ -56,7 +56,7 @@ def extract_ship_configs(ship_imo: int,
         raise HTTPException(status_code=400,
                             detail="Only XLS/XLSX files allowed.")
 
-    extract = ConfigExtractor(ship_imo=ship_imo,file=df)
+    extract = ConfigExtractor(ship_imo=ship_imo,file=df, override=override)
     result = extract.do_steps()
 
     return {"filename": file.filename}
