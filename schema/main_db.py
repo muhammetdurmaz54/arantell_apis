@@ -2,17 +2,17 @@
 import datetime
 
 document = {
-   "ship_imo": 9876543,
-   "date": datetime.datetime(2020, 5, 17),
-   "historical":False,
-   "daily_data": {
+    "ship_imo": 9876543,
+    "date": datetime.datetime(2020, 5, 17), #add timestamp as well
+    "historical":False,
+    "daily_data": { #200
        'rpm': {
          "identifier":"rpm",
          "name": "RPM",
-         "reported":70,
-         "processed": 70,
+         "reported":70, #done
+         "processed": 70, #done
          "is_outlier": False,
-         "results":"Passed",
+         "results":True,
          "z_score": -2.1,
          "unit":"rpm",
          "statement":"RPM is Low",
@@ -24,7 +24,7 @@ document = {
                 "ly": [71,72,73],
                 "dd": [71,72,73]
          }},
-        'speed':  {
+       'foc':  {
          "identifier":"speed",
          "name": "Speed",
          "reported":70,
@@ -67,19 +67,45 @@ document = {
             "processed": 73.856743,
             "type": "location",
         },
-
     },
     "indices": {
         "index1": {
             "identifier": "index1",
             "processed":70,
-            "type": "continuous",
+            "type": "ml",
         },
         "index2": {
             "identifier": "index2",
             "processed": 23,
-            "type": "continuous",
+            "type": "formula",
         },
+    },
+    "faults":{
+        "fault1":{
+            "probability":20,
+            "triggered":False,
+            "resolved":None,
+            "feedback_code": None,
+            "feedback_remarks":None,
+        },
+        "fault2": {
+            "probability": 90,
+            "triggered": True,
+            "resolved": False,
+            "feedback_code": 2,
+            "feedback_remarks": "Comments by user",
+        },
+        "fault3": {
+            "probability": 10,
+            "triggered": False,
+            "resolved": None,
+            "feedback_code": None,
+            "feedback_remarks": None,
+        },
+    },
+    "health_status":{
+        "air_cooler":80,
+        "sea_water_pump":90,
     }
 }
 

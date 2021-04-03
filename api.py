@@ -20,6 +20,7 @@ app = FastAPI()
 router = APIRouter()
 
 api_key_header_auth = APIKeyHeader(name=os.getenv('API_KEY_NAME'), auto_error=True)
+
 class dd_type(str, Enum):
     fuel = "fuel"
     engine = "engine"
@@ -38,7 +39,6 @@ def get_status():
     Returns API Status
     """
     return {"status": "Yesss"}
-
 
 
 @router.post("/extract_shipconfigs")
@@ -63,8 +63,7 @@ def extract_ship_configs(ship_imo: int,
     return {"filename": file.filename}
 
 
-
-@router.post("/extract_dd",)
+@router.post("/extract_dd")
 def extract_daily_data(ship_imo: int,
                        date: datetime.date,
                        type: dd_type,
@@ -95,11 +94,10 @@ def extract_daily_data(ship_imo: int,
 
 @router.post("/generate_stats")
 def extract_stats(ship_imo: int,
-                       from_date: datetime.date,
-                       to_date: datetime.date,
-                       override : bool,
-                       all: bool,
-                       file: UploadFile = File(...)):
+                   from_date: datetime.date,
+                   to_date: datetime.date,
+                   override : bool,
+                   all: bool):
     """
     ## Generate Stats for particular ship
     - **ship_imo** : IMO number 7 digits

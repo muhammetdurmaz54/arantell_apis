@@ -42,6 +42,16 @@ document = {
 
 		"data_available_nav": ['amb_tmp','cpress','sea_st','rpm','speed'], #FUel==Nav data
 		"data_available_engine": ['ext_temp1','ext_temp2','ext_temp3','sw1_pres'],
+		"available_forms":[
+			{
+			'type':'Lub Oil Report',
+			'file':'luboilreport.xls',
+			},
+			{
+			'type':'Engine Decarbonization Report',
+			'file':'enginedecarbonizationreport.xls',
+			},
+		],
 
 		"identifier_mapping":{ #source:destination
 			"amb_tmp":"amb_tmp",
@@ -78,9 +88,7 @@ document = {
 			},
 			}
 		},
-
 }
-
 
 
 

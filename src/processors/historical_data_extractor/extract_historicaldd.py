@@ -28,7 +28,6 @@ def check_status(func) -> object:
                 self.error = True
                 self.traceback_msg = f"Error in {func.__name__}(): {e}"
                 log.info(f"Error in {func.__name__}(): {e}")
-
         else:
             res = None
             log.info(f"Did not execute {func.__name__}")
