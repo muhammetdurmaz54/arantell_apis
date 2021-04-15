@@ -1,9 +1,14 @@
+import sys 
+sys.path.insert(1,"projectfolder path")
 from src.db.setup_mongo import connect_db
 from src.configurations.logging_config import CommonLogger
 from src.helpers.check_status import check_status
 from src.db.schema.ship import Ship
 import pandas as pd
 import numpy as np
+from mongoengine import *
+from pymongo import MongoClient
+import os
 
 log = CommonLogger(__name__,debug=True).setup_logger()
 
@@ -37,73 +42,94 @@ class ConfigExtractor():
     @check_status
     def connect(self):
 
-        self.db = connect_db()
+       self.db = connect_db()
+    
 
+    
     @check_status
     def read_files(self):
         self.df_configurations = pd.read_excel(self.file, sheet_name='Configurations')
         self.df_variables = pd.read_excel(self.file, sheet_name='Variables')
+        
+    
+
+    def stat(self,s):
+            self.dest={}
+    
+            for i,row in self.df_variables.iterrows():
+                
+                for k in s:
+                    if row['Identifer NEW']==k:
+                        self.dest[k]=row['Source Data']
+            
+            return self.dest
 
     @check_status
     def process_file(self):
-        limit = {}
-        data_values = {}
+        self.limit = {}
+        
 
         self.ship_imo = self.df_configurations['Value'][0]
         self.ship_name = self.df_configurations['Value'][1]
         self.ship_description = self.df_configurations['Value'][2]
 
-        self.data_available_nav = list(self.df_variables[self.df_variables['Type']=='fuel']['IdentifierNEW'])
+        self.data_available_nav = list(self.df_variables[self.df_variables['Type']=='fuel']['Identifer NEW'])
 
-        self.data_available_engine = list(self.df_variables[self.df_variables['Type']=='engine']['IdentifierNEW'])
+        self.data_available_engine = list(self.df_variables[self.df_variables['Type']=='engine']['Identifer NEW'])
 
-        self.identifier_mapping = dict(zip(self.df_variables[self.df_variables['Type'] != np.NaN]['SourceIdentifier'], self.df_variables[self.df_variables['Type'] != np.NaN]['IdentifierNEW']))
-        self.identifier_mapping = dict((k, v) for k, v in self.identifier_mapping.items() if not (type(k) == float and np.isnan(k)))
+        self.nulli=self.df_variables[self.df_variables['Identifer NEW'] != np.NaN]
+        #identifier_mapping = dict(zip(variables_file['Source Identifier'],variables_file['Identifer NEW']))
+        self.identifier_mapping = dict(zip(self.nulli['Identifer NEW'],self.nulli['Source Identifier']))
+        #identifier_mapping = dict((k,v) for k, v in identifier_mapping.items() if not (type(k) == float and np.isnan(k)))
+        self.static = list(self.df_variables[self.df_variables['Type']=='static']['Identifer NEW'])
+        
+
+        for k, v in self.identifier_mapping.items():
+            if type(v) == float and np.isnan(v):
+
+                self.identifier_mapping[k]=k
+        if(self.identifier_mapping[np.NaN]):
+            del self.identifier_mapping[np.NaN]
+        
+
+        for i in range(0, len(self.df_variables['Identifer NEW'])):   #Fetches column Identifier_NEW from
+            if self.df_variables['Type'][i] != 'static':               #variables_file checks if type is 'static'   #converts into dictionary
+                self.limit[self.df_variables['Identifer NEW'][i]] = {  
+                    
+                    
+                    'name':self.df_variables['Identifer NEW'][i],
+                    'unit':self.df_variables['Units'][i],
+                    'category':self.df_variables['Category'][i],
+                    'subcategory':self.df_variables['SubCategory'][i],
+                    'limits':{
+                    'type': self.df_variables['Limit Type'][i],
+                    'min': self.df_variables['Limit High'][i],
+                    'max': self.df_variables['Limit Low'][i]
+                    
+                    }
+                }
+        
+        self.limit = dict((k,v) for k, v in self.limit.items() if not (type(k) == float and np.isnan(k)))
 
         
 
-        for row in self.df_variables.itertuples():
-	        if row.Type == 'static':
-		        continue
-	        else:
-		        limit[row.IdentifierNEW] = {
-                    'type': row.LimitType,
-                    'min': row.LimitLow,
-                    'max': row.LimitHigh
-                }
-        
-        limit = dict((k,v) for k, v in limit.items() if not (type(k) == float and np.isnan(k)))
-
-        for row in self.df_variables.itertuples():
-            if row.Type == 'static':
-                continue
-            else:
-                data_values[row.IdentifierNEW] = {
-                    'name': row.IdentifierNEW,
-                    'unit': row.Units,
-                    'category': row.Category,
-                    'subcategory': row.SubCategory,
-                    'limits': limit[row.IdentifierNEW]
-                }
-
-        data_values = dict((k,v) for k, v in data_values.items() if not (type(k) == float and np.isnan(k)))
-
-        self.data = dict(data_values)
+       
 
 
     
     @check_status
     def write_configs(self):
-
+        
 
         ship = Ship(
             ship_imo = self.ship_imo,
             ship_name = self.ship_name,
             ship_description = self.ship_description,
+            static_data=self.stat(self.static),
             data_available_nav = self.data_available_nav,
             data_available_engine = self.data_available_engine,
             identifier_mapping = self.identifier_mapping,
-            data = self.data
+            data = self.limit
         )
 
         if self.override:
@@ -117,3 +143,10 @@ class ConfigExtractor():
                 ship.save()
             else:
                 return "Record already exists!"
+
+
+#obj=ConfigExtractor(9591301,'config file path',True)
+#obj.read_files()
+#obj.process_file()
+
+#obj.write_configs()
