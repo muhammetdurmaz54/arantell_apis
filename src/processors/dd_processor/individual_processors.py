@@ -112,7 +112,7 @@ class IndividualProcessors():
     def trim_processor(self,base_dict):
         base_dict=base_dict
         base_dict["isoutlier"] = False
-        base_dict['processed'] = self.daily_data['data']['dft_aft']-i['data']['dft_fwd']
+        base_dict['processed'] = self.daily_data['data']['dft_aft']-self.daily_data['data']['dft_fwd']
         ophigh=self.ship_configs['data']['trim']['limits']['ophigh']
         oplow=self.ship_configs['data']['trim']['limits']['oplow']
         olmax=self.ship_configs['data']['trim']['limits']['olmax']
@@ -188,7 +188,7 @@ class IndividualProcessors():
     def speed_sog_processor(self,base_dict):
         base_dict=base_dict
         base_dict["isoutlier"] = False
-        base_dict['processed'] = self.daily_data['data']['dst_last']/i['data']['stm_hrs']
+        base_dict['processed'] = self.daily_data['data']['dst_last']/self.daily_data['data']['stm_hrs']
         ophigh=self.ship_configs['data']['speed_sog']['limits']['ophigh']
         oplow=self.ship_configs['data']['speed_sog']['limits']['oplow']
         #olmax=self.ship_configs['data']['speed_sog']['limits']['olmax']    using formula
