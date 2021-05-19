@@ -42,8 +42,8 @@ class StatsGenerator():
     def get_main_db(self):
         maindb =database.get_collection("Main_db")
         self.main_db =maindb.find({"ship_imo": self.ship_imo})
-        self.main_db_o=maindb.find({"ship_imo": self.ship_imo})[0]
-        self.main_db_l=maindb.find({"ship_imo": self.ship_imo})[self.main_db.count()-1]
+        self.main_db_o=maindb.find({"ship_imo": self.ship_imo})[0]    #from date ==will be taken from init
+        self.main_db_l=maindb.find({"ship_imo": self.ship_imo})[self.main_db.count()-1]   #to date == will be taken from init
         
 
     def process_main_db(self):
@@ -59,13 +59,13 @@ class StatsGenerator():
         self.daily_data={}
         for key,val in self.stats.items():
             self.daily_data[key]={
-                "mean":float(self.process_mean(val)),
-                "median":float(self.process_median()),
-                "mode":float(self.process_mode()),
-                "variance":float(self.process_variance()),
-                "standard_deviation":float(self.process_deiviation()),
-                "min":float(self.process_min()),
-                "max":float(self.process_max())
+                "mean":float(round(self.process_mean(val),3)),
+                "median":float(round(self.process_median(),3)),
+                "mode":float(round(self.process_mode(),3)),
+                "variance":float(round(self.process_variance(),3)),
+                "standard_deviation":float(round(self.process_deiviation(),3)),
+                "min":float(round(self.process_min(),3)),
+                "max":float(round(self.process_max(),3))
             }
         
         return self.daily_data    
@@ -118,8 +118,8 @@ class StatsGenerator():
         self.ship_stats={}
         self.ship_stats["ship_imo"]=self.ship_imo
         self.ship_stats["added_on"]= datetime.utcnow()
-        self.ship_stats["from_date"] = self.main_db_o["date"]
-        self.ship_stats["to_date"]= self.main_db_l["date"]
+        self.ship_stats["from_date"] = self.main_db_o["date"]   #to be taken from init later
+        self.ship_stats["to_date"]= self.main_db_l["date"]   # to be taken from init later
         self.ship_stats["samples"]=self.main_db.count()
         self.ship_stats["daily_data"]=self.process_main_db()
         self.ship_stats["weather_api"]={}

@@ -156,10 +156,6 @@ class Processor():
         
             
 
-        
-
-    
-
     @check_status
     def get_ship_stats(self):
         ship_stats_collection = self.database.ship_stats
