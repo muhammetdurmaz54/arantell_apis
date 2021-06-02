@@ -1,5 +1,6 @@
+from math import nan
 import sys 
-sys.path.insert(1,"projectfolder path")
+sys.path.insert(1,"F:\\Afzal_cs\\Internship\\arantell_apis-main")
 from src.db.setup_mongo import connect_db
 from src.configurations.logging_config import CommonLogger
 from src.helpers.check_status import check_status
@@ -11,6 +12,7 @@ import pandas as pd
 import numpy as np
 
 log = CommonLogger(__name__, debug=True).setup_logger()
+connect("aranti")
 
 
 
@@ -32,17 +34,24 @@ class DailyInsert:
             data_available_engine= i.data_available_engine
             identifier_mapping=i.identifier_mapping
             data={}
+            temp_fuel1=fuel.drop([identifier_mapping["rpm"]],axis=1)
+            temp_fuel1=temp_fuel1.drop([identifier_mapping["rep_per"]],axis=1)
+            temp_fuel1=temp_fuel1.drop([identifier_mapping["utc_gmt"]],axis=1)
+            temp_eng1=eng.drop([identifier_mapping["rpm"]],axis=1)
+            temp_eng1=temp_eng1.drop([identifier_mapping["rep_per"]],axis=1)
+            temp_eng1=temp_eng1.drop([identifier_mapping["utc_gmt"]],axis=1)
+
+
             temp_fuel=fuel[fuel[identifier_mapping["ship_imo"]]==ship_imo]
             temp_eng=eng[eng[identifier_mapping["ship_imo"]]==ship_imo]
-            mer=pd.merge(temp_fuel,temp_eng,on=[identifier_mapping["rep_dt"],identifier_mapping["ship_imo"]])
-            merg1=pd.merge(temp_fuel,temp_eng,on=[identifier_mapping["rep_dt"],identifier_mapping["ship_imo"]],how="left",indicator="indicator")
-            merg2=pd.merge(temp_fuel,temp_eng,on=[identifier_mapping["rep_dt"],identifier_mapping["ship_imo"]],how="right",indicator="indicator")
+            mer=pd.merge(temp_fuel,temp_eng1,on=[identifier_mapping["rep_dt"],identifier_mapping["ship_imo"]])
+            merg1=pd.merge(temp_fuel,temp_eng1,on=[identifier_mapping["rep_dt"],identifier_mapping["ship_imo"]],how="left",indicator="indicator")
+            merg2=pd.merge(temp_fuel1,temp_eng,on=[identifier_mapping["rep_dt"],identifier_mapping["ship_imo"]],how="right",indicator="indicator")
             merg11=merg1[merg1["indicator"]!="both"]    #only fuel data is indicated
             merg22=merg2[merg2["indicator"]!="both"]    #only eng data is indicated
             temp_alldata=data_available_nav[:]
             temp_alldata.extend(data_available_engine)
-
-
+            
       
         
             
@@ -101,12 +110,16 @@ class DailyInsert:
     def getdata(self,row,data_available_nav,identifier_mapping):
         dest={}
         for w in data_available_nav:
-            if w in row:
-                dest[w]=row[w]
-            elif identifier_mapping[w] in row:
-                dest[w]=row[identifier_mapping[w]]
+            try:
+                if w in row:
+                    dest[w]=row[w]
+                elif identifier_mapping[w] in row:
+                    dest[w]=row[identifier_mapping[w]]
+            except KeyError:
+                continue    
+            
         return dest
 
 
-#obj=DailyInsert('fuelfile path','engine file path')
-#obj.dailydata_insert()
+obj=DailyInsert('F:\Afzal_cs\Internship\Arvind data files\RTM FUEL.xlsx','F:\Afzal_cs\Internship\Arvind data files\RTM ENGINE.xlsx')
+obj.dailydata_insert()

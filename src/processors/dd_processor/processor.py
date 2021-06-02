@@ -1,5 +1,5 @@
 import sys 
-sys.path.insert(1,"arantell_apis-main")
+sys.path.insert(1,"F:\\Afzal_cs\\Internship\\arantell_apis-main")
 from src.db.setup_mongo import connect_db
 from src.processors.dd_processor.individual_processors import IndividualProcessors
 from src.configurations.logging_config import CommonLogger
@@ -67,7 +67,7 @@ def check_status(func) -> object:
     return wrapper"""
 
 
-class Processor():
+class MainDB():
     """def __init__(self,ship_imo,date,override):
         self.database= None
         self.ship_configs = None
@@ -115,7 +115,8 @@ class Processor():
                   name=None,
                   reported=None,
                   processed=None,
-                  isoutlier=None,
+                  within_outlier_limits=None,
+                  within_operational_limits=None,
                   results=None,
                   z_score=None,
                   unit=None,
@@ -127,7 +128,8 @@ class Processor():
                 "name": name,
                 "reported": reported,
                 "processed": processed,
-                "isoutlier": isoutlier,
+                "within_outlier_limits": within_outlier_limits,
+                "within_operational_limits": within_operational_limits,
                 "results": results,
                 "z_score": z_score,
                 "unit": unit,
@@ -143,7 +145,6 @@ class Processor():
         """ship_configs_collection = self.database.ship_configs
         self.ship_configs = ship_configs_collection.find({"ship_imo": int(self.ship_imo)})[0]"""
         ship_configs_collection = database.get_collection("ship")
-        
         self.ship_configs = ship_configs_collection.find({"ship_imo": self.ship_imo})[0]
         
 
@@ -153,7 +154,7 @@ class Processor():
         self.daily_data = daily_data_collection.find({"ship_imo": int(self.ship_imo)})[0]"""
         daily_data_collection =database.get_collection("daily_data")
         self.daily_data = daily_data_collection.find({"ship_imo": self.ship_imo})[index]
-        
+        #self.daily_data = daily_data_collection.find({"ship_imo": self.ship_imo})[0]
             
 
     @check_status
@@ -169,11 +170,23 @@ class Processor():
                               unit=self.ship_configs['data'][identifier]['unit'],
                               reported=self.daily_data['data'][identifier])"""
 
+    def within_good_voyage_limits(self):
+        default=True
+        steaminghrs=self.daily_data['data']['stm_hrs']
+        speedonground=self.daily_data['data']['speed_ship_sog']
+        shipmaxspeed=self.ship_configs['static_data']['ship_maxspeed']
+        cp_speed=self.daily_data['data']['cp_speed']
+        if steaminghrs<18 or speedonground<(shipmaxspeed-4) or speedonground<(cp_speed-3):
+            default=False
+            return default
+        else:
+            default=True
+            return default
 
     #@check_status
     def process_daily_data(self):
     
-        self.data =  {}
+        self.processed_daily_data =  {}
         IP = IndividualProcessors(configs=self.ship_configs,dd=self.daily_data)
         for key,val in self.ship_configs['data'].items():
             
@@ -181,36 +194,73 @@ class Processor():
             
             try:
                 self.ship_configs['data'][key]
-                self.data[key] = eval("IP."+key+"_processor")(base_dict) # IP.rpm_processor(base_dict)
+                self.processed_daily_data[key] = eval("IP."+key.strip()+"_processor")(base_dict) # IP.rpm_processor(base_dict)
             except KeyError:
                 continue
             except AttributeError:
                 continue
+
+        print(self.processed_daily_data)
         
-    @check_status
+    #@check_status
     def process_weather_api_data(self):
-        self.weather_data = {}
+        weather_api_data = 1 #= {}
+        return weather_api_data
 
-    @check_status
+    #@check_status
     def process_position_api_data(self):
-        self.position_data = {}
+        position_api_data = 1
+        return position_api_data
 
-    @check_status
+    #@check_status
     def process_indices(self):
-        self.indices_data = {}
+        indices = 1 # Actual data here
+        return indices
+    
+    #@check_status
+    def process_positions(self):
+        faults_data = 1 # Actual data here
+        return faults_data
+
+    #@check_status
+    def process_faults(self):
+        faults_data = 1 # Actual data here
+        return faults_data
+
+    #@check_status
+    def process_health_status(self):
+        health_status = 1 # Actual data here
+        return health_status
 
     #@check_status
     def main_db_writer(self):
         
-        self.main_db = {}
+        """self.main_db = {}
         self.main_db["ship_imo"] = self.ship_imo
         self.main_db['date'] = datetime.utcnow()
         self.main_db['historical'] = False
         self.main_db['daily_data'] = self.data
-        self.main_db['weather_api'] = {}
-        self.main_db['position_api'] = {}
-        self.main_db['indices'] = {}
-        db.Main_db.insert_one(self.main_db)
+        self.main_db['weather_api'] = self.process_weather_api_data()
+        self.main_db['position_api'] = self.process_positions()
+        self.main_db['indices'] = self.process_indices()
+        self.main_db['faults']=self.process_faults()
+        self.main_db['health_status']=self.process_health_status()
+        db.Main_db.insert_one(self.main_db)"""
+
+        document = {
+            "ship_imo": self.ship_imo,
+            "date": datetime.utcnow(),
+            "historical":True,
+            "processed_daily_data": self.processed_daily_data,
+            "within_good_voyage_limit":True, #new
+            "weather_api": self.process_weather_api_data(),
+            "position_api": self.process_positions(),
+            "indices": self.process_indices(),
+            "faults": self.process_faults(),
+            "health_status": self.process_health_status()
+        }
+
+        return db.Main_db.insert_one(document).inserted_id
     
     def ad_all(self):
         imo=self.ship_imo
@@ -222,9 +272,23 @@ class Processor():
             self.process_daily_data()
             self.main_db_writer()
 
+    def get_main_db(self):
+        "read maindb"
+    
+    def write_ship_stats(self):
+        "writing into shipstats"
 
-obj=Processor(9591301)
+    def get_ship_stats(self):
+        "read shipstats"
+
+    def update_maindb(self):
+        "calculate zscore and perform calculations on the main db values and update maindb"
+
+
+obj=MainDB(9591301)
 
 obj.get_ship_configs()
 #obj.get_daily_data()
-#obj.ad_all()
+#obj.process_daily_data()
+#obj.main_db_writer()
+obj.ad_all()
