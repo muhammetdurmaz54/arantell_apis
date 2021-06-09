@@ -13,6 +13,15 @@ from pymongo import MongoClient
 import os
 
 log = CommonLogger(__name__,debug=True).setup_logger()
+client = MongoClient("mongodb://localhost:27017/aranti")
+db=client.get_database("aranti")
+    
+
+
+database = db
+
+
+
 
 connect("aranti")
 class ConfigExtractor():
@@ -62,7 +71,7 @@ class ConfigExtractor():
             
             for k in s:
                 if row['Identifer NEW']==k:
-                    self.dest[k]=row['Source Data']
+                    self.dest[k]=row['Static Data']
         
         return self.dest
 
@@ -84,37 +93,36 @@ class ConfigExtractor():
 
     @check_status
     def process_file(self):
-        self.limit = {}
+        self.data = {}
         
 
         self.ship_imo = self.df_configurations['Value'][0]
         self.ship_name = self.df_configurations['Value'][1]
         self.ship_description = self.df_configurations['Value'][2]
     
-        self.data_available_nav = list(self.df_variables[self.df_variables['data_Type']=='N']['Identifer NEW'])
-        self.data_available_nav=self.data_available_nav.__add__(list(self.df_variables[self.df_variables['data_Type']=='N+E']['Identifer NEW']))
+        self.data_available_nav = list(self.df_variables[self.df_variables['Data Type']=='N']['Identifer NEW'].str.strip())
+        self.data_available_nav=self.data_available_nav.__add__(list(self.df_variables[self.df_variables['Data Type']=='N+E']['Identifer NEW']))
 
-        self.data_available_engine = list(self.df_variables[self.df_variables['data_Type']=='E']['Identifer NEW'])
-        self.data_available_engine=self.data_available_engine.__add__(list(self.df_variables[self.df_variables['data_Type']=='N+E']['Identifer NEW']))
+        self.data_available_engine = list(self.df_variables[self.df_variables['Data Type']=='E']['Identifer NEW'].str.strip())
+        self.data_available_engine=self.data_available_engine.__add__(list(self.df_variables[self.df_variables['Data Type']=='N+E']['Identifer NEW']))
 
         self.nulli=self.df_variables[self.df_variables['Identifer NEW'] != np.NaN]
         #identifier_mapping = dict(zip(variables_file['Source Identifier'],variables_file['Identifer NEW']))
         self.identifier_mapping = dict(zip(self.nulli['Identifer NEW'],self.nulli['Source Identifier']))
         #identifier_mapping = dict((k,v) for k, v in identifier_mapping.items() if not (type(k) == float and np.isnan(k)))
-        self.static = list(self.df_variables[self.df_variables['data_Type']=='static']['Identifer NEW'])
+        self.static = list(self.df_variables[self.df_variables['Data Type']=='static']['Identifer NEW'])
         
 
         for k, v in self.identifier_mapping.items():
             if type(v) == float and np.isnan(v):
-
-                self.identifier_mapping[k]=k
+                self.identifier_mapping[k]=str(k).strip()
         if(self.identifier_mapping[np.NaN]):
             del self.identifier_mapping[np.NaN]
         
 
         for i in range(0, len(self.df_variables['Identifer NEW'])):   #Fetches column Identifier_NEW from
-            if self.df_variables['data_Type'][i] != 'static':               #variables_file checks if type is 'static'   #converts into dictionary
-                self.limit[self.df_variables['Identifer NEW'][i]] = {  
+            if self.df_variables['Data Type'][i] != 'static':               #variables_file checks if type is 'static'   #converts into dictionary
+                self.data[self.df_variables['Identifer NEW'][i]] = {  
                     
                     
                     'name':self.df_variables['Identifer NEW'][i],
@@ -124,17 +132,18 @@ class ConfigExtractor():
                     'variable':self.df_variables['Variable'][i],
                     'input':self.df_variables['Input'][i],
                     'output':self.df_variables['Output'][i],
-                    'var_type':self.df_variables['var_type'][i],
+                    'var_type':self.df_variables['Param or Eqpt'][i],    #p=parameter, E=equipment, E1=psuedo equipment or notional equipment
                     'identifier_old':self.df_variables['Identifer OLD'][i],
                     'Derived':self.derived(self.df_variables['Derived'][i]),
                     'Daily Availability':self.derived(self.df_variables['Daily Availability'][i]),
                     'availabe_for_groups':self.availability(self.df_variables['AVAILABLE FOR GROUPS'][i]),
                     'dependent':self.availability(self.df_variables['DEPENDENT?'][i]),
-                    'group_selection':{
+                    'group_selection':[{        #create funtion to get groups
+                        "groupname":"abc",
                         "groupnumber": 1,
-                        "availability_code":1,
-                        "block_number":1
-                    },
+                        "usability_code":1,     #if 1 it is single parameter,if 2 split and look for 20,if 3 split and look for 30 ....
+                        "block_number":1        
+                    },],
                     'limits':{
                     'type': self.df_variables['Limit Type'][i],
                     'oplow': self.df_variables['OP Low'][i],
@@ -145,7 +154,7 @@ class ConfigExtractor():
                     }
                 }
            
-        self.limit = dict((k,v) for k, v in self.limit.items() if not (type(k) == float and np.isnan(k)))
+        self.data = dict((k,v) for k, v in self.data.items() if not (type(k) == float and np.isnan(k)))
 
         
 
@@ -165,7 +174,7 @@ class ConfigExtractor():
             data_available_nav = self.data_available_nav,
             data_available_engine = self.data_available_engine,
             identifier_mapping = self.identifier_mapping,
-            data = self.limit
+            data = self.data
         )
 
         if self.override:
@@ -181,8 +190,15 @@ class ConfigExtractor():
                 return "Record already exists!"
 
 
+    def read_configs(self):
+        ship_configs_collection = database.get_collection("ship")
+
+        self.ship_configs = ship_configs_collection.find({"ship_imo": self.ship_imo})[0]
+
+
 obj=ConfigExtractor(9591301,'F:\Afzal_cs\Internship\ConfiguratorRev_04 A.xlsx',True)
 obj.read_files()
 obj.process_file()
 
 obj.write_configs()
+#obj.read_configs()

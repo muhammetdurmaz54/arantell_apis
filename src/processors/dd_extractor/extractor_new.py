@@ -53,7 +53,7 @@ class DailyInsert:
             temp_alldata.extend(data_available_engine)
             
       
-        
+            
             
             
             for j,row in mer.iterrows():                      #for both cases where rept date and imo are common in both files
@@ -108,12 +108,13 @@ class DailyInsert:
                 daily_nav.save()
 
     def getdata(self,row,data_available_nav,identifier_mapping):
+        
         dest={}
         for w in data_available_nav:
             try:
                 if w in row:
                     dest[w]=row[w]
-                elif identifier_mapping[w] in row:
+                elif identifier_mapping[w].strip() in row:
                     dest[w]=row[identifier_mapping[w]]
             except KeyError:
                 continue    

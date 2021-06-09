@@ -1,8 +1,7 @@
-
 import sys 
-sys.path.insert(1,"arantell_apis-main")
+sys.path.insert(1,"F:\\Afzal_cs\\Internship\\arantell_apis-main")
 from src.db.setup_mongo import connect_db
-from src.processors.dd_processor.processor import Processor
+from src.processors.dd_processor.processor import Main_db
 from src.configurations.logging_config import CommonLogger
 from datetime import datetime
 from src.db.schema.main import Main_db
@@ -31,8 +30,9 @@ class StatsGenerator():
                  all):
         pass"""
 
-    def __init__(self,ship_imo):
+    def __init__(self,ship_imo,):
         self.ship_imo = ship_imo
+        
         pass
 
     def connect_db(self):
@@ -49,7 +49,7 @@ class StatsGenerator():
     def process_main_db(self):
         self.stats={}
         for main_key in range(self.main_db.count()):
-            for i,j in self.main_db[main_key]['daily_data'].items():
+            for i,j in self.main_db[main_key]['processed_daily_data'].items():
                 if i in self.stats:
                     self.stats[i].append(j['processed'])
                 else:
@@ -127,7 +127,7 @@ class StatsGenerator():
         self.ship_stats["indices"]={}
         db.Ship_Stats.insert_one(self.ship_stats)
 
-
+        
 obj=StatsGenerator(9591301)
 obj.get_main_db()
 obj.process_main_db()
