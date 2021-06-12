@@ -111,14 +111,13 @@ class ConfigExtractor():
         self.identifier_mapping = dict(zip(self.nulli['Identifer NEW'],self.nulli['Source Identifier']))
         #identifier_mapping = dict((k,v) for k, v in identifier_mapping.items() if not (type(k) == float and np.isnan(k)))
         self.static = list(self.df_variables[self.df_variables['Data Type']=='static']['Identifer NEW'])
-        
 
         for k, v in self.identifier_mapping.items():
             if type(v) == float and np.isnan(v):
                 self.identifier_mapping[k]=str(k).strip()
         if(self.identifier_mapping[np.NaN]):
             del self.identifier_mapping[np.NaN]
-        
+        self.identifier_mapping = { x.translate({32:None}) : y for x, y in self.identifier_mapping.items()}
 
         for i in range(0, len(self.df_variables['Identifer NEW'])):   #Fetches column Identifier_NEW from
             if self.df_variables['Data Type'][i] != 'static':               #variables_file checks if type is 'static'   #converts into dictionary
@@ -156,7 +155,7 @@ class ConfigExtractor():
            
         self.data = dict((k,v) for k, v in self.data.items() if not (type(k) == float and np.isnan(k)))
 
-        
+        self.data = { x.translate({32:None}) : y for x, y in self.data.items()}
 
        
 

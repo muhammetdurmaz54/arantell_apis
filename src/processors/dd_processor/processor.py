@@ -1,4 +1,6 @@
-import sys 
+import sys
+
+import pandas 
 sys.path.insert(1,"F:\\Afzal_cs\\Internship\\arantell_apis-main")
 from src.db.setup_mongo import connect_db
 from src.processors.dd_processor.individual_processors import IndividualProcessors
@@ -149,12 +151,12 @@ class MainDB():
         
 
     #@check_status
-    def get_daily_data(self,index):
+    def get_daily_data(self):
         """daily_data_collection = self.database.daily_data
         self.daily_data = daily_data_collection.find({"ship_imo": int(self.ship_imo)})[0]"""
         daily_data_collection =database.get_collection("daily_data")
-        self.daily_data = daily_data_collection.find({"ship_imo": self.ship_imo})[index]
-        #self.daily_data = daily_data_collection.find({"ship_imo": self.ship_imo})[0]
+        #self.daily_data = daily_data_collection.find({"ship_imo": self.ship_imo})[index]
+        self.daily_data = daily_data_collection.find({"ship_imo": self.ship_imo})[0]
             
 
     @check_status
@@ -164,7 +166,8 @@ class MainDB():
 
     #@check_status
     def build_base_dict(self, identifier):
-        return self.base_dict(identifier=identifier)
+        return self.base_dict(identifier=identifier,
+                              name=self.ship_configs['data'][identifier]['variable'])
         """return self.base_dict(identifier=identifier,
                               name=self.ship_configs['data'][identifier]['name'],
                               unit=self.ship_configs['data'][identifier]['unit'],
@@ -182,6 +185,15 @@ class MainDB():
         else:
             default=True
             return default
+
+    def vessel_load_check(self):
+        vsl_load=self.daily_data['data']['vsl_load']
+        if pandas.isnull(vsl_load):
+            return "not checked"
+        elif vsl_load==1:
+            return "Loaded"
+        elif vsl_load==0:
+            return "Ballast"
 
     #@check_status
     def process_daily_data(self):
@@ -253,6 +265,7 @@ class MainDB():
             "historical":True,
             "processed_daily_data": self.processed_daily_data,
             "within_good_voyage_limit":True, #new
+            "vessel_loaded_check":self.vessel_load_check(),
             "weather_api": self.process_weather_api_data(),
             "position_api": self.process_positions(),
             "indices": self.process_indices(),
@@ -288,7 +301,7 @@ class MainDB():
 obj=MainDB(9591301)
 
 obj.get_ship_configs()
-#obj.get_daily_data()
-#obj.process_daily_data()
+obj.get_daily_data()
+obj.process_daily_data()
 #obj.main_db_writer()
-obj.ad_all()
+#obj.ad_all()
