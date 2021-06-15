@@ -20,21 +20,7 @@ log = CommonLogger(__name__,debug=True).setup_logger()
 
 client = MongoClient("mongodb://localhost:27017/aranti")
 db=client.get_database("aranti")
-    
-
-
 database = db
-ship_configs_collection = database.get_collection("ship")
-
-ship_configs = ship_configs_collection.find({"ship_imo": 9591301})
-
-
-
-
-daily_data_collection = database.get_collection("daily_data")
-daily_data = daily_data_collection.find({"ship_imo": 9591301,"ship_name":"RTM COOK"})
-
-
 
 maindb = database.get_collection("Main_db")
 
@@ -144,16 +130,12 @@ class MainDB():
 
     #@check_status
     def get_ship_configs(self):
-        """ship_configs_collection = self.database.ship_configs
-        self.ship_configs = ship_configs_collection.find({"ship_imo": int(self.ship_imo)})[0]"""
         ship_configs_collection = database.get_collection("ship")
         self.ship_configs = ship_configs_collection.find({"ship_imo": self.ship_imo})[0]
         
 
     #@check_status
     def get_daily_data(self):
-        """daily_data_collection = self.database.daily_data
-        self.daily_data = daily_data_collection.find({"ship_imo": int(self.ship_imo)})[0]"""
         daily_data_collection =database.get_collection("daily_data")
         #self.daily_data = daily_data_collection.find({"ship_imo": self.ship_imo})[index]
         self.daily_data = daily_data_collection.find({"ship_imo": self.ship_imo})[0]
@@ -167,7 +149,8 @@ class MainDB():
     #@check_status
     def build_base_dict(self, identifier):
         return self.base_dict(identifier=identifier,
-                              name=self.ship_configs['data'][identifier]['variable'])
+                              name=self.ship_configs['data'][identifier]['variable'],
+                              unit=self.ship_configs['data'][identifier]['unit'])
         """return self.base_dict(identifier=identifier,
                               name=self.ship_configs['data'][identifier]['name'],
                               unit=self.ship_configs['data'][identifier]['unit'],
