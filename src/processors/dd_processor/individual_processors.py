@@ -1499,166 +1499,66 @@ class IndividualProcessors():
             base_dict['within_outlier_limits']=None #self.get_outlier("jwme_out_temp_min_no",base_dict['processed'])
             base_dict['within_operational_limits']=None #self.get_operational_outlier("jwme_out_temp_min_no",base_dict['processed']) 
         return base_dict
-    #compressing done till here
+    
     def jwc1_used_no_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['reported']=self.daily_data['data']['jwc1_used_no']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=None #self.get_outlier("jwc1_used_no",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("jwc1_used_no",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('jwc1_used_no',base_dict)
 
     def jwc1_fwin_pres_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['reported']=self.daily_data['data']['jwc1_fwin_pres']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=None #self.get_outlier("jwc1_fwin_pres",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("jwc1_fwin_pres",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('jwc1_fwin_pres',base_dict)
 
     def jwc1_swin_temp_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['reported']=self.daily_data['data']['jwc1_swin_temp']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=None #self.get_outlier("jwc1_swin_temp",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("jwc1_swin_temp",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('jwc1_swin_temp',base_dict)
 
     def jwc1_swout_temp_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['reported']=self.daily_data['data']['jwc1_swout_temp']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=None #self.get_outlier("jwc1_swout_temp",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("jwc1_swout_temp",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('jwc1_swout_temp',base_dict)
 
     def jwc1_fwin_temp_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['reported']=self.daily_data['data']['jwc1_fwin_temp']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=None #self.get_outlier("jwc1_fwin_temp",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("jwc1_fwin_temp",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('jwc1_fwin_temp',base_dict)
 
     def jwc1_fwout_temp_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['reported']=self.daily_data['data']['jwc1_fwout_temp']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=None #self.get_outlier("jwc1_fwout_temp",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("jwc1_fwout_temp",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('jwc1_fwout_temp',base_dict)
 
     def jwc1_fwout_pres_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['reported']=self.daily_data['data']['jwc1_fwout_pres']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=None #self.get_outlier("jwc1_fwout_pres",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("jwc1_fwout_pres",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('jwc1_fwout_pres',base_dict)
 
     def jwc1_swin_pres_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['reported']=self.daily_data['data']['jwc1_swin_pres']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=None #self.get_outlier("jwc1_swin_pres",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("jwc1_swin_pres",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('jwc1_swin_pres',base_dict)
 
     def jwc1_swout_pres_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['reported']=self.daily_data['data']['jwc1_swout_pres']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=None #self.get_outlier("jwc1_swout_pres",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("jwc1_swout_pres",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('jwc1_swout_pres',base_dict)
 
     def jwc2_used_no_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['reported']=self.daily_data['data']['jwc2_used_no']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=None #self.get_outlier("jwc2_used_no",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("jwc2_used_no",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('jwc2_used_no',base_dict)
 
     def jwc2_fwin_pres_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['reported']=self.daily_data['data']['jwc2_fwin_pres']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=None #self.get_outlier("jwc2_fwin_pres",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("jwc2_fwin_pres",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('jwc2_fwin_pres',base_dict)
 
     def jwc2_swin_temp_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['reported']=self.daily_data['data']['jwc2_swin_temp']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=None #self.get_outlier("jwc2_swin_temp",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("jwc2_swin_temp",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('jwc2_swin_temp',base_dict)
 
     def jwc2_swout_temp_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['reported']=self.daily_data['data']['jwc2_swout_temp']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=None #self.get_outlier("jwc2_swout_temp",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("jwc2_swout_temp",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('jwc2_swout_temp',base_dict)
 
     def jwc2_fwin_temp_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['reported']=self.daily_data['data']['jwc2_fwin_temp']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=None #self.get_outlier("jwc2_fwin_temp",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("jwc2_fwin_temp",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('jwc2_fwin_temp',base_dict)
 
     def jwc2_fwout_temp_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['reported']=self.daily_data['data']['jwc2_fwout_temp']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=None #self.get_outlier("jwc2_fwout_temp",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("jwc2_fwout_temp",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('jwc2_fwout_temp',base_dict)
 
     def jwc2_fwout_pres_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['reported']=self.daily_data['data']['jwc2_fwout_pres']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=None #self.get_outlier("jwc2_fwout_pres",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("jwc2_fwout_pres",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('jwc2_fwout_pres',base_dict)
 
     def jwc2_swin_pres_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['reported']=self.daily_data['data']['jwc2_swin_pres']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=None #self.get_outlier("jwc2_swin_pres",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("jwc2_swin_pres",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('jwc2_swin_pres',base_dict)
 
     def jwc2_swout_pres_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['reported']=self.daily_data['data']['jwc2_swout_pres']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=None #self.get_outlier("jwc2_swout_pres",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("jwc2_swout_pres",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('jwc2_swout_pres',base_dict)
 
     def pwme_in_pres_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['reported']=self.daily_data['data']['pwme_in_pres']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=None #self.get_outlier("pwme_in_pres",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("pwme_in_pres",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('pwme_in_pres',base_dict)
 
     def pwme_in_temp_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['reported']=self.daily_data['data']['pwme_in_temp']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=None #self.get_outlier("pwme_in_temp",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("pwme_in_temp",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('pwme_in_temp',base_dict)
 
     def pwme_out_tempavg_processor(self,base_dict):
         base_dict=base_dict
@@ -1675,12 +1575,7 @@ class IndividualProcessors():
         return base_dict
 
     def pwme_out_pres_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['reported']=self.daily_data['data']['pwme_out_pres']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=None #self.get_outlier("pwme_out_pres",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("pwme_out_pres",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('pwme_out_pres',base_dict)
 
     def pwme_out_temp_max_no_processor(self,base_dict):
         base_dict=base_dict
@@ -1711,393 +1606,148 @@ class IndividualProcessors():
         return base_dict
 
     def pwc1_used_no_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['reported']=self.daily_data['data']['pwc1_used_no']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=None #self.get_outlier("pwc1_used_no",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("pwc1_used_no",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('pwc1_used_no',base_dict)
 
     def pwc1_fwin_pres_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['reported']=self.daily_data['data']['pwc1_fwin_pres']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=None #self.get_outlier("pwc1_fwin_pres",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("pwc1_fwin_pres",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('pwc1_fwin_pres',base_dict)
 
     def pwc1_swin_temp_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['reported']=self.daily_data['data']['pwc1_swin_temp']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=None #self.get_outlier("pwc1_swin_temp",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("pwc1_swin_temp",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('pwc1_swin_temp',base_dict)
 
     def pwc1_swout_temp_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['reported']=self.daily_data['data']['pwc1_swout_temp']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=None #self.get_outlier("pwc1_swout_temp",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("pwc1_swout_temp",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('pwc1_swout_temp',base_dict)
 
     def pwc1_fwin_temp_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['reported']=self.daily_data['data']['pwc1_fwin_temp']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=None #self.get_outlier("pwc1_fwin_temp",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("pwc1_fwin_temp",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('pwc1_fwin_temp',base_dict)
 
     def pwc1_fwout_temp_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['reported']=self.daily_data['data']['pwc1_fwout_temp']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=None #self.get_outlier("pwc1_fwout_temp",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("pwc1_fwout_temp",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('pwc1_fwout_temp',base_dict)
 
     def pwc1_fwout_pres_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['reported']=self.daily_data['data']['pwc1_fwout_pres']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=None #self.get_outlier("pwc1_fwout_pres",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("pwc1_fwout_pres",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('pwc1_fwout_pres',base_dict)
 
     def pwc1_swin_pres_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['reported']=self.daily_data['data']['pwc1_swin_pres']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=None #self.get_outlier("pwc1_swin_pres",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("pwc1_swin_pres",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('pwc1_swin_pres',base_dict)
 
     def pwc1_swout_pres_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['reported']=self.daily_data['data']['pwc1_swout_pres']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=None #self.get_outlier("pwc1_swout_pres",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("pwc1_swout_pres",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('pwc1_swout_pres',base_dict)
 
     def pwc2_used_no_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['reported']=self.daily_data['data']['pwc2_used_no']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=None #self.get_outlier("pwc2_used_no",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("pwc2_used_no",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('pwc2_used_no',base_dict)
 
     def pwc2_fwin_pres_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['reported']=self.daily_data['data']['pwc2_fwin_pres']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=None #self.get_outlier("pwc2_fwin_pres",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("pwc2_fwin_pres",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('pwc2_fwin_pres',base_dict)
 
     def pwc2_swin_temp_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['reported']=self.daily_data['data']['pwc2_swin_temp']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=None #self.get_outlier("pwc2_swin_temp",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("pwc2_swin_temp",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('pwc2_swin_temp',base_dict)
 
     def pwc2_swout_temp_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['reported']=self.daily_data['data']['pwc2_swout_temp']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=None #self.get_outlier("pwc2_swout_temp",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("pwc2_swout_temp",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('pwc2_swout_temp',base_dict)
 
     def pwc2_fwin_temp_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['reported']=self.daily_data['data']['pwc2_fwin_temp']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=None #self.get_outlier("pwc2_fwin_temp",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("pwc2_fwin_temp",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('pwc2_fwin_temp',base_dict)
 
     def pwc2_fwout_temp_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['reported']=self.daily_data['data']['pwc2_fwout_temp']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=None #self.get_outlier("pwc2_fwout_temp",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("pwc2_fwout_temp",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('pwc2_fwout_temp',base_dict)
 
     def pwc2_fwout_pres_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['reported']=self.daily_data['data']['pwc2_fwout_pres']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=None #self.get_outlier("pwc2_fwout_pres",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("pwc2_fwout_pres",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('pwc2_fwout_pres',base_dict)
 
     def pwc2_swin_pres_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['reported']=self.daily_data['data']['pwc2_swin_pres']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=None #self.get_outlier("pwc2_swin_pres",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("pwc2_swin_pres",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('pwc2_swin_pres',base_dict)
 
     def pwc2_swout_pres_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['reported']=self.daily_data['data']['pwc2_swout_pres']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=None #self.get_outlier("pwc2_swout_pres",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("pwc2_swout_pres",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('pwc2_swout_pres',base_dict)
 
     def lome_xhd_pres_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['reported']=self.daily_data['data']['lome_xhd_pres']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=None #self.get_outlier("lome_xhd_pres",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("lome_xhd_pres",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('lome_xhd_pres',base_dict)
 
     def lome_ib_pres_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['reported']=self.daily_data['data']['lome_ib_pres']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=None #self.get_outlier("lome_ib_pres",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("lome_ib_pres",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('lome_ib_pres',base_dict)
 
     def lome_cc_pres_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['reported']=self.daily_data['data']['lome_cc_pres']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=None #self.get_outlier("lome_cc_pres",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("lome_cc_pres",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('lome_cc_pres',base_dict)
 
     def lome_in_temp_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['reported']=self.daily_data['data']['lome_in_temp']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=None #self.get_outlier("lome_in_temp",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("lome_in_temp",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('lome_in_temp',base_dict)
         
     def lome_out_temp_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['reported']=self.daily_data['data']['lome_out_temp']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=None #self.get_outlier("lome_out_temp",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("lome_out_temp",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('lome_out_temp',base_dict)
 
     def lome_cs_pres_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['reported']=self.daily_data['data']['lome_cs_pres']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=None #self.get_outlier("lome_cs_pres",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("lome_cs_pres",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('lome_cs_pres',base_dict)
 
     def loc_used_no_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['reported']=self.daily_data['data']['loc_used_no']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=None #self.get_outlier("loc_used_no",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("loc_used_no",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('loc_used_no',base_dict)
 
     def loc1_fwin_pres_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['reported']=self.daily_data['data']['loc1_fwin_pres']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=None #self.get_outlier("loc1_fwin_pres",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("loc1_fwin_pres",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('loc1_fwin_pres',base_dict)
 
     def loc1_swin_temp_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['reported']=self.daily_data['data']['loc1_swin_temp']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=None #self.get_outlier("loc1_swin_temp",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("loc1_swin_temp",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('loc1_swin_temp',base_dict)
 
     def loc1_swout_temp_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['reported']=self.daily_data['data']['loc1_swout_temp']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=None #self.get_outlier("loc1_swout_temp",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("loc1_swout_temp",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('loc1_swout_temp',base_dict)
 
     def loc1_loin_temp_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['reported']=self.daily_data['data']['loc1_loin_temp']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=None #self.get_outlier("loc1_loin_temp",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("loc1_loin_temp",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('loc1_loin_temp',base_dict)
 
     def loc1_loout_temp_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['reported']=self.daily_data['data']['loc1_loout_temp']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=None #self.get_outlier("loc1_loout_temp",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("loc1_loout_temp",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('loc1_loout_temp',base_dict)
 
     def loc1_loout_pres_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['reported']=self.daily_data['data']['loc1_loout_pres']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=None #self.get_outlier("loc1_loout_pres",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("loc1_loout_pres",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('loc1_loout_pres',base_dict)
 
     def loc1_swin_pres_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['reported']=self.daily_data['data']['loc1_swin_pres']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=None #self.get_outlier("loc1_swin_pres",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("loc1_swin_pres",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('loc1_swin_pres',base_dict)
 
     def loc1_swout_pres_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['reported']=self.daily_data['data']['loc1_swout_pres']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=None #self.get_outlier("loc1_swout_pres",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("loc1_swout_pres",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('loc1_swout_pres',base_dict)
 
     def loc2_fwin_pres_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['reported']=self.daily_data['data']['loc2_fwin_pres']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=None #self.get_outlier("loc2_fwin_pres",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("loc2_fwin_pres",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('loc2_fwin_pres',base_dict)
 
     def loc2_swin_temp_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['reported']=self.daily_data['data']['loc2_swin_temp']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=None #self.get_outlier("loc2_swin_temp",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("loc2_swin_temp",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('loc2_swin_temp',base_dict)
 
     def loc2_swout_temp_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['reported']=self.daily_data['data']['loc2_swout_temp']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=None #self.get_outlier("loc2_swout_temp",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("loc2_swout_temp",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('loc2_swout_temp',base_dict)
 
     def loc2_loin_temp_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['reported']=self.daily_data['data']['loc2_loin_temp']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=None #self.get_outlier("loc2_loin_temp",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("loc2_loin_temp",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('loc2_loin_temp',base_dict)
 
     def loc2_loout_temp_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['reported']=self.daily_data['data']['loc2_loout_temp']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=None #self.get_outlier("loc2_loout_temp",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("loc2_loout_temp",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('loc2_loout_temp',base_dict)
 
     def loc2_loout_pres_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['reported']=self.daily_data['data']['loc2_loout_pres']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=None #self.get_outlier("loc2_loout_pres",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("loc2_loout_pres",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('loc2_loout_pres',base_dict)
 
     def loc2_swin_pres_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['reported']=self.daily_data['data']['loc2_swin_pres']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=None #self.get_outlier("loc2_swin_pres",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("loc2_swin_pres",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('loc2_swin_pres',base_dict)
 
     def loc2_swout_pres_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['reported']=self.daily_data['data']['loc2_swout_pres']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=None #self.get_outlier("loc2_swout_pres",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("loc2_swout_pres",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('loc2_swout_pres',base_dict)
 
     def sw1_used_no_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['reported']=self.daily_data['data']['sw1_used_no']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=None #self.get_outlier("sw1_used_no",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("sw1_used_no",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('sw1_used_no',base_dict)
 
     def sw1_pres_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['reported']=self.daily_data['data']['sw1_pres']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=None #self.get_outlier("sw1_pres",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("sw1_pres",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('sw1_pres',base_dict)
 
     def sw1_temp_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['reported']=self.daily_data['data']['sw1_temp']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=None #self.get_outlier("sw1_temp",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("sw1_temp",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('sw1_temp',base_dict)
 
     def sw2_used_no_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['reported']=self.daily_data['data']['sw2_used_no']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=None #self.get_outlier("sw2_used_no",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("sw2_used_no",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('sw2_used_no',base_dict)
 
     def sw2_pres_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['reported']=self.daily_data['data']['sw2_pres']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=None #self.get_outlier("sw2_pres",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("sw2_pres",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('sw2_pres',base_dict)
 
     def sw2_temp_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['reported']=self.daily_data['data']['sw2_temp']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=None #self.get_outlier("sw2_temp",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("sw2_temp",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('sw2_temp',base_dict)
 
     def gen_sw_pres_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['reported']=self.daily_data['data']['gen_sw_pres']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=None #self.get_outlier("gen_sw_pres",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("gen_sw_pres",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('gen_sw_pres',base_dict)
 
     def gen_sw_temp_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['reported']=self.daily_data['data']['gen_sw_temp']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=None #self.get_outlier("gen_sw_temp",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("gen_sw_temp",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('gen_sw_temp',base_dict)
