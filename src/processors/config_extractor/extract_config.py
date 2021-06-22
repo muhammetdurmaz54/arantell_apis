@@ -105,7 +105,9 @@ class ConfigExtractor():
         for i in range(0, len(self.df_groups[('', 'id_new')])):
             if self.df_groups[('', 'id_new')][i] in id_new:
                 for j in self.df_groups.iloc[:, 4:]:
+                    
                     new_index = int(j[0].replace('Group', '')) - 1
+                    
                     if self.df_groups[j][i] > 0:
                         newdict = {
                             'name': self.df_groups[('', 'id_new')][i], #Added for convenience
@@ -142,8 +144,12 @@ class ConfigExtractor():
         #identifier_mapping = dict(zip(variables_file['Source Identifier'],variables_file['Identifer NEW']))
         self.identifier_mapping = dict(zip(self.nulli['Identifer NEW'],self.nulli['Source Identifier']))
         #identifier_mapping = dict((k,v) for k, v in identifier_mapping.items() if not (type(k) == float and np.isnan(k)))
-        self.static = list(self.df_variables[self.df_variables['Data Type']=='static']['Identifer NEW'])
-        
+        self.static = list(self.df_variables[self.df_variables['Data Type']=='static']['Identifer NEW'])    
+        self.ais_api=list(self.df_variables[self.df_variables['Data Type']=='AIS/API']['Identifer NEW'])    
+        self.ais_api=self.ais_api.__add__(list(self.df_variables[self.df_variables['Data Type']=='API/AIS']['Identifer NEW']))
+        self.ais_api=self.ais_api.__add__(list(self.df_variables[self.df_variables['Data Type']=='API']['Identifer NEW']))
+        self.ais_api=self.ais_api.__add__(list(self.df_variables[self.df_variables['Data Type']=='AIS']['Identifer NEW']))
+        self.calculated=list(self.df_variables[self.df_variables['Derived'].str.strip()=='YES']['Identifer NEW']) 
 
         for k, v in self.identifier_mapping.items():
             if type(v) == float and np.isnan(v):
@@ -169,6 +175,8 @@ class ConfigExtractor():
                     'category':self.df_variables['Category'][i],
                     'subcategory':self.df_variables['SubCategory'][i],
                     'variable':self.df_variables['Variable'][i],
+                    'source_idetifier':self.df_variables['Source Identifier'][i],
+                    'static_data': self.df_variables['Static Data'][i],
                     'input':self.df_variables['Input'][i],
                     'output':self.df_variables['Output'][i],
                     'var_type':self.df_variables['Param or Eqpt'][i],    #p=parameter, E=equipment, E1=psuedo equipment or notional equipment
@@ -183,8 +191,7 @@ class ConfigExtractor():
                     'oplow': self.df_variables['OP Low'][i],
                     'ophigh': self.df_variables['OP High'][i],
                     'olmin': self.df_variables['OL LOW'][i],
-                    'olmax': self.df_variables['OL High'][i]
-                    
+                    'olmax': self.df_variables['OL High'][i]                  
                     }
                 }
            
@@ -206,6 +213,8 @@ class ConfigExtractor():
             static_data=self.stat(self.static),
             data_available_nav = self.data_available_nav,
             data_available_engine = self.data_available_engine,
+            ais_api_data=self.ais_api,
+            calculated_var=self.calculated,
             identifier_mapping = self.identifier_mapping,
             data = self.data
         )
@@ -229,7 +238,7 @@ class ConfigExtractor():
         self.ship_configs = ship_configs_collection.find({"ship_imo": self.ship_imo})[0]
 
 
-obj=ConfigExtractor(9591301,'F:\Afzal_cs\Internship\ConfiguratorRev_04 A_ambarish.xlsx',True)
+obj=ConfigExtractor(9591301,'F:\Afzal_cs\Internship\ConfiguratorRev_04 A.xlsx',True)
 obj.read_files()
 obj.process_file()
 
