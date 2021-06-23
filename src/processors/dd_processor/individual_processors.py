@@ -1,7 +1,8 @@
 from datetime import date
 import sys
 import pandas
-from pandas.core import base 
+from pandas.core import base
+from pandas.core.dtypes.missing import isnull 
 sys.path.insert(1,"F:\\Afzal_cs\\Internship\\arantell_apis-main")
 #from mongoengine import *
 from src.db.schema.ship import Ship 
@@ -27,20 +28,6 @@ class IndividualProcessors():
         self.ship_configs = configs
         self.daily_data= dd
         pass
-    
-    def get_outlier(self,identifier,identifier_value):
-        identifier=identifier
-        identifier_value=identifier_value
-        check_outlier=CheckOutlier(configs=self.ship_configs)
-        within_outlier_limit=check_outlier.Outlierlimitcheck(identifier,identifier_value)
-        return within_outlier_limit
-
-    def get_operational_outlier(self,identifier,identifier_value):
-        identifier=identifier
-        identifier_value=identifier_value
-        check_outlier=CheckOutlier(configs=self.ship_configs)
-        within_operational_limit=check_outlier.operational_limit(identifier,identifier_value)
-        return within_operational_limit
         
     def to_beaufort(self,x):
     #Takes number(in knots scale) as input, converts into beaufort scale
@@ -134,17 +121,96 @@ class IndividualProcessors():
         except:
             return nullvalue
 
+    def return_variable(self,string):
+        "returns the variable(identifiers) in the formula"
+        txt = string
+        txt_search=[i for i in re.findall("[a-zA-Z0-9_]+",txt) if not i.isdigit()]
+        return txt_search
+
+    def base_formula_daily_data(self,formula_string):
+        "base formula function that is read from shipconfig. fetches variable data present in shipstatic and dailydata to populate maindb"
+        list_var=self.return_variable(formula_string)
+        static_data=self.ship_configs['static_data']
+        daily_data=self.daily_data['data']
+        temp_dict={}
+        for i in list_var:
+            if i in static_data and pandas.isnull(static_data[i])==False:
+                temp_dict[i]=static_data[i]
+            elif i in daily_data and pandas.isnull(daily_data[i])==False:
+                temp_dict[i]=daily_data[i]
+            else:
+                temp_dict[i]=None        
+        return eval(self.eval_val_replacer(temp_dict, formula_string))
+        
+    def eval_val_replacer(self,temp_dict, string):
+        "replaces the identifier with their value"
+        for key in temp_dict.keys():
+            string = re.sub(r"\b" + key + r"\b", str(temp_dict[key]), string, flags=re.I)
+        return string
+
+
     def base_individual_processor(self,identifier,base_dict):
+        "base individual processor for those which has a common structure  or repetetive structure and formulas based on daily data availability. not for those which includes degree or beaufort function"
         base_dict=base_dict
-        base_dict['reported'] = self.daily_data['data'][identifier]   
-        if type(base_dict['reported'])==str:
-            base_dict['reported']=base_dict['reported'].strip()
-                           
-        base_dict['processed'] = base_dict['reported']
-        #base_dict['z_score'] = self.ship_stats
-        base_dict['within_outlier_limits']=None #self.get_outlier(identifier,base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier(identifier,base_dict['processed'])
+        derived=self.ship_configs['data'][identifier]['Derived']
+        source_identifier=self.ship_configs['data'][identifier]['source_idetifier']
+        static_data=self.ship_configs['data'][identifier]['static_data']
+        if derived==False or pandas.isnull(derived):
+            if pandas.isnull(source_identifier)==False:
+                if identifier in self.daily_data['data']:
+                    base_dict['reported'] = self.daily_data['data'][identifier]   
+                    if type(base_dict['reported'])==str:
+                        base_dict['reported']=base_dict['reported'].strip()
+                    else:
+                        base_dict['reported']=base_dict['reported'] 
+                    base_dict['is_read']=True
+                    base_dict['is_processed']=False
+                    base_dict['processed'] = base_dict['reported']
+                elif identifier not in self.daily_data['data']:
+                    base_dict['is_read']=False
+                    base_dict['is_processed']=False              
+            elif pandas.isnull(source_identifier):
+                if pandas.isnull(static_data):
+                    base_dict['reported']=None
+                    base_dict['is_read']=None
+                    base_dict['is_processed']=None
+        elif derived==True and pandas.isnull(derived)==False:
+            if pandas.isnull(source_identifier):
+                if pandas.isnull(static_data)==False:
+                    try:
+                        base_dict['processed']=self.base_formula_daily_data(static_data) 
+                        base_dict['is_read']=False
+                        base_dict['is_processed']=True
+                    except:
+                        base_dict['processed']=None           
+                elif pandas.isnull(static_data):
+                    base_dict['reported']=None
+                    base_dict['is_read']=None
+                    base_dict['is_processed']=None
+            elif pandas.isnull(source_identifier)==False:
+                if identifier in self.daily_data['data']:
+                    base_dict['reported'] = self.daily_data['data'][identifier]   
+                    if type(base_dict['reported'])==str:
+                        base_dict['reported']=base_dict['reported'].strip()
+                    else:
+                        base_dict['reported']=base_dict['reported'] 
+                    base_dict['is_read']=True
+                    base_dict['is_processed']=False
+                    base_dict['processed'] = base_dict['reported']
+                elif identifier not in self.daily_data['data']:
+                    base_dict['is_read']=False
+                    base_dict['is_processed']=False              
         return base_dict        
+
+    def base_avg_minmax_evaluator(self,string):
+        ext_temp={}
+        ext_str=string
+        me_unit_no=self.ship_configs['static_data']['ship_tot_unit_nos']
+        for i in range(1,me_unit_no+1):
+            ext_temp_str=ext_str+str(i)
+            if ext_temp_str in self.daily_data['data']: 
+                ext_temp[ext_temp_str]=self.daily_data['data'][ext_temp_str]
+        return ext_temp
 
     def rpm_processor(self,base_dict):
         return self.base_individual_processor('rpm',base_dict)
@@ -153,24 +219,13 @@ class IndividualProcessors():
         return self.base_individual_processor('dft_fwd',base_dict)
                         
     def dft_aft_processor(self,base_dict):
-        return self.base_individual_processor('dft_aft',base_dict)
-                    
+        return self.base_individual_processor('dft_aft',base_dict)             
 
     def draft_mean_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict["name"]="Draft Mean"
-        base_dict['processed'] = (self.daily_data['data']['dft_aft']+self.daily_data['data']['dft_fwd'])/2
-        base_dict['within_outlier_limits']=self.get_outlier("draft_mean",base_dict['processed'])
-        base_dict['within_operational_limits']=self.get_operational_outlier("draft_mean",base_dict['processed'])        
-        return base_dict
+        return self.base_individual_processor("draft_mean",base_dict)
 
     def trim_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict["name"]="Trim"
-        base_dict['processed'] = self.daily_data['data']['dft_aft']-self.daily_data['data']['dft_fwd']
-        base_dict['within_outlier_limits']=self.get_outlier("trim",base_dict['processed'])
-        base_dict['within_operational_limits']=self.get_operational_outlier("trim",base_dict['processed'])
-        return base_dict        
+        return self.base_individual_processor("trim",base_dict)      
 
     def displ_processor(self,base_dict):
         return self.base_individual_processor('displ',base_dict)   
@@ -178,21 +233,16 @@ class IndividualProcessors():
     def cpress_processor(self,base_dict):
         return self.base_individual_processor('cpress',base_dict)         
             
-    def dst_last_processor(self,base_dict):            #self.get_operational_outlier("dst_last",base_dict['processed']) to be done later once api value is included in function
+    def dst_last_processor(self,base_dict):            
         return self.base_individual_processor('dst_last',base_dict)  
 
     def stm_hrs_processor(self,base_dict):
-        return self.base_individual_processor('stm_hrs',base_dict)             
+        return self.base_individual_processor('stm_hrs',base_dict)            
 
     def speed_sog_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict["name"]="Speed On ground"
-        base_dict['processed'] = self.daily_data['data']['dst_last']/self.daily_data['data']['stm_hrs']
-        base_dict['within_outlier_limits']=self.get_outlier("speed_sog",base_dict['processed'])
-        base_dict['within_operational_limits']=None            #self.get_operational_outlier("speed_sog",base_dict['processed']) to be done later once api value is included in function
-        return base_dict   
-
-    def vessel_head_processor(self,base_dict):     #vessel_head=rel_deg1            self.get_operational_outlier("vessel_head",base_dict['processed']) to be done later once api value is included in function
+        return self.base_individual_processor('speed_sog',base_dict)
+    
+    def vessel_head_processor(self,base_dict):     #vessel_head=rel_deg1           
         return self.base_individual_processor('vessel_head',base_dict)    
 
     def w_force_processor(self,base_dict):
@@ -200,22 +250,18 @@ class IndividualProcessors():
  
     def w_dir_processor(self,base_dict):
         base_dict=base_dict
-        base_dict["name"]="Wind Direction (Compass)"
-        
         base_dict['reported']=self.to_degree(self.daily_data['data']['w_dir'].strip())
         base_dict['processed']=base_dict['reported']
-        base_dict['within_outlier_limits']=self.get_outlier("w_dir",base_dict['processed'])
-        base_dict['within_operational_limits']=self.get_operational_outlier("w_dir",base_dict['processed'])
+        base_dict['is_read']=True
+        base_dict['is_processed']=False
         return base_dict       
         
     def w_dir_rel_processor(self,base_dict):
         base_dict=base_dict
-        base_dict["name"]="Relative Wind Direction"
-      
         wind_dir_deg=self.to_degree(self.daily_data['data']['w_dir'].strip())
         base_dict['processed']=wind_dir_deg - self.daily_data['data']['vessel_head']
-        base_dict['within_outlier_limits']=self.get_outlier("w_dir_rel",base_dict['processed'])
-        base_dict['within_operational_limits']=None            #self.get_operational_outlier("w_dir_rel",base_dict['processed']) to be done later once api value is included in function
+        base_dict['is_read']=True
+        base_dict['is_processed']=False
         return base_dict          
         
     def curknots_processor(self,base_dict):                 
@@ -226,8 +272,6 @@ class IndividualProcessors():
 
     def current_dir_rel_processor(self,base_dict):
         base_dict=base_dict
-      
-        base_dict['name']="Relative Current Direction"
         report=self.daily_data['data']['curfavag']
         if report==None:
             base_dict['processed']="Null"
@@ -236,16 +280,13 @@ class IndividualProcessors():
         elif report=="A" or report=="a" or report=="-":
             base_dict['processed']=180
         else:
-            base_dict['processed']=report
-        base_dict['within_outlier_limits']=self.get_outlier("current_dir_rel",base_dict['processed'])
-        base_dict['within_operational_limits']= None                  #self.get_operational_outlier("current_dir_rel",base_dict['processed'])
-        
+            base_dict['processed']=report   
+        base_dict['is_read']=False
+        base_dict['is_processed']=True     
         return base_dict
 
     def current_rel_0_processor(self,base_dict):
         base_dict=base_dict
-     
-        base_dict['name']="Current 0 Degree cos component"
         report=self.daily_data['data']['curfavag']
         curknots=self.daily_data['data']['curknots']
         if report==None :
@@ -258,15 +299,12 @@ class IndividualProcessors():
             base_dict['processed']=round(curknots*(math.cos(current_dir_rel/57.3)),3)
         elif type(report)==int or type(report)==float:
             base_dict['processed']=base_dict['processed']=round(curknots*(math.cos(report/57.3)),3)
-        base_dict['within_outlier_limits']=self.get_outlier("current_rel_0",base_dict['processed'])
-        base_dict['within_operational_limits']=self.get_operational_outlier("current_rel_0",base_dict['processed'])
-
+        base_dict['is_read']=False
+        base_dict['is_processed']=True
         return base_dict
 
     def current_rel_90_processor(self,base_dict):
         base_dict=base_dict
-      
-        base_dict['name']="Current 0 Degree sine component"
         report=self.daily_data['data']['curfavag']
         curknots=self.daily_data['data']['curknots']
         if report==None:
@@ -279,9 +317,8 @@ class IndividualProcessors():
             base_dict['processed']=round(curknots*(math.sin(current_dir_rel/57.3)),3)
         elif type(report)==int or type(report)==float:
             base_dict['processed']=base_dict['processed']=round(curknots*(math.sin(report/57.3)),3)
-        base_dict['within_outlier_limits']=self.get_outlier("current_rel_90",base_dict['processed'])
-        base_dict['within_operational_limits']=self.get_operational_outlier("current_rel_90",base_dict['processed'])
-
+        base_dict['is_read']=False
+        base_dict['is_processed']=True
         return base_dict
 
     def swell_processor(self,base_dict):
@@ -289,11 +326,10 @@ class IndividualProcessors():
 
     def swelldir_processor(self,base_dict):
         base_dict=base_dict
-        base_dict['name']="Swell Direction Compass"
         base_dict['reported']=self.to_degree(self.daily_data['data']['swelldir'].strip())
         base_dict['processed']=base_dict['reported']
-        base_dict['within_outlier_limits']=self.get_outlier("swelldir",base_dict['processed'])
-        base_dict['within_operational_limits']=None    #self.get_operational_outlier("swelldir",base_dict['processed'])
+        base_dict['is_read']=True
+        base_dict['is_processed']=False
         return base_dict
 
     def swell_dir_rel_processor(self,base_dict):
@@ -304,44 +340,36 @@ class IndividualProcessors():
 
     def swell_rel_0_processor(self,base_dict):
         base_dict=base_dict
-        base_dict['name']="Swell Direction-Cos Component"
-     
         swell_dir_rel=self.daily_data['data']['swell_dir_rel']
         base_dict['processed']=math.cos(swell_dir_rel/57.3)
-        base_dict['within_outlier_limits']=self.get_outlier("swell_rel_0",base_dict['processed'])
-        base_dict['within_operational_limits']=self.get_operational_outlier("swell_rel_0",base_dict['processed'])
+        base_dict['is_read']=False
+        base_dict['is_processed']=True
         return base_dict
 
     def swell_rel_90_processor(self,base_dict):
         base_dict=base_dict
-        base_dict['name']="Swell Direction-Sine Component"
-     
         swell_dir_rel=self.daily_data['data']['swell_dir_rel']
         base_dict['processed']=math.sin(swell_dir_rel/57.3)
-        base_dict['within_outlier_limits']=self.get_outlier("swell_rel_90",base_dict['processed'])
-        base_dict['within_operational_limits']=self.get_operational_outlier("swell_rel_90",base_dict['processed'])
+        base_dict['is_read']=False
+        base_dict['is_processed']=True
         return base_dict
     
     def w_rel_0_processor(self,base_dict):
         base_dict=base_dict
-        base_dict["name"]="Relative Wind Direction COS Component"
-  
         wind_dir_deg=self.to_degree(self.daily_data['data']['w_dir'].strip())
         w_dir_rel=wind_dir_deg - self.daily_data['data']['vessel_head']           
-        base_dict['processed']=math.cos(w_dir_rel/57.3)    
-        base_dict['within_outlier_limits']=self.get_outlier("w_rel_0",base_dict['processed'])
-        base_dict['within_operational_limits']=self.get_operational_outlier("w_rel_0",base_dict['processed'])               
+        base_dict['processed']=math.cos(w_dir_rel/57.3)     
+        base_dict['is_read']=False
+        base_dict['is_processed']=True
         return base_dict
         
     def w_rel_90_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict["name"]="Relative Wind Direction SIN Component"
-     
+        base_dict=base_dict    
         wind_dir_deg=self.to_degree(self.daily_data['data']['w_dir'].strip())
         w_dir_rel=wind_dir_deg - self.daily_data['data']['vessel_head']
         base_dict['processed']=math.sin(w_dir_rel/57.3)
-        base_dict['within_outlier_limits']=self.get_outlier("w_rel_90",base_dict['processed'])
-        base_dict['within_operational_limits']=self.get_operational_outlier("w_rel_90",base_dict['processed']) 
+        base_dict['is_read']=False
+        base_dict['is_processed']=True
         return base_dict
 
     def rep_dt_processor(self,base_dict):                        
@@ -424,11 +452,10 @@ class IndividualProcessors():
     
     def amb_tmp_i_processor(self,base_dict):
         base_dict=base_dict
-        base_dict['name']="Ambient Temp"
         base_dict['reported'] = 0  #to be read from API/AIS data
         base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=self.get_outlier("amb_tmp_i",base_dict['processed'])
-        base_dict['within_operational_limits']=self.get_operational_outlier("amb_tmp_i",base_dict['processed'])  
+        base_dict['is_read']=True
+        base_dict['is_processed']=False
         return base_dict
 
     def rel_hum_processor(self,base_dict):
@@ -436,11 +463,10 @@ class IndividualProcessors():
 
     def cpress_i_processor(self,base_dict):
         base_dict=base_dict
-        base_dict['name']="Barometric Pressure"
         base_dict['reported'] = 0  #to be read from API/AIS data
         base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=self.get_outlier("cpress_i",base_dict['processed'])
-        base_dict['within_operational_limits']=self.get_operational_outlier("cpress_i",base_dict['processed'])  
+        base_dict['is_read']=True
+        base_dict['is_processed']=False
         return base_dict
 
     def weather_processor(self,base_dict):
@@ -448,11 +474,10 @@ class IndividualProcessors():
 
     def sea_st_processor(self,base_dict):
         base_dict=base_dict
-        base_dict['name']="Sea State (Number)"
         base_dict['reported'] = self.process_sea_st(self.daily_data['data']['sea_st'],None)
         base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=self.get_outlier("sea_st",base_dict['processed'])
-        base_dict['within_operational_limits']=self.get_operational_outlier("sea_st",base_dict['processed'])  #not done both outlier and operational
+        base_dict['is_read']=True
+        base_dict['is_processed']=False
         return base_dict
 
     def sea_st_txt_processor(self,base_dict):
@@ -463,118 +488,102 @@ class IndividualProcessors():
 
     def w_speed_i_processor(self,base_dict):
         base_dict=base_dict
-        base_dict['name']="wind_speed_i"
         base_dict['reported'] = 0  #to be read from api
         base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=self.get_outlier("w_speed_i",base_dict['processed'])
-        base_dict['within_operational_limits']=self.get_operational_outlier("w_speed_i",base_dict['processed'])  #not done both outlier and operational
+        base_dict['is_read']=True
+        base_dict['is_processed']=False
         return base_dict
 
     def w_dir_deg_i_processor(self,base_dict):
         base_dict=base_dict
-        base_dict['name']="Wind_direction_i"
         base_dict['reported'] = 0  #to be read from api
         base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=self.get_outlier("w_dir_deg_i",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("w_dir_deg",base_dict['processed'])  
+        base_dict['is_read']=True
+        base_dict['is_processed']=False  
         return base_dict
 
     def w_dir_deg_processor(self,base_dict):
         base_dict=base_dict
-        base_dict['name']="Wind Direction Compass Deg"
         base_dict['reported'] = self.to_degree(self.daily_data['data']['w_dir_deg'].strip())
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=self.get_outlier("w_dir_deg",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("w_dir_deg",base_dict['processed'])  
+        base_dict['processed'] = base_dict['reported'] 
+        base_dict['is_read']=True
+        base_dict['is_processed']=False
         return base_dict
 
     def swell_i_processor(self,base_dict):
         base_dict=base_dict
-        base_dict['name']="Swell Wave Height. API/AIS"
         val=0 #to be read from api
         if type(val)==str:
             base_dict['reported']=self.to_degree(val.strip())
         else:
             base_dict['reported']=val
         base_dict['processed']=base_dict['reported']
-        base_dict['within_outlier_limits']=self.get_outlier("swell_i",base_dict['processed'])
-        base_dict['within_operational_limits']=self.get_operational_outlier("swell_i",base_dict['processed'])
+        base_dict['is_read']=True
+        base_dict['is_processed']=False
         return base_dict
 
     def swelldir_deg_processor(self,base_dict):
         base_dict=base_dict
-        base_dict['name']="SWell Direction Deg"
         val=self.daily_data['data']['swelldir_deg']
         if type(val)==str:
             base_dict['reported']=self.to_degree(val.strip())
         else:
             base_dict['reported']=val
         base_dict['processed']=base_dict['reported']
-        base_dict['within_outlier_limits']=self.get_outlier("swelldir_deg",base_dict['processed'])
-        base_dict['within_operational_limits']=self.get_operational_outlier("swelldir_deg",base_dict['processed'])
+        base_dict['is_read']=True
+        base_dict['is_processed']=False
         return base_dict
 
     def swelldir_deg_i_processor(self,base_dict):
         base_dict=base_dict
-        base_dict['name']="SWell Direction Deg API"
         val="NE" #to be read from api
         if type(val)==str:
             base_dict['reported']=self.to_degree(val.strip())
         else:
             base_dict['reported']=val
         base_dict['processed']=base_dict['reported']
-        base_dict['within_outlier_limits']=self.get_outlier("swelldir_deg_i",base_dict['processed'])
-        base_dict['within_operational_limits']=self.get_operational_outlier("swelldir_deg_i",base_dict['processed'])
+        base_dict['is_read']=True
+        base_dict['is_processed']=False
         return base_dict
 
     def vessel_head_i_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict["name"]="VesselRelativeHeading from AIS"
-        
+        base_dict=base_dict       
         base_dict['reported']=0  #to be read from api
         base_dict['processed']=base_dict['reported']
-        base_dict['within_outlier_limits']=self.get_outlier("vessel_head_i",base_dict['processed'])
-        base_dict['within_operational_limits']=self.get_operational_outlier("vessel_head_i",base_dict['processed']) 
+        base_dict['is_read']=True
+        base_dict['is_processed']=False
         return base_dict
 
     def w_dir_rel_i_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict["name"]="Relative Wind Direction from AIS/API"
-      
+        base_dict=base_dict      
         wind_dir_deg="NE"      #to be read from api
         if type(wind_dir_deg)==str:
             wind_dir_deg_i=self.to_degree(wind_dir_deg.strip())
         else:
             wind_dir_deg_i=wind_dir_deg
         base_dict['processed']=wind_dir_deg_i - self.daily_data['data']['vessel_head']
-        base_dict['within_outlier_limits']=self.get_outlier("w_dir_rel_i",base_dict['processed'])
-        base_dict['within_operational_limits']=self.get_operational_outlier("w_dir_rel_i",base_dict['processed'])
+        base_dict['is_read']=True
+        base_dict['is_processed']=False
         return base_dict
 
     def swell_dir_rel_i_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['name']="Relative Swell Direction from AIS/API"
-     
+        base_dict=base_dict   
         base_dict['reported']=40 #to be read from api
         base_dict['processed']=base_dict['reported']
-        base_dict['within_outlier_limits']=self.get_outlier("swell_dir_rel_i",base_dict['processed'])
-        base_dict['within_operational_limits']=self.get_operational_outlier("swell_dir_rel_i",base_dict['processed'])
+        base_dict['is_read']=True
+        base_dict['is_processed']=False
         return base_dict
 
     def curknots_i_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict["name"]="Current from AIS/API"
-  
+        base_dict=base_dict 
         base_dict['reported']=6     #to be read from api
         base_dict['processed']=base_dict['reported']
-        base_dict['within_outlier_limits']=self.get_outlier("curknots_i",base_dict['processed'])
-        base_dict['within_operational_limits']= self.get_operational_outlier("curknots_i",base_dict['processed'])
+        base_dict['is_read']=True
+        base_dict['is_processed']=False
         return base_dict
 
     def current_dir_rel_i_processor(self,base_dict):
         base_dict=base_dict
-      
-        base_dict['name']="Relative current direction from AIS/API"
         report="a"  #to be read from api
         if report==None:
             base_dict['processed']="Null"
@@ -584,18 +593,16 @@ class IndividualProcessors():
             base_dict['processed']=180
         else:
             base_dict['processed']=report
-        base_dict['within_outlier_limits']=self.get_outlier("current_dir_rel_i",base_dict['processed'])
-        base_dict['within_operational_limits']=self.get_operational_outlier("current_dir_rel_i",base_dict['processed'])
+        base_dict['is_read']=True
+        base_dict['is_processed']=False
         return base_dict
 
     def dst_last_i_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict["name"]="Distance since last reporting"
-        
+        base_dict=base_dict       
         base_dict['reported'] = 0  #to be read from api
         base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=self.get_outlier("dst_last_i",base_dict['processed'])
-        base_dict['within_operational_limits']=self.get_operational_outlier("dst_last_i",base_dict['processed']) 
+        base_dict['is_read']=True
+        base_dict['is_processed']=False
         return base_dict
 
     def stm_tot_processor(self,base_dict):
@@ -609,17 +616,14 @@ class IndividualProcessors():
 
     def speed_sog_i_processor(self,base_dict):
         base_dict=base_dict
-        base_dict["name"]="Speed On Ground from AIS"
         base_dict['reported']=0 #to be read from api
         base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=self.get_outlier("speed_sog_i",base_dict['processed'])
-        base_dict['within_operational_limits']=None            #self.get_operational_outlier("speed_sog_i",base_dict['processed']) to be done later once api value is included in function
+        base_dict['is_read']=True
+        base_dict['is_processed']=False
         return base_dict
 
     def speed_stw_calc_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['name']=self.ship_configs['data']['speed_stw_calc']['variable']
-       
+        base_dict=base_dict      
         speed_sog=self.daily_data['data']['dst_last']/self.daily_data['data']['stm_hrs']
         report=self.daily_data['data']['curfavag']
         curknots=self.daily_data['data']['curknots']
@@ -634,35 +638,30 @@ class IndividualProcessors():
         else:
             current_dir_rel=self.daily_data['data']['current_dir_rel']
             base_dict['processed']=speed_sog-round(curknots*(math.cos(current_dir_rel/57.3)),3)
-        base_dict['within_outlier_limits']=self.get_outlier("speed_stw_calc",base_dict['processed'])
-        base_dict['within_operational_limits']=None    #self.get_operational_outlier("speed_stw_calc",base_dict['processed'])
+        base_dict['is_read']=False
+        base_dict['is_processed']=True
         return base_dict
 
     def speed_stw_i_processor(self,base_dict):
         base_dict=base_dict
-        base_dict["name"]=self.ship_configs['data']['speed_stw_i']['variable']
         base_dict['reported']=0 #to be read from api
         base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=self.get_outlier("speed_stw_i",base_dict['processed'])
-        base_dict['within_operational_limits']=None            #self.get_operational_outlier("speed_stw_i",base_dict['processed']) to be done later once api value is included in function
+        base_dict['is_read']=True
+        base_dict['is_processed']=False
         return base_dict
 
     def real_slip_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict["name"]=self.ship_configs['data']['real_slip']['variable']
-        base_dict['reported']=(self.daily_data['data']['edist']-self.daily_data['data']['odist'])/self.daily_data['data']['edist']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=self.get_outlier("real_slip",base_dict['processed'])
-        base_dict['within_operational_limits']=None            #self.get_operational_outlier("real_slip",base_dict['processed']) to be done later once api value is included in function
-        return base_dict
+        return self.base_individual_processor('real_slip',base_dict)
+    
+    def real_slip_calc_processor(self,base_dict):
+        return self.base_individual_processor('real_slip_calc',base_dict)
 
     def real_slip_i_processor(self,base_dict):
         base_dict=base_dict
-        base_dict["name"]=self.ship_configs['data']['real_slip_i']['variable']
         base_dict['reported']=0 #to be read from api
         base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=self.get_outlier("real_slip_i",base_dict['processed'])
-        base_dict['within_operational_limits']=None            #self.get_operational_outlier("real_slip_i",base_dict['processed']) to be done later once api value is included in function
+        base_dict['is_read']=True
+        base_dict['is_processed']=False
         return base_dict
 
     def dst_togo_processor(self,base_dict):
@@ -708,22 +707,10 @@ class IndividualProcessors():
         return self.base_individual_processor('main_do',base_dict)
 
     def main_fuel_per_dst_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict["name"]=self.ship_configs['data']['main_fuel_per_dst']['variable']
-        
-        base_dict['processed'] = self.daily_data['data']['main_hfo']/self.daily_data['data']['dst_last']
-        base_dict['within_outlier_limits']=None #self.get_outlier("main_fuel_per_dst",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("main_fuel_per_dst",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('main_fuel_per_dst',base_dict)
 
     def main_total_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict["name"]=self.ship_configs['data']['main_total']['variable']
-        
-        base_dict['processed'] = self.daily_data['data']['main_lsfo']+self.daily_data['data']['main_hsdo']+self.daily_data['data']['main_lsdo']+self.daily_data['data']['main_hfo']+self.daily_data['data']['main_do']
-        base_dict['within_outlier_limits']=None #self.get_outlier("main_total",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("main_total",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('main_total',base_dict)
 
     def gen_lsfo_processor(self,base_dict):
         return self.base_individual_processor('gen_lsfo',base_dict)
@@ -756,39 +743,19 @@ class IndividualProcessors():
         return self.base_individual_processor('boiler_do',base_dict)
 
     def avg_lsfo_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['processed'] = (self.daily_data['data']['main_lsfo'] * 24) / self.daily_data['data']['stm_hrs']
-        base_dict['within_outlier_limits']=None #self.get_outlier("avg_lsfo",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("avg_lsfo",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('avg_lsfo',base_dict) 
 
     def avg_hsdo_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['processed'] = (self.daily_data['data']['main_hsdo'] * 24) / self.daily_data['data']['stm_hrs']
-        base_dict['within_outlier_limits']=None #self.get_outlier("avg_hsdo",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("avg_hsdo",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('avg_hsdo',base_dict) 
 
     def avg_lsdo_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['processed'] = (self.daily_data['data']['main_lsdo'] * 24) / self.daily_data['data']['stm_hrs']
-        base_dict['within_outlier_limits']=None #self.get_outlier("avg_lsdo",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("avg_lsdo",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('avg_lsdo',base_dict) 
 
     def avg_hfo_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['processed'] = (self.daily_data['data']['main_hfo'] * 24) / self.daily_data['data']['stm_hrs']
-        base_dict['within_outlier_limits']=None #self.get_outlier("avg_hfo",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("avg_hfo",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('avg_hfo',base_dict) 
 
     def avg_do_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['processed'] = (self.daily_data['data']['main_do'] * 24) / self.daily_data['data']['stm_hrs']
-        base_dict['within_outlier_limits']=None #self.get_outlier("avg_do",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("avg_do",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('avg_do',base_dict) 
     
     def ch_lsfo_processor(self,base_dict):
         return self.base_individual_processor('ch_lsfo',base_dict)
@@ -869,12 +836,7 @@ class IndividualProcessors():
         return self.base_individual_processor('es',base_dict)
 
     def es_calc_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['reported']=self.daily_data['data']['es_calc']
-        base_dict['processed'] = base_dict['reported']
-        base_dict['within_outlier_limits']=None #self.get_outlier("es_calc",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("es_calc",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('es_calc',base_dict) 
 
     def edist_processor(self,base_dict):
         return self.base_individual_processor('edist',base_dict)
@@ -886,34 +848,10 @@ class IndividualProcessors():
         return self.base_individual_processor('pwr',base_dict)
 
     def slip_o_processor(self,base_dict):
-        base_dict=base_dict
-        base_dict['processed'] = ((self.daily_data['data']['edist']-self.daily_data['data']['odist'])/self.daily_data['data']['edist'])*100
-        base_dict['within_outlier_limits']=None #self.get_outlier("slip_o",base_dict['processed'])
-        base_dict['within_operational_limits']=None #self.get_operational_outlier("slip_o",base_dict['processed']) 
-        return base_dict
+        return self.base_individual_processor('slip_o',base_dict) 
 
     def pwr_perc_processor(self,base_dict):
-        base_dict=base_dict
-        try:
-            base_dict['reported']=self.daily_data['data']['pwr_perc']
-            base_dict['processed']=base_dict['reported']
-            if (base_dict['processed']>=((self.daily_data['data']['pwr']/self.ship_configs['static_data']['ship_enginemaxpower'])*100)-1) and (base_dict['processed']<=((self.daily_data['data']['pwr']/self.ship_configs['static_data']['ship_enginemaxpower'])*100)+1):
-                base_dict['within_outlier_limits']=True #self.get_outlier("slip_o",base_dict['processed'])
-                base_dict['within_operational_limits']=True #self.get_operational_outlier("slip_o",base_dict['processed']) 
-            else:
-                base_dict['within_outlier_limits']=False #self.get_outlier("slip_o",base_dict['processed'])
-                base_dict['within_operational_limits']=False #self.get_operational_outlier("slip_o",base_dict['processed']) 
-            return base_dict
-
-        except:
-            base_dict['processed']=(self.daily_data['data']['pwr']/self.ship_configs['static_data']['ship_enginemaxpower'])*100
-            if (base_dict['processed']>=((self.daily_data['data']['pwr']/self.ship_configs['static_data']['ship_enginemaxpower'])*100)-1) and (base_dict['processed']<=((self.daily_data['data']['pwr']/self.ship_configs['static_data']['ship_enginemaxpower'])*100)+1):
-                base_dict['within_outlier_limits']=True #self.get_outlier("slip_o",base_dict['processed'])
-                base_dict['within_operational_limits']=True #self.get_operational_outlier("slip_o",base_dict['processed']) 
-            else:
-                base_dict['within_outlier_limits']=False #self.get_outlier("slip_o",base_dict['processed'])
-                base_dict['within_operational_limits']=False #self.get_operational_outlier("slip_o",base_dict['processed']) 
-            return base_dict
+        return self.base_individual_processor('pwr_perc',base_dict) 
 
     def fo_serv_temp_processor(self,base_dict):
         return self.base_individual_processor('fo_serv_temp',base_dict)
@@ -1121,194 +1059,122 @@ class IndividualProcessors():
 
     def peak_presavg_processor(self,base_dict):
         base_dict=base_dict
-        peak_pres={}
-        peak_str="peak_pres"
-        for i in range(1,13):
-            peak_temp_str=peak_str + str(i)
-            if peak_temp_str in self.daily_data['data']: 
-                peak_pres[peak_temp_str]=self.daily_data['data'][peak_temp_str]
+        peak_pres=self.base_avg_minmax_evaluator("peak_pres")
         if len(peak_pres)>0:
             base_dict['processed'] = sum(peak_pres.values())/len(peak_pres.values())
-            base_dict['within_outlier_limits']=None #self.get_outlier("peak_presavg",base_dict['processed'])
-            base_dict['within_operational_limits']=None #self.get_operational_outlier("peak_presavg",base_dict['processed']) 
+            base_dict['is_read']=False
+            base_dict['is_processed']=True
         return base_dict
 
     def peak_presmax_no_processor(self,base_dict):
         base_dict=base_dict
-        peak_pres={}
-        peak_str="peak_pres"
-        for i in range(1,13):
-            peak_temp_str=peak_str + str(i)
-            if peak_temp_str in self.daily_data['data']: 
-                peak_pres[peak_temp_str]=self.daily_data['data'][peak_temp_str]
+        peak_pres=self.base_avg_minmax_evaluator("peak_pres")
         if len(peak_pres)>0:
             base_dict['processed'] = max(peak_pres,key=peak_pres.get)
-            base_dict['within_outlier_limits']=None #self.get_outlier("peak_presmax_no",base_dict['processed'])
-            base_dict['within_operational_limits']=None #self.get_operational_outlier("peak_presmax_no",base_dict['processed']) 
+            base_dict['is_read']=False
+            base_dict['is_processed']=True
         return base_dict
 
     def peak_presmin_no_processor(self,base_dict):
         base_dict=base_dict
-        peak_pres={}
-        peak_str="peak_pres"
-        for i in range(1,13):
-            peak_temp_str=peak_str + str(i)
-            if peak_temp_str in self.daily_data['data']: 
-                peak_pres[peak_temp_str]=self.daily_data['data'][peak_temp_str]
+        peak_pres=self.base_avg_minmax_evaluator("peak_pres")
         if len(peak_pres)>0:
             base_dict['processed'] = min(peak_pres,key=peak_pres.get)
-            base_dict['within_outlier_limits']=None #self.get_outlier("peak_presmin_no",base_dict['processed'])
-            base_dict['within_operational_limits']=None #self.get_operational_outlier("peak_presmin_no",base_dict['processed']) 
+            base_dict['is_read']=False
+            base_dict['is_processed']=True
         return base_dict
     
     def peakpres_maxmin_diff_processor(self,base_dict):
         base_dict=base_dict
-        peak_pres={}
-        peak_str="peak_pres"
-        for i in range(1,13):
-            peak_temp_str=peak_str + str(i)
-            if peak_temp_str in self.daily_data['data']: 
-                peak_pres[peak_temp_str]=self.daily_data['data'][peak_temp_str]
+        peak_pres=self.base_avg_minmax_evaluator("peak_pres")
         if len(peak_pres)>1:
             max_val=max(peak_pres.values())
             min_val=min(peak_pres.values())
             base_dict['processed'] = max_val-min_val
-            base_dict['within_outlier_limits']=None #self.get_outlier("peakpres_maxmin_diff",base_dict['processed'])
-            base_dict['within_operational_limits']=None #self.get_operational_outlier("peakpres_maxmin_diff",base_dict['processed']) 
+            base_dict['is_read']=False
+            base_dict['is_processed']=True
         elif len(peak_pres)>0 and len(peak_pres)==1 :
             base_dict['processed'] = "only 1 value "
-            base_dict['within_outlier_limits']=None #self.get_outlier("peakpres_maxmin_diff",base_dict['processed'])
-            base_dict['within_operational_limits']=None #self.get_operational_outlier("peakpres_maxmin_diff",base_dict['processed']) 
         return base_dict
 
     def comp_presavg_processor(self,base_dict):
         base_dict=base_dict
-        comp_pres={}
-        comp_str="comp_pres"
-        for i in range(1,13):
-            comp_temp_str=comp_str + str(i)
-            if comp_temp_str in self.daily_data['data']: 
-                comp_pres[comp_temp_str]=self.daily_data['data'][comp_temp_str]
-        
+        comp_pres=self.base_avg_minmax_evaluator("comp_pres")    
         if len(comp_pres)>0:
             base_dict['processed'] = sum(comp_pres.values())/len(comp_pres)
-            base_dict['within_outlier_limits']=None #self.get_outlier("comp_presavg",base_dict['processed'])
-            base_dict['within_operational_limits']=None #self.get_operational_outlier("comp_presavg",base_dict['processed'])
+            base_dict['is_read']=False
+            base_dict['is_processed']=True
         return base_dict
 
     def comp_presmax_no_processor(self,base_dict):
         base_dict=base_dict
-        comp_pres={}
-        comp_str="comp_pres"
-        for i in range(1,13):
-            comp_temp_str=comp_str + str(i)
-            if comp_temp_str in self.daily_data['data']: 
-                comp_pres[comp_temp_str]=self.daily_data['data'][comp_temp_str]
-        
+        comp_pres=self.base_avg_minmax_evaluator("comp_pres")         
         if len(comp_pres)>0:
             base_dict['processed'] = max(comp_pres,key=comp_pres.get)
-            base_dict['within_outlier_limits']=None #self.get_outlier("comp_presmax_no",base_dict['processed'])
-            base_dict['within_operational_limits']=None #self.get_operational_outlier("comp_presmax_no",base_dict['processed'])
+            base_dict['is_read']=False
+            base_dict['is_processed']=True
         return base_dict
 
     def comp_presmin_no_processor(self,base_dict):
         base_dict=base_dict
-        comp_pres={}
-        comp_str="comp_pres"
-        for i in range(1,13):
-            comp_temp_str=comp_str + str(i)
-            if comp_temp_str in self.daily_data['data']: 
-                comp_pres[comp_temp_str]=self.daily_data['data'][comp_temp_str]
-        
+        comp_pres=self.base_avg_minmax_evaluator("comp_pres")         
         if len(comp_pres)>0:
             base_dict['processed'] = min(comp_pres,key=comp_pres.get)
-            base_dict['within_outlier_limits']=None #self.get_outlier("comp_presmin_no",base_dict['processed'])
-            base_dict['within_operational_limits']=None #self.get_operational_outlier("comp_presmin_no",base_dict['processed'])
+            base_dict['is_read']=False
+            base_dict['is_processed']=True
         return base_dict
 
     def comppres_maxmin_diff_processor(self,base_dict):
         base_dict=base_dict
-        comp_pres={}
-        comp_str="comp_pres"
-        for i in range(1,13):
-            comp_temp_str=comp_str + str(i)
-            if comp_temp_str in self.daily_data['data']: 
-                comp_pres[comp_temp_str]=self.daily_data['data'][comp_temp_str]
-        
+        comp_pres=self.base_avg_minmax_evaluator("comp_pres")        
         if len(comp_pres)>1:
             max_val=max(comp_pres.values())
             min_val=min(comp_pres.values())
             base_dict['processed'] = max_val-min_val
-            base_dict['within_outlier_limits']=None #self.get_outlier("comp_presmin_no",base_dict['processed'])
-            base_dict['within_operational_limits']=None #self.get_operational_outlier("comp_presmin_no",base_dict['processed'])
-
+            base_dict['is_read']=False
+            base_dict['is_processed']=True
         elif len(comp_pres)>0 and len(comp_pres)==1 :
             base_dict['processed'] = "only 1 value "
-            base_dict['within_outlier_limits']=None #self.get_outlier("peakpres_maxmin_diff",base_dict['processed'])
-            base_dict['within_operational_limits']=None #self.get_operational_outlier("peakpres_maxmin_diff",base_dict['processed']) 
         return base_dict
 
     def ext_tempavg_processor(self,base_dict):
         base_dict=base_dict
-        ext_temp={}
-        ext_str="ext_temp"
-        for i in range(1,13):
-            ext_temp_str=ext_str + str(i)
-            if ext_temp_str in self.daily_data['data']: 
-                ext_temp[ext_temp_str]=self.daily_data['data'][ext_temp_str]
+        ext_temp=self.base_avg_minmax_evaluator("ext_temp")
         if len(ext_temp)>0:
             base_dict['processed'] = sum(ext_temp.values())/len(ext_temp)
-            base_dict['within_outlier_limits']=None #self.get_outlier("ext_tempavg",base_dict['processed'])
-            base_dict['within_operational_limits']=None #self.get_operational_outlier("ext_tempavg",base_dict['processed']) 
+            base_dict['is_read']=False
+            base_dict['is_processed']=True
         return base_dict
 
     def ext_max_no_processor(self,base_dict):
         base_dict=base_dict
-        ext_temp={}
-        ext_str="ext_temp"
-        for i in range(1,13):
-            ext_temp_str=ext_str + str(i)
-            if ext_temp_str in self.daily_data['data']: 
-                ext_temp[ext_temp_str]=self.daily_data['data'][ext_temp_str]
+        ext_temp=self.base_avg_minmax_evaluator("ext_temp")
         if len(ext_temp)>0:
             base_dict['processed'] = max(ext_temp,key=ext_temp.get)
-            base_dict['within_outlier_limits']=None #self.get_outlier("ext_max_no",base_dict['processed'])
-            base_dict['within_operational_limits']=None #self.get_operational_outlier("ext_max_no",base_dict['processed']) 
+            base_dict['is_read']=False
+            base_dict['is_processed']=True
         return base_dict
 
     def ext_min_no_processor(self,base_dict):
         base_dict=base_dict
-        ext_temp={}
-        ext_str="ext_temp"
-        for i in range(1,13):
-            ext_temp_str=ext_str + str(i)
-            if ext_temp_str in self.daily_data['data']: 
-                ext_temp[ext_temp_str]=self.daily_data['data'][ext_temp_str]
+        ext_temp=self.base_avg_minmax_evaluator("ext_temp")
         if len(ext_temp)>0:
-            base_dict['processed'] = min(ext_temp,key=ext_temp.get)
-            base_dict['within_outlier_limits']=None #self.get_outlier("ext_min_no",base_dict['processed'])
-            base_dict['within_operational_limits']=None #self.get_operational_outlier("ext_min_no",base_dict['processed']) 
+            base_dict['processed'] = min(ext_temp,key=ext_temp.get)   
+            base_dict['is_read']=False
+            base_dict['is_processed']=True
         return base_dict
 
     def ext_maxmin_diff_processor(self,base_dict):
         base_dict=base_dict
-        ext_temp={}
-        ext_str="ext_temp"
-        for i in range(1,13):
-            ext_temp_str=ext_str + str(i)
-            if ext_temp_str in self.daily_data['data']: 
-                ext_temp[ext_temp_str]=self.daily_data['data'][ext_temp_str]
+        ext_temp= self.base_avg_minmax_evaluator('ext_temp') 
         if len(ext_temp)>1:
             max_val=max(ext_temp.values())
             min_val=min(ext_temp.values())
             base_dict['processed'] =max_val-min_val
-            base_dict['within_outlier_limits']=None #self.get_outlier("ext_maxmin_diff",base_dict['processed'])
-            base_dict['within_operational_limits']=None #self.get_operational_outlier("ext_maxmin_diff",base_dict['processed']) 
-
+            base_dict['is_read']=False
+            base_dict['is_processed']=True
         elif len(ext_temp)>0 and len(ext_temp)==1 :
             base_dict['processed'] = "only 1 value "
-            base_dict['within_outlier_limits']=None #self.get_outlier("peakpres_maxmin_diff",base_dict['processed'])
-            base_dict['within_operational_limits']=None #self.get_operational_outlier("peakpres_maxmin_diff",base_dict['processed']) 
         return base_dict
 
     def ext_pres_processor(self,base_dict):
@@ -1458,15 +1324,11 @@ class IndividualProcessors():
     def jwme_out_tempavg_processor(self,base_dict):
         base_dict=base_dict
         jwme_temp={}
-        jwme_str="jwme_out_temp"
-        for i in range(1,13):
-            jwme_temp_str=jwme_str + str(i)
-            if jwme_temp_str in self.daily_data['data']: 
-                jwme_temp[jwme_temp_str]=self.daily_data['data'][jwme_temp_str]
+        jwme_str=self.base_avg_minmax_evaluator("jwme_out_temp")
         if len(jwme_temp)>0:
             base_dict['processed'] = sum(jwme_temp.values())/len(jwme_temp)
-            base_dict['within_outlier_limits']=None #self.get_outlier("jwme_out_tempavg",base_dict['processed'])
-            base_dict['within_operational_limits']=None #self.get_operational_outlier("jwme_out_tempavg",base_dict['processed']) 
+            base_dict['is_read']=False
+            base_dict['is_processed']=True
         return base_dict
 
     def jwme_out_pres_processor(self,base_dict):
@@ -1475,29 +1337,20 @@ class IndividualProcessors():
     def jwme_out_temp_max_no_processor(self,base_dict):
         base_dict=base_dict
         jwme_temp={}
-        jwme_str="jwme_out_temp"
-        for i in range(1,13):
-            jwme_temp_str=jwme_str + str(i)
-            if jwme_temp_str in self.daily_data['data']: 
-                jwme_temp[jwme_temp_str]=self.daily_data['data'][jwme_temp_str]
+        jwme_str=self.base_avg_minmax_evaluator("jwme_out_temp")
         if len(jwme_temp)>0:
             base_dict['processed'] = max(jwme_temp,key=jwme_temp.get)
-            base_dict['within_outlier_limits']=None #self.get_outlier("jwme_out_temp_max_no",base_dict['processed'])
-            base_dict['within_operational_limits']=None #self.get_operational_outlier("jwme_out_temp_max_no",base_dict['processed']) 
+            base_dict['is_read']=False
+            base_dict['is_processed']=True
         return base_dict
 
     def jwme_out_temp_min_no_processor(self,base_dict):
         base_dict=base_dict
-        jwme_temp={}
-        jwme_str="jwme_out_temp"
-        for i in range(1,13):
-            jwme_temp_str=jwme_str + str(i)
-            if jwme_temp_str in self.daily_data['data']: 
-                jwme_temp[jwme_temp_str]=self.daily_data['data'][jwme_temp_str]
+        jwme_temp=self.base_avg_minmax_evaluator("jwme_out_temp")
         if len(jwme_temp)>0:
             base_dict['processed'] = min(jwme_temp,key=jwme_temp.get)
-            base_dict['within_outlier_limits']=None #self.get_outlier("jwme_out_temp_min_no",base_dict['processed'])
-            base_dict['within_operational_limits']=None #self.get_operational_outlier("jwme_out_temp_min_no",base_dict['processed']) 
+            base_dict['is_read']=False
+            base_dict['is_processed']=True
         return base_dict
     
     def jwc1_used_no_processor(self,base_dict):
@@ -1562,16 +1415,11 @@ class IndividualProcessors():
 
     def pwme_out_tempavg_processor(self,base_dict):
         base_dict=base_dict
-        pwme_temp={}
-        pwme_str="pwme_out_temp"
-        for i in range(1,13):
-            pwme_temp_str=pwme_str + str(i)
-            if pwme_temp_str in self.daily_data['data']: 
-                pwme_temp[pwme_temp_str]=self.daily_data['data'][pwme_temp_str]
+        pwme_temp=self.base_avg_minmax_evaluator("pwme_out_temp")
         if len(pwme_temp)>0:
             base_dict['processed'] = sum(pwme_temp.values())/len(pwme_temp)
-            base_dict['within_outlier_limits']=None #self.get_outlier("pwme_out_tempavg",base_dict['processed'])
-            base_dict['within_operational_limits']=None #self.get_operational_outlier("pwme_out_tempavg",base_dict['processed']) 
+            base_dict['is_read']=False
+            base_dict['is_processed']=True
         return base_dict
 
     def pwme_out_pres_processor(self,base_dict):
@@ -1579,30 +1427,20 @@ class IndividualProcessors():
 
     def pwme_out_temp_max_no_processor(self,base_dict):
         base_dict=base_dict
-        pwme_temp={}
-        pwme_str="pwme_out_temp"
-        for i in range(1,13):
-            pwme_temp_str=pwme_str + str(i)
-            if pwme_temp_str in self.daily_data['data']: 
-                pwme_temp[pwme_temp_str]=self.daily_data['data'][pwme_temp_str]
+        pwme_temp=self.base_avg_minmax_evaluator("pwme_out_temp")
         if len(pwme_temp)>0:
             base_dict['processed'] = max(pwme_temp,key=pwme_temp.get)
-            base_dict['within_outlier_limits']=None #self.get_outlier("pwme_out_temp_max_no",base_dict['processed'])
-            base_dict['within_operational_limits']=None #self.get_operational_outlier("pwme_out_temp_max_no",base_dict['processed']) 
+            base_dict['is_read']=False
+            base_dict['is_processed']=True
         return base_dict
 
     def pwme_out_temp_min_no_processor(self,base_dict):
         base_dict=base_dict
-        pwme_temp={}
-        pwme_str="pwme_out_temp"
-        for i in range(1,13):
-            pwme_temp_str=pwme_str + str(i)
-            if pwme_temp_str in self.daily_data['data']: 
-                pwme_temp[pwme_temp_str]=self.daily_data['data'][pwme_temp_str]
+        pwme_temp=self.base_avg_minmax_evaluator("pwme_out_temp")
         if len(pwme_temp)>0:
             base_dict['processed'] = min(pwme_temp,key=pwme_temp.get)
-            base_dict['within_outlier_limits']=None #self.get_outlier("pwme_out_temp_min_no",base_dict['processed'])
-            base_dict['within_operational_limits']=None #self.get_operational_outlier("pwme_out_temp_min_no",base_dict['processed']) 
+            base_dict['is_read']=False
+            base_dict['is_processed']=True
         return base_dict
 
     def pwc1_used_no_processor(self,base_dict):

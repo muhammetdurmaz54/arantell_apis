@@ -4,6 +4,7 @@ import pandas
 sys.path.insert(1,"F:\\Afzal_cs\\Internship\\arantell_apis-main")
 from src.db.setup_mongo import connect_db
 from src.processors.dd_processor.individual_processors import IndividualProcessors
+from src.processors.dd_processor.update_individual_processor import UpdateIndividualProcessors
 from src.configurations.logging_config import CommonLogger
 from datetime import datetime
 from src.db.schema.main import Main_db
@@ -11,8 +12,8 @@ from src.db.schema.ship import Ship
 from src.db.schema.ddschema import DailyData
 import numpy as np
 from pymongo import MongoClient
-
-
+import random
+from src.processors.config_extractor.outlier import CheckOutlier
 
 
 log = CommonLogger(__name__,debug=True).setup_logger()
@@ -22,7 +23,7 @@ client = MongoClient("mongodb://localhost:27017/aranti")
 db=client.get_database("aranti")
 database = db
 
-maindb = database.get_collection("Main_db")
+
 
 def check_status(func) -> object:
     """
@@ -72,6 +73,20 @@ class MainDB():
           #change later
         pass
 
+    def get_outlier(self,identifier,identifier_value):
+        identifier=identifier
+        identifier_value=identifier_value
+        check_outlier=CheckOutlier(configs=self.ship_configs)
+        within_outlier_limit=check_outlier.Outlierlimitcheck(identifier,identifier_value)
+        return within_outlier_limit
+
+    def get_operational_outlier(self,identifier,identifier_value):
+        identifier=identifier
+        identifier_value=identifier_value
+        check_outlier=CheckOutlier(configs=self.ship_configs)
+        within_operational_limit=check_outlier.operational_limit(identifier,identifier_value)
+        return within_operational_limit  
+
     def raise_error(self, message):
         """
         Whenever there needs to be raised something(error message), which needs to be returned to request, this functions is envoked.
@@ -105,7 +120,8 @@ class MainDB():
                   processed=None,
                   within_outlier_limits=None,
                   within_operational_limits=None,
-                  results=None,
+                  is_read=None,
+                  is_processed=None,
                   z_score=None,
                   unit=None,
                   statement=None,
@@ -118,7 +134,8 @@ class MainDB():
                 "processed": processed,
                 "within_outlier_limits": within_outlier_limits,
                 "within_operational_limits": within_operational_limits,
-                "results": results,
+                "is_read":is_read,
+                "is_processed":is_processed,
                 "z_score": z_score,
                 "unit": unit,
                 "statement": statement,
@@ -135,16 +152,16 @@ class MainDB():
         
 
     #@check_status
-    def get_daily_data(self):
+    def get_daily_data(self,index):
         daily_data_collection =database.get_collection("daily_data")
-        #self.daily_data = daily_data_collection.find({"ship_imo": self.ship_imo})[index]
-        self.daily_data = daily_data_collection.find({"ship_imo": self.ship_imo})[0]
+        self.daily_data = daily_data_collection.find({"ship_imo": self.ship_imo})[index]
+        #self.daily_data = daily_data_collection.find({"ship_imo": self.ship_imo})[0]
             
 
-    @check_status
+    #@check_status
     def get_ship_stats(self):
-        ship_stats_collection = self.database.ship_stats
-        self.ship_stats = ship_stats_collection.find({"ship_imo": int(self.ship_imo)})[0]
+        ship_stats_collection = database.get_collection("Ship_Stats")
+        self.ship_stats = ship_stats_collection.find({"ship_imo": self.ship_imo})[0]
 
     #@check_status
     def build_base_dict(self, identifier):
@@ -176,15 +193,15 @@ class MainDB():
         elif vsl_load==1:
             return "Loaded"
         elif vsl_load==0:
-            return "Ballast"
+            return "Ballast"      
 
     #@check_status
     def process_daily_data(self):
-    
+        "processing dailydata with all identifiers available in ship data"
         self.processed_daily_data =  {}
         IP = IndividualProcessors(configs=self.ship_configs,dd=self.daily_data)
         for key,val in self.ship_configs['data'].items():
-            
+        
             base_dict = self.build_base_dict(key)
             
             try:
@@ -195,8 +212,65 @@ class MainDB():
             except AttributeError:
                 continue
 
-        print(self.processed_daily_data)
+        #print(self.processed_daily_data)
+
+    def get_main_db(self,index):
+        self.maindb = database.get_collection("Main_db")
+        #self.main_data = self.maindb.find({"ship_imo": int(self.ship_imo)})[0]
+        self.main_data = self.maindb.find({"ship_imo": int(self.ship_imo)})[index]
+
+    def process_main_data(self):
+        "processing maindb data for updation ,only processed daily data will be updated."
+        self.base_main_data={}
+        #UIP = UpdateIndividualProcessors(configs=self.ship_configs,md=self.main_data,ss=self.ship_stats)
+        main_data_dict=self.main_data['processed_daily_data']
         
+        for key in main_data_dict:
+            
+            try:
+                main_data_dict_key=main_data_dict[key]
+                #self.base_main_data[key]=eval("UIP."+key+"_processor")(main_data_dict_key) # UIP.rpm_processor(base_dict)
+                
+                if pandas.isnull(main_data_dict_key['processed'])==False:
+                    main_data_dict_key['within_outlier_limits']=self.get_outlier(key,main_data_dict_key['processed'])
+                    main_data_dict_key['within_operational_limits']=self.get_operational_outlier(key,main_data_dict_key['processed'])
+                    
+                    if type(main_data_dict_key['processed'])==int or type(main_data_dict_key['processed'])==float:
+                        if key in self.ship_stats['daily_data']:
+                            if self.ship_stats['daily_data'][key]['standard_deviation']!=0:
+                                main_data_dict_key['z_score']=(main_data_dict_key['processed']-self.ship_stats['daily_data'][key]['mean'])/self.ship_stats['daily_data'][key]['standard_deviation']
+                                #main_data_dict_key['predictions']=(random.uniform(-0.05,0.1)+1)*main_data_dict_key['processed']      #prediction is to be done yet it is randomly generated for now
+                self.base_main_data[key]=main_data_dict_key
+               
+            except KeyError:
+                continue
+            except AttributeError:
+                continue
+        for key in main_data_dict:
+            if key not in self.base_main_data:
+                self.base_main_data[key]=main_data_dict[key]
+        #print(len(self.base_main_data),len(main_data_dict))        
+
+
+    def update_maindb(self,index):
+        for key in self.main_data['processed_daily_data']:
+            try:
+                #self.maindb.update_one({"ship_imo": int(self.ship_imo)},{"$set":{"processed_daily_data":self.base_main_data}})
+                self.maindb.update_one(self.maindb.find({"ship_imo": int(self.ship_imo)})[index],{"$set":{"processed_daily_data":self.base_main_data}})
+            except TypeError:
+                continue
+            except KeyError:
+                continue
+
+    def update_maindb_alldoc(self):
+        maindb = database.get_collection("Main_db")
+        maindata = maindb.find({"ship_imo": int(self.ship_imo)})
+        for i in range(0,maindata.count()):
+            print(i)
+            self.get_main_db(i)
+            self.process_main_data()
+            self.update_maindb(i)
+
     #@check_status
     def process_weather_api_data(self):
         weather_api_data = 1 #= {}
@@ -267,24 +341,28 @@ class MainDB():
             self.base_dict()
             self.process_daily_data()
             self.main_db_writer()
-
-    def get_main_db(self):
-        "read maindb"
     
     def write_ship_stats(self):
         "writing into shipstats"
 
-    def get_ship_stats(self):
-        "read shipstats"
+    
 
-    def update_maindb(self):
-        "calculate zscore and perform calculations on the main db values and update maindb"
+    
 
 
-obj=MainDB(9591301)
+#obj=MainDB(9591301)
 
-obj.get_ship_configs()
-obj.get_daily_data()
-obj.process_daily_data()
+#obj.get_ship_configs()
+#obj.get_daily_data()
+#obj.process_daily_data()
+#obj.get_ship_stats()
+"""obj.get_main_db()
+obj.process_main_data()
+obj.update_maindb()"""
+#obj.update_maindb_alldoc()
+
 #obj.main_db_writer()
 #obj.ad_all()
+
+
+
