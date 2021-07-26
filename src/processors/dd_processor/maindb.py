@@ -155,7 +155,7 @@ class MainDB():
     def get_daily_data(self,index):
         daily_data_collection =database.get_collection("daily_data")
         self.daily_data = daily_data_collection.find({"ship_imo": self.ship_imo})[index]
-        #self.daily_data = daily_data_collection.find({"ship_imo": self.ship_imo})[0]
+        # self.daily_data = daily_data_collection.find({"ship_imo": self.ship_imo})[0]
             
 
     #@check_status
@@ -214,22 +214,23 @@ class MainDB():
 
         #print(self.processed_daily_data)
 
-    def get_main_db(self,index):
+    def get_main_db(self):
         self.maindb = database.get_collection("Main_db")
-        #self.main_data = self.maindb.find({"ship_imo": int(self.ship_imo)})[0]
-        self.main_data = self.maindb.find({"ship_imo": int(self.ship_imo)})[index]
+        self.main_data = self.maindb.find({"ship_imo": int(self.ship_imo)})[0]
+        # self.main_data = self.maindb.find({"ship_imo": int(self.ship_imo)})[index]
 
     def process_main_data(self):
         "processing maindb data for updation ,only processed daily data will be updated."
         self.base_main_data={}
         #UIP = UpdateIndividualProcessors(configs=self.ship_configs,md=self.main_data,ss=self.ship_stats)
         main_data_dict=self.main_data['processed_daily_data']
-        
         for key in main_data_dict:
-            
             try:
                 main_data_dict_key=main_data_dict[key]
                 #self.base_main_data[key]=eval("UIP."+key+"_processor")(main_data_dict_key) # UIP.rpm_processor(base_dict)
+                # if key=='comp_presavg':
+                #     main_data_dict_key['processed']=main_data_dict['ext_tempavg']['processed']
+                
                 
                 if pandas.isnull(main_data_dict_key['processed'])==False:
                     main_data_dict_key['within_outlier_limits']=self.get_outlier(key,main_data_dict_key['processed'])
@@ -240,8 +241,13 @@ class MainDB():
                             if self.ship_stats['daily_data'][key]['standard_deviation']!=0:
                                 main_data_dict_key['z_score']=(main_data_dict_key['processed']-self.ship_stats['daily_data'][key]['mean'])/self.ship_stats['daily_data'][key]['standard_deviation']
                                 #main_data_dict_key['predictions']=(random.uniform(-0.05,0.1)+1)*main_data_dict_key['processed']      #prediction is to be done yet it is randomly generated for now
+                                
+
+
+
+
                 self.base_main_data[key]=main_data_dict_key
-               
+            
             except KeyError:
                 continue
             except AttributeError:
@@ -270,6 +276,31 @@ class MainDB():
             self.get_main_db(i)
             self.process_main_data()
             self.update_maindb(i)
+
+    def process_main_data_predictions(self):
+        "processing maindb data for updation ,only processed daily data for each identifier prediction value will be updated."
+        self.base_main_data_prediction={}
+        UIP = UpdateIndividualProcessors(configs=self.ship_configs,md=self.main_data,ss=self.ship_stats)
+        main_data_dict=self.main_data['processed_daily_data']
+        for key in main_data_dict:
+            if key=="main_fuel_per_dst":
+                main_data_dict_key=main_data_dict[key]
+                ml_control=self.ship_configs['mlcontrol']
+                if key in ml_control.keys():
+                    val=ml_control[key]
+                    main_data_dict_key['predictions']=UIP.base_prediction_processor(key,main_data_dict_key,val,main_data_dict)
+                    print(main_data_dict_key)
+            
+            # try:
+            #     main_data_dict_key=main_data_dict[key]
+            #     self.base_main_data_prediction[key]=eval("UIP."+key+"_processor")(main_data_dict_key,main_data_dict) # UIP.rpm_processor(base_dict)
+            # except KeyError:
+            #     continue
+            # except AttributeError:
+            #     continue
+        for key in main_data_dict:
+            if key not in self.base_main_data_prediction:
+                self.base_main_data_prediction[key]=main_data_dict[key]
 
     #@check_status
     def process_weather_api_data(self):
@@ -337,6 +368,7 @@ class MainDB():
         daily_data_collection =database.get_collection("daily_data")
         self.all_data = daily_data_collection.find({"ship_imo": self.ship_imo})
         for i in range(self.all_data.count()):
+            print(i)
             self.get_daily_data(i)
             self.base_dict()
             self.process_daily_data()
@@ -350,19 +382,35 @@ class MainDB():
     
 
 
-#obj=MainDB(9591301)
+obj=MainDB(9591301)
 
-#obj.get_ship_configs()
+obj.get_ship_configs()
 #obj.get_daily_data()
 #obj.process_daily_data()
-#obj.get_ship_stats()
-"""obj.get_main_db()
-obj.process_main_data()
-obj.update_maindb()"""
-#obj.update_maindb_alldoc()
-
+obj.get_ship_stats()
+obj.get_main_db()
+# obj.process_main_data()
+# obj.update_maindb()
+# obj.update_maindb_alldoc()
+obj.process_main_data_predictions()
 #obj.main_db_writer()
 #obj.ad_all()
+
+
+
+# obj=MainDB(9591302)
+
+# obj.get_ship_configs()
+# # obj.get_daily_data()
+# # obj.process_daily_data()
+# # obj.get_ship_stats()
+# # obj.get_main_db()
+# # obj.process_main_data()
+# # obj.update_maindb()
+# # obj.update_maindb_alldoc()
+# # obj.process_main_data_predictions()
+# # obj.main_db_writer()
+# obj.ad_all()
 
 
 

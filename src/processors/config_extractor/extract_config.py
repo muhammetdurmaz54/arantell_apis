@@ -67,7 +67,8 @@ class ConfigExtractor():
         b = a.mask(a.str.startswith('Unnamed')).ffill().fillna('')
         self.df_groups.columns = [b, self.df_groups.columns.get_level_values(1)]
         self.grpnames = pd.read_excel(self.file, sheet_name="GrpDir", engine='openpyxl')
-    
+        self.mlcontrol=pd.read_excel(self.file, sheet_name='MLcontrol',skiprows = [0, 1, 2])
+        
 
     def stat(self,s):
         self.dest={}
@@ -100,30 +101,54 @@ class ConfigExtractor():
         groupsData=[]
         # List of the variables in identifier new other than the ones with data type static
         # Added for convenience
-        id_new=[self.df_variables['Identifer NEW'][i] for i in range(0, len(self.df_variables['Identifer NEW'])) if self.df_variables['Data Type'][i] != 'static']
+        id_new_1=[self.df_variables['Identifer NEW'][i] for i in range(0, len(self.df_variables['Identifer NEW'])) if self.df_variables['Data Type'][i] != 'static']
+        id_new=[]
+        for i in id_new_1:
+            if pd.isnull(i)==False:
+                i=i.strip()
+                id_new.append(i)
         # Get the group selection list of dictionaries
         for i in range(0, len(self.df_groups[('', 'id_new')])):
-            if self.df_groups[('', 'id_new')][i] in id_new:
-                for j in self.df_groups.iloc[:, 4:]:
-                    
-                    new_index = int(j[0].replace('Group', '')) - 1
-                    
-                    if self.df_groups[j][i] > 0:
-                        newdict = {
-                            'name': self.df_groups[('', 'id_new')][i], #Added for convenience
-                            'groupname': self.grpnames['Name'][new_index],
-                            'groupnumber': j[0].replace('Group',''),
-                            'availability_code': self.df_groups[j][i],
-                            'block_number': self.df_groups[(j[0], 'BLOCK NO')][i]
-                        }
-                        groupsData.append(newdict)
+            if pd.isnull(self.df_groups[('', 'id_new')][i])==False:
+                ak=self.df_groups[('', 'id_new')][i].strip()
+                if ak in id_new:
+                    for j in self.df_groups.iloc[:, 4:]:
+                        new_index = int(j[0].replace('Group', '')) - 1
+                        if self.df_groups[j][i] > 0:
+                            newdict = {
+                                'name': self.df_groups[('', 'id_new')][i], #Added for convenience
+                                'groupname': self.grpnames['Name'][new_index],
+                                'groupnumber': j[0].replace('Group',''),
+                                'group_availability_code': self.df_groups[j][i],
+                                'block_number': self.df_groups[(j[0], 'BLOCK NO')][i]
+                            }
+                            groupsData.append(newdict)
+                                
         del groupsData[1::2]
+        
         return groupsData
 
+    def get_ml_list(self):
+        ml_dict={}
+        
+        for i,row in self.mlcontrol.iterrows():
+            column_list=[]
+            for column in self.mlcontrol.columns:
+                if self.mlcontrol[column][i]==1:
+                    if i>=8:
+                        column_list.append(column)
+            
+                    ml_dict[self.mlcontrol['Identifier New'][i]]=column_list
+        return ml_dict
+             
+                
+    #temporary for stripping category                   
+    def category(self,x):
+        if pd.isnull(x)==False:
+            val=x.strip()
+            return val
 
-
-
-    @check_status
+    # @check_status
     def process_file(self):
         self.data = {}
         # get group selection
@@ -164,17 +189,19 @@ class ConfigExtractor():
                 self.newList = []
                 # Only add specific groups
                 for elem in self.groupsData:
-                    if elem['name'] == self.df_variables['Identifer NEW'][i]:
-                        self.newList.append(elem)
+                    if pd.isnull(self.df_variables['Identifer NEW'][i])==False:
+                        if elem['name'] == self.df_variables['Identifer NEW'][i].strip():
+                            self.newList.append(elem)
                
                 self.data[self.df_variables['Identifer NEW'][i]] = {  
                     
                     
                     'name':self.df_variables['Identifer NEW'][i],
                     'unit':self.df_variables['Units'][i],
-                    'category':self.df_variables['Category'][i],
+                    'category':self.category(self.df_variables['Category'][i]),
                     'subcategory':self.df_variables['SubCategory'][i],
                     'variable':self.df_variables['Variable'][i],
+                    'short_names':self.df_variables['Short Names'][i],
                     'source_idetifier':self.df_variables['Source Identifier'][i],
                     'static_data': self.df_variables['Static Data'][i],
                     'input':self.df_variables['Input'][i],
@@ -215,10 +242,11 @@ class ConfigExtractor():
             data_available_engine = self.data_available_engine,
             ais_api_data=self.ais_api,
             calculated_var=self.calculated,
+            mlcontrol=self.get_ml_list(),
             identifier_mapping = self.identifier_mapping,
             data = self.data
         )
-
+        
         if self.override:
             if not Ship.objects(ship_imo = self.ship_imo):
                 ship.save()
@@ -238,9 +266,9 @@ class ConfigExtractor():
         self.ship_configs = ship_configs_collection.find({"ship_imo": self.ship_imo})[0]
 
 
-obj=ConfigExtractor(9591301,'F:\Afzal_cs\Internship\ConfiguratorRev_04 A.xlsx',True)
+obj=ConfigExtractor(9591301,'F:\Afzal_cs\Internship\ConfiguratorRev_04 A (1).xlsx',True)
 obj.read_files()
 obj.process_file()
-
 obj.write_configs()
 #obj.read_configs()
+

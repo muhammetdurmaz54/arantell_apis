@@ -205,12 +205,12 @@ class IndividualProcessors():
     def base_avg_minmax_evaluator(self,string):
         ext_temp={}
         ext_str=string
-        me_unit_no=self.ship_configs['static_data']['ship_tot_unit_nos']
+        me_unit_no=self.ship_configs['static_data']['ship_tot_unit_nos']  #unit numbers which are present for that ship (from 6 to 12 variation)
         for i in range(1,me_unit_no+1):
             ext_temp_str=ext_str+str(i)
             if ext_temp_str in self.daily_data['data']: 
                 ext_temp[ext_temp_str]=self.daily_data['data'][ext_temp_str]
-        return ext_temp
+        return ext_temp,me_unit_no
 
     def rpm_processor(self,base_dict):
         return self.base_individual_processor('rpm',base_dict)
@@ -1059,16 +1059,16 @@ class IndividualProcessors():
 
     def peak_presavg_processor(self,base_dict):
         base_dict=base_dict
-        peak_pres=self.base_avg_minmax_evaluator("peak_pres")
+        peak_pres,me_unit_no=self.base_avg_minmax_evaluator("peak_pres")
         if len(peak_pres)>0:
-            base_dict['processed'] = sum(peak_pres.values())/len(peak_pres.values())
+            base_dict['processed'] = sum(peak_pres.values())/me_unit_no
             base_dict['is_read']=False
             base_dict['is_processed']=True
         return base_dict
 
     def peak_presmax_no_processor(self,base_dict):
         base_dict=base_dict
-        peak_pres=self.base_avg_minmax_evaluator("peak_pres")
+        peak_pres,me_unit_no=self.base_avg_minmax_evaluator("peak_pres")
         if len(peak_pres)>0:
             base_dict['processed'] = max(peak_pres,key=peak_pres.get)
             base_dict['is_read']=False
@@ -1077,7 +1077,7 @@ class IndividualProcessors():
 
     def peak_presmin_no_processor(self,base_dict):
         base_dict=base_dict
-        peak_pres=self.base_avg_minmax_evaluator("peak_pres")
+        peak_pres,me_unit_no=self.base_avg_minmax_evaluator("peak_pres")
         if len(peak_pres)>0:
             base_dict['processed'] = min(peak_pres,key=peak_pres.get)
             base_dict['is_read']=False
@@ -1086,7 +1086,7 @@ class IndividualProcessors():
     
     def peakpres_maxmin_diff_processor(self,base_dict):
         base_dict=base_dict
-        peak_pres=self.base_avg_minmax_evaluator("peak_pres")
+        peak_pres,me_unit_no=self.base_avg_minmax_evaluator("peak_pres")
         if len(peak_pres)>1:
             max_val=max(peak_pres.values())
             min_val=min(peak_pres.values())
@@ -1099,16 +1099,16 @@ class IndividualProcessors():
 
     def comp_presavg_processor(self,base_dict):
         base_dict=base_dict
-        comp_pres=self.base_avg_minmax_evaluator("comp_pres")    
+        comp_pres,me_unit_no=self.base_avg_minmax_evaluator("comp_pres")    
         if len(comp_pres)>0:
-            base_dict['processed'] = sum(comp_pres.values())/len(comp_pres)
+            base_dict['processed'] = sum(comp_pres.values())/me_unit_no
             base_dict['is_read']=False
             base_dict['is_processed']=True
         return base_dict
 
     def comp_presmax_no_processor(self,base_dict):
         base_dict=base_dict
-        comp_pres=self.base_avg_minmax_evaluator("comp_pres")         
+        comp_pres,me_unit_no=self.base_avg_minmax_evaluator("comp_pres")         
         if len(comp_pres)>0:
             base_dict['processed'] = max(comp_pres,key=comp_pres.get)
             base_dict['is_read']=False
@@ -1117,7 +1117,7 @@ class IndividualProcessors():
 
     def comp_presmin_no_processor(self,base_dict):
         base_dict=base_dict
-        comp_pres=self.base_avg_minmax_evaluator("comp_pres")         
+        comp_pres,me_unit_no=self.base_avg_minmax_evaluator("comp_pres")         
         if len(comp_pres)>0:
             base_dict['processed'] = min(comp_pres,key=comp_pres.get)
             base_dict['is_read']=False
@@ -1126,7 +1126,7 @@ class IndividualProcessors():
 
     def comppres_maxmin_diff_processor(self,base_dict):
         base_dict=base_dict
-        comp_pres=self.base_avg_minmax_evaluator("comp_pres")        
+        comp_pres,me_unit_no=self.base_avg_minmax_evaluator("comp_pres")        
         if len(comp_pres)>1:
             max_val=max(comp_pres.values())
             min_val=min(comp_pres.values())
@@ -1139,16 +1139,16 @@ class IndividualProcessors():
 
     def ext_tempavg_processor(self,base_dict):
         base_dict=base_dict
-        ext_temp=self.base_avg_minmax_evaluator("ext_temp")
+        ext_temp,me_unit_no=self.base_avg_minmax_evaluator("ext_temp")
         if len(ext_temp)>0:
-            base_dict['processed'] = sum(ext_temp.values())/len(ext_temp)
+            base_dict['processed'] = sum(ext_temp.values())/me_unit_no
             base_dict['is_read']=False
             base_dict['is_processed']=True
         return base_dict
 
     def ext_max_no_processor(self,base_dict):
         base_dict=base_dict
-        ext_temp=self.base_avg_minmax_evaluator("ext_temp")
+        ext_temp,me_unit_no=self.base_avg_minmax_evaluator("ext_temp")
         if len(ext_temp)>0:
             base_dict['processed'] = max(ext_temp,key=ext_temp.get)
             base_dict['is_read']=False
@@ -1157,7 +1157,7 @@ class IndividualProcessors():
 
     def ext_min_no_processor(self,base_dict):
         base_dict=base_dict
-        ext_temp=self.base_avg_minmax_evaluator("ext_temp")
+        ext_temp,me_unit_no=self.base_avg_minmax_evaluator("ext_temp")
         if len(ext_temp)>0:
             base_dict['processed'] = min(ext_temp,key=ext_temp.get)   
             base_dict['is_read']=False
@@ -1166,7 +1166,7 @@ class IndividualProcessors():
 
     def ext_maxmin_diff_processor(self,base_dict):
         base_dict=base_dict
-        ext_temp= self.base_avg_minmax_evaluator('ext_temp') 
+        ext_temp,me_unit_no= self.base_avg_minmax_evaluator('ext_temp') 
         if len(ext_temp)>1:
             max_val=max(ext_temp.values())
             min_val=min(ext_temp.values())
@@ -1323,10 +1323,9 @@ class IndividualProcessors():
 
     def jwme_out_tempavg_processor(self,base_dict):
         base_dict=base_dict
-        jwme_temp={}
-        jwme_str=self.base_avg_minmax_evaluator("jwme_out_temp")
+        jwme_temp,me_unit_no=self.base_avg_minmax_evaluator("jwme_out_temp")
         if len(jwme_temp)>0:
-            base_dict['processed'] = sum(jwme_temp.values())/len(jwme_temp)
+            base_dict['processed'] = sum(jwme_temp.values())/me_unit_no
             base_dict['is_read']=False
             base_dict['is_processed']=True
         return base_dict
@@ -1336,8 +1335,7 @@ class IndividualProcessors():
 
     def jwme_out_temp_max_no_processor(self,base_dict):
         base_dict=base_dict
-        jwme_temp={}
-        jwme_str=self.base_avg_minmax_evaluator("jwme_out_temp")
+        jwme_temp,me_unit_no=self.base_avg_minmax_evaluator("jwme_out_temp")
         if len(jwme_temp)>0:
             base_dict['processed'] = max(jwme_temp,key=jwme_temp.get)
             base_dict['is_read']=False
@@ -1346,7 +1344,7 @@ class IndividualProcessors():
 
     def jwme_out_temp_min_no_processor(self,base_dict):
         base_dict=base_dict
-        jwme_temp=self.base_avg_minmax_evaluator("jwme_out_temp")
+        jwme_temp,me_unit_no=self.base_avg_minmax_evaluator("jwme_out_temp")
         if len(jwme_temp)>0:
             base_dict['processed'] = min(jwme_temp,key=jwme_temp.get)
             base_dict['is_read']=False
@@ -1415,9 +1413,9 @@ class IndividualProcessors():
 
     def pwme_out_tempavg_processor(self,base_dict):
         base_dict=base_dict
-        pwme_temp=self.base_avg_minmax_evaluator("pwme_out_temp")
+        pwme_temp,me_unit_no=self.base_avg_minmax_evaluator("pwme_out_temp")
         if len(pwme_temp)>0:
-            base_dict['processed'] = sum(pwme_temp.values())/len(pwme_temp)
+            base_dict['processed'] = sum(pwme_temp.values())/me_unit_no
             base_dict['is_read']=False
             base_dict['is_processed']=True
         return base_dict
@@ -1427,7 +1425,7 @@ class IndividualProcessors():
 
     def pwme_out_temp_max_no_processor(self,base_dict):
         base_dict=base_dict
-        pwme_temp=self.base_avg_minmax_evaluator("pwme_out_temp")
+        pwme_temp,me_unit_no=self.base_avg_minmax_evaluator("pwme_out_temp")
         if len(pwme_temp)>0:
             base_dict['processed'] = max(pwme_temp,key=pwme_temp.get)
             base_dict['is_read']=False
@@ -1436,7 +1434,7 @@ class IndividualProcessors():
 
     def pwme_out_temp_min_no_processor(self,base_dict):
         base_dict=base_dict
-        pwme_temp=self.base_avg_minmax_evaluator("pwme_out_temp")
+        pwme_temp,me_unit_no=self.base_avg_minmax_evaluator("pwme_out_temp")
         if len(pwme_temp)>0:
             base_dict['processed'] = min(pwme_temp,key=pwme_temp.get)
             base_dict['is_read']=False
@@ -1589,3 +1587,126 @@ class IndividualProcessors():
 
     def gen_sw_temp_processor(self,base_dict):
         return self.base_individual_processor('gen_sw_temp',base_dict)
+####################################################new identifiers added below
+    def gen_1_processor(self,base_dict):
+        return self.base_individual_processor('gen_1',base_dict)
+        
+    def d_eng_elec_processor(self,base_dict):
+        return self.base_individual_processor('d_eng_elec',base_dict)
+    
+    def d_eng_elec_amp_processor(self,base_dict):
+        return self.base_individual_processor('d_eng_elec_amp',base_dict)
+
+    def d_eng_exhtemp1_processor(self,base_dict):
+        return self.base_individual_processor('d_eng_exhtemp1',base_dict)
+
+    def d_eng_exhtemp8_processor(self,base_dict):
+        return self.base_individual_processor('d_eng_exhtemp8',base_dict)
+
+    def d_eng_lo_press_processor(self,base_dict):
+        return self.base_individual_processor('d_eng_lo_press',base_dict)
+
+    def d_eng_lo_cons_processor(self,base_dict):
+        return self.base_individual_processor('d_eng_lo_cons',base_dict)
+
+    def d_eng_hrs_processor(self,base_dict):
+        return self.base_individual_processor('d_eng_hrs',base_dict)
+
+    def d_eng_elec_2_processor(self,base_dict):
+        return self.base_individual_processor('d_eng_elec_2',base_dict)
+
+    def d_eng2_exhtemp1_processor(self,base_dict):
+        return self.base_individual_processor('d_eng2_exhtemp1',base_dict)
+
+    def d_eng2_exhtemp10_processor(self,base_dict):
+        return self.base_individual_processor('d_eng2_exhtemp10',base_dict)
+
+    def d_eng2_lo_press_processor(self,base_dict):
+        return self.base_individual_processor('d_eng2_lo_press',base_dict)
+
+    def d_eng2_lo_cons_processor(self,base_dict):
+        return self.base_individual_processor('d_eng2_lo_cons',base_dict)
+    
+    def d_eng2_hrs_processor(self,base_dict):
+        return self.base_individual_processor('d_eng2_hrs',base_dict)
+
+    def d_eng3_elec_processor(self,base_dict):
+        return self.base_individual_processor('d_eng3_elec',base_dict)
+    
+    def d_eng3_exh_temp1_processor(self,base_dict):
+        return self.base_individual_processor('d_eng3_exh_temp1',base_dict)
+
+    def d_eng3_exh_temp10_processor(self,base_dict):
+        return self.base_individual_processor('d_eng3_exh_temp10',base_dict)
+
+    def d_eng3_lo_press_processor(self,base_dict):
+        return self.base_individual_processor('d_eng3_lo_press',base_dict)
+
+    def d_eng3_lo_cons_processor(self,base_dict):
+        return self.base_individual_processor('d_eng3_lo_cons',base_dict)
+
+    def d_eng4_hrs_processor(self,base_dict):
+        return self.base_individual_processor('d_eng4_hrs',base_dict)
+
+    def d_eng4_elec_processor(self,base_dict):
+        return self.base_individual_processor('d_eng4_elec',base_dict)
+
+    def d_eng4_exh_temp1_processor(self,base_dict):
+        return self.base_individual_processor('d_eng4_exh_temp1',base_dict)
+
+    def d_eng4_exh_temp10_processor(self,base_dict):
+        return self.base_individual_processor('d_eng4_exh_temp10',base_dict)
+    
+    def d_eng4_lo_press_processor(self,base_dict):
+        return self.base_individual_processor('d_eng4_lo_press',base_dict)
+    
+    def d_eng4_lo_cons_processor(self,base_dict):
+        return self.base_individual_processor('d_eng4_lo_cons',base_dict)
+    
+    def CCPNO_processor(self,base_dict):
+        return self.base_individual_processor('CCPNO',base_dict)
+    
+    def boiler_pressure_processor(self,base_dict):
+        return self.base_individual_processor('boiler_pressure',base_dict)
+
+    def t_alt_elec_processor(self,base_dict):
+        return self.base_individual_processor('t_alt_elec',base_dict)
+
+    def t_alt_lo_press_processor(self,base_dict):
+        return self.base_individual_processor('t_alt_lo_press',base_dict)
+
+    def t_alt_lo_cons_processor(self,base_dict):
+        return self.base_individual_processor('t_alt_lo_cons',base_dict)
+    
+    def shaft_hrs_processor(self,base_dict):
+        return self.base_individual_processor('shaft_hrs',base_dict)
+
+    def shaft_elec_processor(self,base_dict):
+        return self.base_individual_processor('shaft_elec',base_dict)
+
+    def shaft_lo_press_processor(self,base_dict):
+        return self.base_individual_processor('shaft_lo_press',base_dict)
+
+    def fwg_hrs_processor(self,base_dict):
+        return self.base_individual_processor('fwg_hrs',base_dict)
+
+    def fwg_vacume_processor(self,base_dict):
+        return self.base_individual_processor('fwg_vacume',base_dict)
+
+    def fwg_freshwater_prod_processor(self,base_dict):
+        return self.base_individual_processor('fwg_freshwater_prod',base_dict)
+
+    def fwg_fresh_produced_processor(self,base_dict):
+        return self.base_individual_processor('fwg_fresh_produced',base_dict)
+
+    def fresh_consumed_processor(self,base_dict):
+        return self.base_individual_processor('fresh_consumed',base_dict)
+   
+    def fresh_remaining_processor(self,base_dict):
+        return self.base_individual_processor('fresh_remaining',base_dict)
+    
+    def sternt_temp_processor(self,base_dict):
+        return self.base_individual_processor('sternt_temp',base_dict)
+    
+    def boil_pres_2_processor(self,base_dict):
+        return self.base_individual_processor('boil_pres_2',base_dict)
