@@ -1,7 +1,7 @@
 import sys 
 sys.path.insert(1,"F:\\Afzal_cs\\Internship\\arantell_apis-main")
 from src.db.setup_mongo import connect_db
-from src.processors.dd_processor.processor import Main_db
+# from src.processors.dd_processor.maindb import MainDB
 from src.configurations.logging_config import CommonLogger
 from datetime import datetime
 from src.db.schema.main import Main_db
@@ -15,9 +15,9 @@ import statistics
 log = CommonLogger(__name__,debug=True).setup_logger()
 
 
-client = MongoClient("mongodb://localhost:27017/aranti")
-db=client.get_database("aranti")
-database = db
+# client = MongoClient("mongodb://localhost:27017/aranti")
+# db=client.get_database("aranti")
+# database = db
 
 
 class StatsGenerator():
@@ -30,16 +30,28 @@ class StatsGenerator():
                  all):
         pass"""
 
-    def __init__(self,ship_imo,):
+    def __init__(self,ship_imo,override):
         self.ship_imo = ship_imo
+        self.error=False
+        self.override=override
         
-        pass
+
+    def do_steps(self):
+        self.connect_db()
+        self.get_main_db()
+        self.process_main_db()
+        inserted_id = self.write_ship_stats()
+        if self.error:
+            return False, str(self.traceback_msg)
+        else:
+            return True, str(inserted_id)
 
     def connect_db(self):
         self.database = connect_db()
-
+    
         
     def get_main_db(self):
+        database=self.database.get_database("aranti")
         maindb =database.get_collection("Main_db")
         self.main_db =maindb.find({"ship_imo": self.ship_imo})
         self.main_db_o=maindb.find({"ship_imo": self.ship_imo})[0]    #from date ==will be taken from init
@@ -114,6 +126,10 @@ class StatsGenerator():
             return (np.max(self.new_val))
 
     def write_ship_stats(self):
+        database=self.database.get_database("aranti")
+        ship_stats_collection=database.get_collection("Ship_Stats")
+        ship_imos=ship_stats_collection.distinct("ship_imo")
+
 
         self.ship_stats={}
         self.ship_stats["ship_imo"]=self.ship_imo
@@ -125,10 +141,26 @@ class StatsGenerator():
         self.ship_stats["weather_api"]={}
         self.ship_stats["position_api"]={}
         self.ship_stats["indices"]={}
-        db.Ship_Stats.insert_one(self.ship_stats)
+        # self.database.Ship_Stats.insert_one(self.ship_stats)
 
+
+        if self.override==True:
+            if self.ship_imo in ship_imos:
+                ship_stats_collection.delete_one({"ship_imo": self.ship_imo})
+                return ship_stats_collection.insert_one(self.ship_stats).inserted_id
+                
+            else:
+                return ship_stats_collection.insert_one(self.ship_stats).inserted_id
         
-obj=StatsGenerator(9591301)
-obj.get_main_db()
-obj.process_main_db()
-obj.write_ship_stats()
+        elif self.override==False:
+            if self.ship_imo in ship_imos:
+                print("Record already exist")
+                return "Record already exists!"
+            else:
+                return ship_stats_collection.insert_one(self.ship_stats).inserted_id
+        
+obj=StatsGenerator(9591302,True)
+obj.do_steps()
+# obj.get_main_db()
+# obj.process_main_db()
+# obj.write_ship_stats()

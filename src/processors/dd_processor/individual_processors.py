@@ -135,7 +135,7 @@ class IndividualProcessors():
         temp_dict={}
         for i in list_var:
             if i in static_data and pandas.isnull(static_data[i])==False:
-                temp_dict[i]=static_data[i]
+                temp_dict[i]=static_data[i]['value']
             elif i in daily_data and pandas.isnull(daily_data[i])==False:
                 temp_dict[i]=daily_data[i]
             else:
@@ -205,11 +205,14 @@ class IndividualProcessors():
     def base_avg_minmax_evaluator(self,string):
         ext_temp={}
         ext_str=string
-        me_unit_no=self.ship_configs['static_data']['ship_tot_unit_nos']  #unit numbers which are present for that ship (from 6 to 12 variation)
+        me_unit_no=self.ship_configs['static_data']['ship_tot_unit_nos']['value']  #unit numbers which are present for that ship (from 6 to 12 variation)
         for i in range(1,me_unit_no+1):
             ext_temp_str=ext_str+str(i)
             if ext_temp_str in self.daily_data['data']: 
                 ext_temp[ext_temp_str]=self.daily_data['data'][ext_temp_str]
+        for key in ext_temp.copy():
+            if type(ext_temp[key])==str:
+                del ext_temp[key]
         return ext_temp,me_unit_no
 
     def rpm_processor(self,base_dict):
@@ -1070,7 +1073,8 @@ class IndividualProcessors():
         base_dict=base_dict
         peak_pres,me_unit_no=self.base_avg_minmax_evaluator("peak_pres")
         if len(peak_pres)>0:
-            base_dict['processed'] = max(peak_pres,key=peak_pres.get)
+            # base_dict['processed'] = max(peak_pres,key=peak_pres.get)
+            base_dict['processed'] = int(np.argmax(list(peak_pres.values()))+1)
             base_dict['is_read']=False
             base_dict['is_processed']=True
         return base_dict
@@ -1079,7 +1083,8 @@ class IndividualProcessors():
         base_dict=base_dict
         peak_pres,me_unit_no=self.base_avg_minmax_evaluator("peak_pres")
         if len(peak_pres)>0:
-            base_dict['processed'] = min(peak_pres,key=peak_pres.get)
+            # base_dict['processed'] = min(peak_pres,key=peak_pres.get)
+            base_dict['processed'] = int(np.argmin(list(peak_pres.values()))+1)
             base_dict['is_read']=False
             base_dict['is_processed']=True
         return base_dict
@@ -1110,7 +1115,8 @@ class IndividualProcessors():
         base_dict=base_dict
         comp_pres,me_unit_no=self.base_avg_minmax_evaluator("comp_pres")         
         if len(comp_pres)>0:
-            base_dict['processed'] = max(comp_pres,key=comp_pres.get)
+            # base_dict['processed'] = max(comp_pres,key=comp_pres.get)
+            base_dict['processed'] = int(np.argmax(list(comp_pres.values()))+1)
             base_dict['is_read']=False
             base_dict['is_processed']=True
         return base_dict
@@ -1119,7 +1125,8 @@ class IndividualProcessors():
         base_dict=base_dict
         comp_pres,me_unit_no=self.base_avg_minmax_evaluator("comp_pres")         
         if len(comp_pres)>0:
-            base_dict['processed'] = min(comp_pres,key=comp_pres.get)
+            # base_dict['processed'] = min(comp_pres,key=comp_pres.get)
+            base_dict['processed'] = int(np.argmin(list(comp_pres.values()))+1)
             base_dict['is_read']=False
             base_dict['is_processed']=True
         return base_dict
@@ -1150,7 +1157,8 @@ class IndividualProcessors():
         base_dict=base_dict
         ext_temp,me_unit_no=self.base_avg_minmax_evaluator("ext_temp")
         if len(ext_temp)>0:
-            base_dict['processed'] = max(ext_temp,key=ext_temp.get)
+            # base_dict['processed'] = max(ext_temp,key=ext_temp.get)
+            base_dict['processed'] = int(np.argmax(list(ext_temp.values()))+1)
             base_dict['is_read']=False
             base_dict['is_processed']=True
         return base_dict
@@ -1159,7 +1167,8 @@ class IndividualProcessors():
         base_dict=base_dict
         ext_temp,me_unit_no=self.base_avg_minmax_evaluator("ext_temp")
         if len(ext_temp)>0:
-            base_dict['processed'] = min(ext_temp,key=ext_temp.get)   
+            # base_dict['processed'] = min(ext_temp,key=ext_temp.get)
+            base_dict['processed'] = int(np.argmin(list(ext_temp.values()))+1) 
             base_dict['is_read']=False
             base_dict['is_processed']=True
         return base_dict
@@ -1175,6 +1184,30 @@ class IndividualProcessors():
             base_dict['is_processed']=True
         elif len(ext_temp)>0 and len(ext_temp)==1 :
             base_dict['processed'] = "only 1 value "
+        return base_dict
+
+    def ext_tempmax_processor(self,base_dict):
+        base_dict=base_dict
+        ext_temp,me_unit_no= self.base_avg_minmax_evaluator('ext_temp') 
+        if len(ext_temp)>0:
+            max_val=max(ext_temp.values())
+            base_dict['processed'] =max_val
+            base_dict['is_read']=False
+            base_dict['is_processed']=True
+        elif len(ext_temp)==0 :
+            base_dict['processed'] = "no value "
+        return base_dict
+
+    def ext_tempmin_processor(self,base_dict):
+        base_dict=base_dict
+        ext_temp,me_unit_no= self.base_avg_minmax_evaluator('ext_temp') 
+        if len(ext_temp)>0:
+            min_val=min(ext_temp.values())
+            base_dict['processed'] =min_val
+            base_dict['is_read']=False
+            base_dict['is_processed']=True
+        elif len(ext_temp)==0:
+            base_dict['processed'] = "no value "
         return base_dict
 
     def ext_pres_processor(self,base_dict):
@@ -1337,7 +1370,8 @@ class IndividualProcessors():
         base_dict=base_dict
         jwme_temp,me_unit_no=self.base_avg_minmax_evaluator("jwme_out_temp")
         if len(jwme_temp)>0:
-            base_dict['processed'] = max(jwme_temp,key=jwme_temp.get)
+            # base_dict['processed'] = max(jwme_temp,key=jwme_temp.get)
+            base_dict['processed'] = int(np.argmax(list(jwme_temp.values()))+1)
             base_dict['is_read']=False
             base_dict['is_processed']=True
         return base_dict
@@ -1346,7 +1380,8 @@ class IndividualProcessors():
         base_dict=base_dict
         jwme_temp,me_unit_no=self.base_avg_minmax_evaluator("jwme_out_temp")
         if len(jwme_temp)>0:
-            base_dict['processed'] = min(jwme_temp,key=jwme_temp.get)
+            # base_dict['processed'] = min(jwme_temp,key=jwme_temp.get)
+            base_dict['processed'] = int(np.argmin(list(jwme_temp.values()))+1)
             base_dict['is_read']=False
             base_dict['is_processed']=True
         return base_dict
@@ -1427,7 +1462,8 @@ class IndividualProcessors():
         base_dict=base_dict
         pwme_temp,me_unit_no=self.base_avg_minmax_evaluator("pwme_out_temp")
         if len(pwme_temp)>0:
-            base_dict['processed'] = max(pwme_temp,key=pwme_temp.get)
+            # base_dict['processed'] = max(pwme_temp,key=pwme_temp.get)
+            base_dict['processed'] = int(np.argmax(list(pwme_temp.values()))+1)
             base_dict['is_read']=False
             base_dict['is_processed']=True
         return base_dict
@@ -1436,7 +1472,8 @@ class IndividualProcessors():
         base_dict=base_dict
         pwme_temp,me_unit_no=self.base_avg_minmax_evaluator("pwme_out_temp")
         if len(pwme_temp)>0:
-            base_dict['processed'] = min(pwme_temp,key=pwme_temp.get)
+            # base_dict['processed'] = min(pwme_temp,key=pwme_temp.get)
+            base_dict['processed'] = int(np.argmin(list(pwme_temp.values()))+1)
             base_dict['is_read']=False
             base_dict['is_processed']=True
         return base_dict
@@ -1710,3 +1747,512 @@ class IndividualProcessors():
     
     def boil_pres_2_processor(self,base_dict):
         return self.base_individual_processor('boil_pres_2',base_dict)
+
+# ________________________________________Equipments from here
+
+    def fo1_serv_used_processor(self,base_dict):
+        return self.base_individual_processor('fo1_serv_used',base_dict)
+
+    def fo1_serv_temp_processor(self,base_dict):
+        return self.base_individual_processor('fo1_serv_temp',base_dict)
+
+    def fo1_serv_qty_processor(self,base_dict):
+        return self.base_individual_processor('fo1_serv_qty',base_dict)
+
+    def fo2_serv_used_processor(self,base_dict):
+        return self.base_individual_processor('fo2_serv_used',base_dict)
+
+    def fo2_serv_temp_processor(self,base_dict):
+        return self.base_individual_processor('fo2_serv_temp',base_dict)
+
+    def fo2_serv_qty_processor(self,base_dict):
+        return self.base_individual_processor('fo2_serv_qty',base_dict)
+
+    def op1_supsuc_always_processor(self,base_dict):
+        return self.base_individual_processor('op1_supsuc_always',base_dict)
+
+    def fop1_sup_used_processor(self,base_dict):
+        return self.base_individual_processor('fop1_sup_used',base_dict)
+
+    def fop1_supsuc_pres_processor(self,base_dict):
+        return self.base_individual_processor('fop1_supsuc_pres',base_dict)
+
+    def fop1_supdis_pres_processor(self,base_dict):
+        return self.base_individual_processor('fop1_supdis_pres',base_dict)
+
+    def fop1_sup_temp_processor(self,base_dict):
+        return self.base_individual_processor('fop1_sup_temp',base_dict)
+
+    def fop2_sup_used_processor(self,base_dict):
+        return self.base_individual_processor('fop2_sup_used',base_dict)
+
+    def fop2_supsuc_pres_processor(self,base_dict):
+        return self.base_individual_processor('fop2_supsuc_pres',base_dict)
+
+    def fop2_supdis_pres_processor(self,base_dict):
+        return self.base_individual_processor('fop2_supdis_pres',base_dict)
+
+    def fop2_sup_temp_processor(self,base_dict):
+        return self.base_individual_processor('fop2_sup_temp',base_dict)
+
+    def fop_sup_used_processor(self,base_dict):
+        return self.base_individual_processor('fop_sup_used',base_dict)
+
+    def fop_supsuc_pres_processor(self,base_dict):
+        return self.base_individual_processor('fop_supsuc_pres',base_dict)
+
+    def fop_supdis_pres_processor(self,base_dict):
+        return self.base_individual_processor('fop_supdis_pres',base_dict)
+
+    def fop_sup_temp_processor(self,base_dict):
+        return self.base_individual_processor('fop_sup_temp',base_dict)
+
+    def fo_supsicrc_always_processor(self,base_dict):
+        return self.base_individual_processor('fo_supsicrc_always',base_dict)
+
+    def fop1_circ_used_processor(self,base_dict):
+        return self.base_individual_processor('fop1_circ_used',base_dict)
+
+    def fop1_circsuc_pres_processor(self,base_dict):
+        return self.base_individual_processor('fop1_circsuc_pres',base_dict)
+
+    def fop1_circdis_pres_processor(self,base_dict):
+        return self.base_individual_processor('fop1_circdis_pres',base_dict)
+
+    def fop1_circ_temp_processor(self,base_dict):
+        return self.base_individual_processor('fop1_circ_temp',base_dict)
+
+    def fop2_circ_used_processor(self,base_dict):
+        return self.base_individual_processor('fop2_circ_used',base_dict)
+
+    def fop2_circsuc_pres_processor(self,base_dict):
+        return self.base_individual_processor('fop2_circsuc_pres',base_dict)
+
+    def fop2_circdis_pres_processor(self,base_dict):
+        return self.base_individual_processor('fop2_circdis_pres',base_dict)
+
+    def fop2_circ_temp_processor(self,base_dict):
+        return self.base_individual_processor('fop2_circ_temp',base_dict)
+
+    def fop_circ_used_processor(self,base_dict):
+        return self.base_individual_processor('fop_circ_used',base_dict)
+
+    def fop_circsuc_pres_processor(self,base_dict):
+        return self.base_individual_processor('fop_circsuc_pres',base_dict)
+
+    def fop_circdis_pres_processor(self,base_dict):
+        return self.base_individual_processor('fop_circdis_pres',base_dict)
+
+    def fop_circ_temp_processor(self,base_dict):
+        return self.base_individual_processor('fop_circ_temp',base_dict)
+
+    def fohtr1_used_processor(self,base_dict):
+        return self.base_individual_processor('fohtr1_used',base_dict)
+
+    def fohtr1_out_temp_processor(self,base_dict):
+        return self.base_individual_processor('fohtr1_out_temp',base_dict)
+
+    def fohtr2_used_processor(self,base_dict):
+        return self.base_individual_processor('fohtr2_used',base_dict)
+
+    def fohtr2_out_temp_processor(self,base_dict):
+        return self.base_individual_processor('fohtr2_out_temp',base_dict)
+
+    def fohtr_used_processor(self,base_dict):
+        return self.base_individual_processor('fohtr_used',base_dict)
+
+    def fohtr_out_temp_processor(self,base_dict):
+        return self.base_individual_processor('fohtr_out_temp',base_dict)
+
+    def visco_always_processor(self,base_dict):
+        return self.base_individual_processor('visco_always',base_dict)
+
+    def fo_in_PRESS_processor(self,base_dict):
+        return self.base_individual_processor('fo_in_PRESS',base_dict)
+
+    def unit1_always_processor(self,base_dict):
+        return self.base_individual_processor('unit1_always',base_dict)
+
+    def mep_pres1_processor(self,base_dict):
+        return self.base_individual_processor('mep_pres1',base_dict)
+
+    def me_pwr1_processor(self,base_dict):
+        return self.base_individual_processor('me_pwr1',base_dict)
+
+    def mep_pres2_processor(self,base_dict):
+        return self.base_individual_processor('mep_pres2',base_dict)
+
+    def me_pwr2_processor(self,base_dict):
+        return self.base_individual_processor('me_pwr2',base_dict)
+
+    def unit2_always_processor(self,base_dict):
+        return self.base_individual_processor('unit2_always',base_dict)
+
+    def unit3_always_processor(self,base_dict):
+        return self.base_individual_processor('unit3_always',base_dict)
+
+    def mep_pres3_processor(self,base_dict):
+        return self.base_individual_processor('mep_pres3',base_dict)
+
+    def me_pwr3_processor(self,base_dict):
+        return self.base_individual_processor('me_pwr3',base_dict)
+
+    def unit4_always_processor(self,base_dict):
+        return self.base_individual_processor('unit4_always',base_dict)
+
+    def mep_pres4_processor(self,base_dict):
+        return self.base_individual_processor('mep_pres4',base_dict)
+
+    def me_pwr4_processor(self,base_dict):
+        return self.base_individual_processor('me_pwr4',base_dict)
+
+    def unit5_always_processor(self,base_dict):
+        return self.base_individual_processor('unit5_always',base_dict)
+
+    def mep_pres5_processor(self,base_dict):
+        return self.base_individual_processor('mep_pres5',base_dict)
+
+    def me_pwr5_processor(self,base_dict):
+        return self.base_individual_processor('me_pwr5',base_dict)
+
+    def unit6_always_processor(self,base_dict):
+        return self.base_individual_processor('unit6_always',base_dict)
+
+    def mep_pres6_processor(self,base_dict):
+        return self.base_individual_processor('mep_pres6',base_dict)
+
+    def me_pwr6_processor(self,base_dict):
+        return self.base_individual_processor('me_pwr6',base_dict)
+
+    def unit7_always_processor(self,base_dict):
+        return self.base_individual_processor('unit7_always',base_dict)
+
+    def mep_pres7_processor(self,base_dict):
+        return self.base_individual_processor('mep_pres7',base_dict)
+
+    def me_pwr7_processor(self,base_dict):
+        return self.base_individual_processor('me_pwr7',base_dict)
+
+    def unit8_always_processor(self,base_dict):
+        return self.base_individual_processor('unit8_always',base_dict)
+
+    def mep_pres8_processor(self,base_dict):
+        return self.base_individual_processor('mep_pres8',base_dict)
+
+    def me_pwr8_processor(self,base_dict):
+        return self.base_individual_processor('me_pwr8',base_dict)
+
+    def uni9_always_processor(self,base_dict):
+        return self.base_individual_processor('uni9_always',base_dict)
+
+    def mep_pres9_processor(self,base_dict):
+        return self.base_individual_processor('mep_pres9',base_dict)
+
+    def me_pwr9_processor(self,base_dict):
+        return self.base_individual_processor('me_pwr9',base_dict)
+
+    def unit10_always_processor(self,base_dict):
+        return self.base_individual_processor('unit10_always',base_dict)
+
+    def mep_pres10_processor(self,base_dict):
+        return self.base_individual_processor('mep_pres10',base_dict)
+
+    def me_pwr10_processor(self,base_dict):
+        return self.base_individual_processor('me_pwr10',base_dict)
+
+    def unit11_always_processor(self,base_dict):
+        return self.base_individual_processor('unit11_always',base_dict)
+
+    def mep_pres11_processor(self,base_dict):
+        return self.base_individual_processor('mep_pres11',base_dict)
+
+    def me_pwr11_processor(self,base_dict):
+        return self.base_individual_processor('me_pwr11',base_dict)
+
+    def unit12_always_processor(self,base_dict):
+        return self.base_individual_processor('unit12_always',base_dict)
+
+    def mep_pres12_processor(self,base_dict):
+        return self.base_individual_processor('mep_pres12',base_dict)
+
+    def me_pwr12_processor(self,base_dict):
+        return self.base_individual_processor('me_pwr12',base_dict)
+
+    def tc1_lop_processor(self,base_dict):
+        return self.base_individual_processor('tc1_lop',base_dict)
+
+    def tch1_always_processor(self,base_dict):
+        return self.base_individual_processor('tch1_always',base_dict)
+
+    def tch2_always_processor(self,base_dict):
+        return self.base_individual_processor('tch2_always',base_dict)
+
+    def tc2_lop_processor(self,base_dict):
+        return self.base_individual_processor('tc2_lop',base_dict)
+
+    def tc3_lop_processor(self,base_dict):
+        return self.base_individual_processor('tc3_lop',base_dict)
+
+    def tch4_always_processor(self,base_dict):
+        return self.base_individual_processor('tch4_always',base_dict)
+
+    def tc4_lop_processor(self,base_dict):
+        return self.base_individual_processor('tc4_lop',base_dict)
+
+    def ac1_swin_valve_always_processor(self,base_dict):
+        return self.base_individual_processor('ac1_swin_valve_always',base_dict)
+
+    def ac1_always_processor(self,base_dict):
+        return self.base_individual_processor('ac1_always',base_dict)
+
+    def ac1_swout_valve_always_processor(self,base_dict):
+        return self.base_individual_processor('ac1_swout_valve_always',base_dict)
+
+    def ac1_tubestack_processor(self,base_dict):
+        return self.base_individual_processor('ac1_tubestack',base_dict)
+
+    def ac1_watersep_always_processor(self,base_dict):
+        return self.base_individual_processor('ac1_watersep_always',base_dict)
+
+    def ac1_water_sep_processor(self,base_dict):
+        return self.base_individual_processor('ac1_water_sep',base_dict)
+
+    def ac2_swin_valve_always_processor(self,base_dict):
+        return self.base_individual_processor('ac2_swin_valve_always',base_dict)
+
+    def ac2_always_processor(self,base_dict):
+        return self.base_individual_processor('ac2_always',base_dict)
+
+    def ac2_swout_valve_always_processor(self,base_dict):
+        return self.base_individual_processor('ac2_swout_valve_always',base_dict)
+
+    def ac2_watersep_always_processor(self,base_dict):
+        return self.base_individual_processor('ac2_watersep_always',base_dict)
+
+    def ac2_water_sep_processor(self,base_dict):
+        return self.base_individual_processor('ac2_water_sep',base_dict)
+
+    def ac3_always_processor(self,base_dict):
+        return self.base_individual_processor('ac3_always',base_dict)
+
+    def ac3_swout_valve_always_processor(self,base_dict):
+        return self.base_individual_processor('ac3_swout_valve_always',base_dict)
+
+    def ac3_water_sep_processor(self,base_dict):
+        return self.base_individual_processor('ac3_water_sep',base_dict)
+
+    def ac4_always_processor(self,base_dict):
+        return self.base_individual_processor('ac4_always',base_dict)
+
+    def ac2_watersep_always_processor(self,base_dict):
+        return self.base_individual_processor('ac2_watersep_always',base_dict)
+
+    def sa_manifold_always_processor(self,base_dict):
+        return self.base_individual_processor('sa_manifold_always',base_dict)
+
+    def sa_valves_always_processor(self,base_dict):
+        return self.base_individual_processor('sa_valves_always',base_dict)
+
+    def sa_hum_processor(self,base_dict):
+        return self.base_individual_processor('sa_hum',base_dict)
+
+    def er_blowers_always_processor(self,base_dict):
+        return self.base_individual_processor('er_blowers_always',base_dict)
+
+    def jcwp_suc_always_processor(self,base_dict):
+        return self.base_individual_processor('jcwp_suc_always',base_dict)
+
+    def jwcp1_used_processor(self,base_dict):
+        return self.base_individual_processor('jwcp1_used',base_dict)
+
+    def jwcp2_used_processor(self,base_dict):
+        return self.base_individual_processor('jwcp2_used',base_dict)
+
+    def jwcp1_suc_pres_processor(self,base_dict):
+        return self.base_individual_processor('jwcp1_suc_pres',base_dict)
+
+    def jwcp2_suc_pres_processor(self,base_dict):
+        return self.base_individual_processor('jwcp2_suc_pres',base_dict)
+
+    def jwc1_used_processor(self,base_dict):
+        return self.base_individual_processor('jwc1_used',base_dict)
+
+    def jwc2_used_processor(self,base_dict):
+        return self.base_individual_processor('jwc2_used',base_dict)
+
+    def jwcp_used_processor(self,base_dict):
+        return self.base_individual_processor('jwcp_used',base_dict)
+
+    def jwcp_suc_pres_processor(self,base_dict):
+        return self.base_individual_processor('jwcp_suc_pres',base_dict)
+
+    def jwc_fwin_pres_processor(self,base_dict):
+        return self.base_individual_processor('jwc_fwin_pres',base_dict)
+
+    def jwc_used_processor(self,base_dict):
+        return self.base_individual_processor('jwc_used',base_dict)
+
+    def jwc_swin_temp_processor(self,base_dict):
+        return self.base_individual_processor('jwc_swin_temp',base_dict)
+
+    def jwc_swin_pres_processor(self,base_dict):
+        return self.base_individual_processor('jwc_swin_pres',base_dict)
+
+    def jwc_swout_temp_processor(self,base_dict):
+        return self.base_individual_processor('jwc_swout_temp',base_dict)
+
+    def jwc_swout_pres_processor(self,base_dict):
+        return self.base_individual_processor('jwc_swout_pres',base_dict)
+
+    def jwc_fwin_temp_processor(self,base_dict):
+        return self.base_individual_processor('jwc_fwin_temp',base_dict)
+
+    def jwc_fwout_temp_processor(self,base_dict):
+        return self.base_individual_processor('jwc_fwout_temp',base_dict)
+
+    def jwc_fwout_pres_processor(self,base_dict):
+        return self.base_individual_processor('jwc_fwout_pres',base_dict)
+
+    def pwcp1_used_processor(self,base_dict):
+        return self.base_individual_processor('pwcp1_used',base_dict)
+
+    def pwcp2_used_processor(self,base_dict):
+        return self.base_individual_processor('pwcp2_used',base_dict)
+
+    def pwcp_used_processor(self,base_dict):
+        return self.base_individual_processor('pwcp_used',base_dict)
+
+    def pwc_fwin_pres_processor(self,base_dict):
+        return self.base_individual_processor('pwc_fwin_pres',base_dict)
+
+    def pwc1_used_processor(self,base_dict):
+        return self.base_individual_processor('pwc1_used',base_dict)
+
+    def pwc2_used_processor(self,base_dict):
+        return self.base_individual_processor('pwc2_used',base_dict)
+
+    def pwc_used_processor(self,base_dict):
+        return self.base_individual_processor('pwc_used',base_dict)
+
+    def pwc_swin_temp_processor(self,base_dict):
+        return self.base_individual_processor('pwc_swin_temp',base_dict)
+
+    def pwc_swout_temp_processor(self,base_dict):
+        return self.base_individual_processor('pwc_swout_temp',base_dict)
+
+    def pwc_fwin_temp_processor(self,base_dict):
+        return self.base_individual_processor('pwc_fwin_temp',base_dict)
+
+    def pwc_fwout_temp_processor(self,base_dict):
+        return self.base_individual_processor('pwc_fwout_temp',base_dict)
+
+    def pwc_fwout_pres_processor(self,base_dict):
+        return self.base_individual_processor('pwc_fwout_pres',base_dict)
+
+    def pwc_swin_pres_processor(self,base_dict):
+        return self.base_individual_processor('pwc_swin_pres',base_dict)
+
+    def pwc_swout_pres_processor(self,base_dict):
+        return self.base_individual_processor('pwc_swout_pres',base_dict)
+
+    def lome_chd_pres_processor(self,base_dict):
+        return self.base_individual_processor('lome_chd_pres',base_dict)
+
+    def fiva_lo_pres_processor(self,base_dict):
+        return self.base_individual_processor('fiva_lo_pres',base_dict)
+
+    def lome_bffinefltr_pres_processor(self,base_dict):
+        return self.base_individual_processor('lome_bffinefltr_pres',base_dict)
+
+    def lome_finefltr_pres_processor(self,base_dict):
+        return self.base_individual_processor('lome_finefltr_pres',base_dict)
+
+    def lome_finefltr_temp_processor(self,base_dict):
+        return self.base_individual_processor('lome_finefltr_temp',base_dict)
+
+    def lop1_used_processor(self,base_dict):
+        return self.base_individual_processor('lop1_used',base_dict)
+
+    def lop2_used_processor(self,base_dict):
+        return self.base_individual_processor('lop2_used',base_dict)
+
+    def lop1_pres_processor(self,base_dict):
+        return self.base_individual_processor('lop1_pres',base_dict)
+
+    def lop2_pres_processor(self,base_dict):
+        return self.base_individual_processor('lop2_pres',base_dict)
+
+    def lome_dis_processor(self,base_dict):
+        return self.base_individual_processor('lome_dis',base_dict)
+
+    def loc1_used_processor(self,base_dict):
+        return self.base_individual_processor('loc1_used',base_dict)
+
+    def loc2_used_processor(self,base_dict):
+        return self.base_individual_processor('loc2_used',base_dict)
+
+    def loc_used_processor(self,base_dict):
+        return self.base_individual_processor('loc_used',base_dict)
+
+    def loc_fwin_pres_processor(self,base_dict):
+        return self.base_individual_processor('loc_fwin_pres',base_dict)
+
+    def loc_swin_temp_processor(self,base_dict):
+        return self.base_individual_processor('loc_swin_temp',base_dict)
+
+    def loc_swout_temp_processor(self,base_dict):
+        return self.base_individual_processor('loc_swout_temp',base_dict)
+
+    def loc_loin_temp_processor(self,base_dict):
+        return self.base_individual_processor('loc_loin_temp',base_dict)
+
+    def loc_loout_temp_processor(self,base_dict):
+        return self.base_individual_processor('loc_loout_temp',base_dict)
+
+    def loc_loout_pres_processor(self,base_dict):
+        return self.base_individual_processor('loc_loout_pres',base_dict)
+
+    def loc_swin_pres_processor(self,base_dict):
+        return self.base_individual_processor('loc_swin_pres',base_dict)
+
+    def loc_swout_pres_processor(self,base_dict):
+        return self.base_individual_processor('loc_swout_pres',base_dict)
+
+    def lop_used_processor(self,base_dict):
+        return self.base_individual_processor('lop_used',base_dict)
+
+    def lop_pres_processor(self,base_dict):
+        return self.base_individual_processor('lop_pres',base_dict)
+
+    def chp1_lo_used_processor(self,base_dict):
+        return self.base_individual_processor('chp1_lo_used',base_dict)
+
+    def chp1_lo_pres_processor(self,base_dict):
+        return self.base_individual_processor('chp1_lo_pres',base_dict)
+
+    def chp2_lo_used_processor(self,base_dict):
+        return self.base_individual_processor('chp2_lo_used',base_dict)
+
+    def chp2_lo_pres_processor(self,base_dict):
+        return self.base_individual_processor('chp2_lo_pres',base_dict)
+
+    def chp_lo_used_processor(self,base_dict):
+        return self.base_individual_processor('chp_lo_used',base_dict)
+
+    def chp_lo_pres_processor(self,base_dict):
+        return self.base_individual_processor('chp_lo_pres',base_dict)
+
+    def sw1_pump_used_processor(self,base_dict):
+        return self.base_individual_processor('sw1_pump_used',base_dict)
+
+    def sw2_pump_used_processor(self,base_dict):
+        return self.base_individual_processor('sw2_pump_used',base_dict)
+
+    def sw_pump_used_processor(self,base_dict):
+        return self.base_individual_processor('sw_pump_used',base_dict)
+
+    def sw_pres_processor(self,base_dict):
+        return self.base_individual_processor('sw_pres',base_dict)
+
+    def sw_temp_processor(self,base_dict):
+        return self.base_individual_processor('sw_temp',base_dict)

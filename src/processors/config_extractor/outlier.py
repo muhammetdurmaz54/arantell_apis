@@ -1,3 +1,4 @@
+
 from logging.config import IDENTIFIER
 import sys
 
@@ -12,6 +13,7 @@ from datetime import datetime
 from src.db.schema.ship import Ship 
 import numpy as np
 import pandas as pd
+import re
 from pymongo import MongoClient
 
 log = CommonLogger(__name__,debug=True).setup_logger()
@@ -35,13 +37,46 @@ daily_data = daily_data_collection.find({"ship_imo": 9591301,"ship_name":"RTM CO
 
 
 class CheckOutlier:
-    def __init__(self,configs):
+    def __init__(self,configs,main_db):
         self.ship_configs=configs
+        self.maindb=main_db
         pass
 
     def get_ship_configs(self):
         ship_configs_collection = database.get_collection("ship")
         self.ship_configs = ship_configs_collection.find({"ship_imo": 9591301})[0]
+
+    def get_main_data(self):  
+        maindb_collection = database.get_collection("Main_db")
+        self.maindb = maindb_collection.find({"ship_imo": 9591301})[0]
+    
+    def return_variable(self,string):
+        txt = string
+        txt_search=[i for i in re.findall("[a-zA-Z0-9_]+",txt) if not i.isdigit()]
+        
+        return txt_search
+
+    def base_formula_main_data(self,formula_string):
+        list_var=self.return_variable(formula_string)
+        static_data=self.ship_configs['static_data']
+        main_data=self.maindb['processed_daily_data']
+        temp_dict={}
+        for i in list_var:
+            temp_dict[i]=0
+            if i in static_data and pd.isnull(static_data[i])==False:
+                temp_dict[i]=static_data[i]['value']
+            elif i in main_data and pd.isnull(main_data[i]['processed'])==False:
+                temp_dict[i]=main_data[i]['processed']
+            else:
+                temp_dict[i]=None   
+        return eval(self.eval_val_replacer(temp_dict, formula_string))
+        
+        
+        
+    def eval_val_replacer(self,temp_dict, string):
+        for key in temp_dict.keys():
+            string = re.sub(r"\b" + key + r"\b", str(temp_dict[key]), string, flags=re.I)
+        return string
 
 
     def Outlierlimitcheck(self,identifier,identifier_value):     #later onemore parameter to be sent as fomula_var and this will contain the variable which is present in limits and not present in static_data for ex:(w_rel_dir_i + 10) for this we send identifier,identifier_value,w_dir_rel_i
@@ -51,127 +86,52 @@ class CheckOutlier:
         ophigh=self.ship_configs['data'][self.identifier]['limits']['ophigh']                                    #rpm with % 
         olmin=self.ship_configs['data'][self.identifier]['limits']['olmin']
         olmax=self.ship_configs['data'][self.identifier]['limits']['olmax']
-        
-        
 
         if pd.isnull(olmax) and pd.isnull(olmin):               #if both are null then not checked
-            return "not checked"
-                
+            return "not checked"       
                        
         elif pd.isnull(olmax) and pd.isnull(olmin)==False:                        #if olmax is null and olmin contains some value
             if type(olmin)==int or type(olmin)==float:                                    #if olmin is int direct comparison
                 if identifier_value>=olmin:
                     return True
                 else:
-                    return False
+                    return False    #done
             
             elif type(olmin)==str:                                    #if olmin is string
                 olmin_split=olmin.split()
                 olmin_len=len(olmin_split)
                 if (olmin_len==1) and ("%" not in olmin_split[0]):
-                    val=self.ship_configs['static_data'][olmin]
+                    val=self.base_formula_main_data(olmin)
                     if identifier_value>=val:
                         return True
                     else:
-                        return False
+                        return False    #done
                 
                 elif (olmin_len==1) and ("%" in olmin_split[0]):
                     olmin_split_percentage=float(olmin_split[0][:-1])
                     if type(oplow)==str:                                #oplow can be str or int if olmin is a percentage value(this is for string)
                         oplow_split=oplow.split()
                         oplow_len=len(oplow_split)
-                        if oplow_len==1:
-                            val=self.ship_configs['static_data'][oplow]
-                            olmin_val=(val*olmin_split_percentage)/100
-                            if identifier_value>=olmin_val:
-                                return True
-                            else:
-                                return False
-                        elif oplow_len==3:
-                            for i in oplow_split:
-                                if i=="+":
-                                    val=self.ship_configs['static_data'][oplow_split[0]] + float(oplow_split[2])
-                                    value=(val*olmin_split_percentage)/100
-                                    if identifier_value>=value:
-                                        return True
-                                    else:
-                                        return False
-                                elif i=="-":
-                                    val=self.ship_configs['static_data'][oplow_split[0]] - float(oplow_split[2])
-                                    value=(val*olmin_split_percentage)/100
-                                    if identifier_value>=value:
-                                        return True
-                                    else:
-                                        return False
-                                elif i=="*":
-                                    val=self.ship_configs['static_data'][oplow_split[0]] * float(oplow_split[2])
-                                    value=(val*olmin_split_percentage)/100
-                                    if identifier_value>=value:
-                                        return False
-                                    else:
-                                        return False
-                                elif i=="/":
-                                    val=self.ship_configs['static_data'][oplow_split[0]] / float(oplow_split[2])
-                                    value=(val*olmin_split_percentage)/100
-                                    if identifier_value>=value:
-                                        return True
-                                    else:
-                                        return False
-
+                        val=self.base_formula_main_data(oplow)
+                        olmin_val=(val*olmin_split_percentage)/100
+                        if identifier_value>=olmin_val:
+                            return True
+                        else: 
+                            return False    #done
+ 
                     elif type(oplow)==int or type(oplow)==float:           #if oplow is int or float
                         olmin_val=(oplow*olmin_split_percentage)/100
                         if identifier_value>=olmin_val:
                             return True
                         else:
-                            return False
+                            return False   #done
                     
-                elif olmin_len==3:
-                    for i in olmin_split:
-                        if i=="+":
-                            val=self.ship_configs['static_data'][olmin_split[0]] + float(olmin_split[2])
-                            if identifier_value>=val:
-                                return True
-                            else:
-                                return False
-                        elif i=="-":
-                            val=self.ship_configs['static_data'][olmin_split[0]]-float(olmin_split[2])
-                            if identifier_value>=val:
-                                return True
-                            else:
-                                return False
-                        elif i=="*":
-                            val=self.ship_configs['static_data'][olmin_split[0]]*float(olmin_split[2])
-                            if identifier_value>=val:
-                                return True
-                            else:
-                                return False
-                        elif i=="/":
-                            val=self.ship_configs['static_data'][olmin_split[0]]/float(olmin_split[2])
-                            if identifier_value>=val:
-                                return True
-                            else:
-                                return False
-                elif olmin_len==5:
-                    if olmin_split[1]=="+" and olmin_split[3]=="+":
-                        val=self.ship_configs['static_data'][olmin_split[0]] + self.ship_configs['static_data'][olmin_split[2]] + self.ship_configs['static_data'][olmin_split[4]]
-                        if identifier_value>=val:
-                            return True
-                        else:
-                            return False
-                    elif olmin_split[1]=="-" and olmin_split[3]=="-":
-                        val=self.ship_configs['static_data'][olmin_split[0]] - self.ship_configs['static_data'][olmin_split[2]] - self.ship_configs['static_data'][olmin_split[4]]
-                        if identifier_value>=val:
-                            return True
-                        else:
-                            return False
-                    elif olmin_split[1]=="*" and olmin_split[3]=="*":
-                        val=self.ship_configs['static_data'][olmin_split[0]] * self.ship_configs['static_data'][olmin_split[2]] * self.ship_configs['static_data'][olmin_split[4]]
-                        if identifier_value>=val:
-                            return True
-                        else:
-                            return False
-                    
-
+                elif olmin_len>1 or olmin_len>2:
+                    val=self.base_formula_main_data(olmin)
+                    if identifier_value>=val:
+                        return True
+                    else:
+                        return False  #done
 
         
         elif pd.isnull(olmax)==False and pd.isnull(olmin):                          #if olmin is null and olmax contains some value
@@ -179,119 +139,44 @@ class CheckOutlier:
                 if identifier_value<=olmax:
                     return True
                 else:
-                    return False
+                    return False  #done
                                         
                 
             elif type(olmax)==str:                                               #if olmin float(percentage which is either 110% or 120%)
                 olmax_split=olmax.split()
                 olmax_len=len(olmax_split)
                 if (olmax_len==1) and ("%" not in olmax_split[0]):
-                    val=self.ship_configs['static_data'][olmax]
+                    val=self.base_formula_main_data(olmax)
                     if identifier_value<=val:
                         return True
                     else:
-                        return False
+                        return False  #done 
                 
                 elif (olmax_len==1) and ("%" in olmax_split[0]):
                     olmax_split_percentage=float(olmax_split[0][:-1])
                     if type(ophigh)==str:                                #oplow can be str or int if olmin is a percentage value(this is for string)
                         ophigh_split=ophigh.split()
                         ophigh_len=len(ophigh_split)
-                        if ophigh_len==1:
-                            val=self.ship_configs['static_data'][ophigh]
-                            olmax_val=(val*olmax_split_percentage)/100
-                            if identifier_value<=olmax_val:
-                                
-                                return True
-                            else:
-                                return False
-                        elif ophigh_len==3:
-                            for i in ophigh_split:
-                                if i=="+":
-                                    val=self.ship_configs['static_data'][ophigh_split[0]] + float(ophigh_split[2])
-                                    value=(val*olmax_split_percentage)/100
-                                    if identifier_value<=value:
-                                        return True
-                                    else:
-                                        return False
-                                elif i=="-":
-                                    val=self.ship_configs['static_data'][ophigh_split[0]]-float(ophigh_split[2])
-                                    value=(val*olmax_split_percentage)/100
-                                    if identifier_value<=value:
-                                        return True
-                                    else:
-                                        return False
-                                elif i=="*":
-                                    val=self.ship_configs['static_data'][ophigh_split[0]]*float(ophigh_split[2])
-                                    value=(val*olmax_split_percentage)/100
-                                    if identifier_value<=value:
-                                        return True
-                                    else:
-                                        return False
-                                elif i=="/":
-                                    val=self.ship_configs['static_data'][ophigh_split[0]]/float(ophigh_split[2])
-                                    value=(val*olmax_split_percentage)/100
-                                    if identifier_value<=value:
-                                        return True
-                                    else:
-                                        return False
+                        val=self.base_formula_main_data(ophigh)
+                        olmax_val=(val*olmax_split_percentage)/100
+                        if identifier_value<=olmax_val:
+                            return True
+                        else:
+                            return False   #done 
                     
                     elif type(ophigh)==int or type(ophigh)==float:           #if oplow is int or float
                         olmax_val=(ophigh*olmax_split_percentage)/100
                         if identifier_value<=olmax_val:
                             return True
                         else:
-                            return False
+                            return False  #done
 
-
-                elif olmax_len==3:
-                    for i in olmax_split:
-                        if i=="+":
-                            value=self.ship_configs['static_data'][olmax_split[0]] + float(olmax_split[2])
-                            if identifier_value<=value:
-                                return True
-                            else:
-                                return False
-                        elif i=="-":
-                            value=self.ship_configs['static_data'][olmax_split[0]] - float(olmax_split[2])
-                            if identifier_value<=value:
-                                return True
-                            else:
-                                return False
-                        elif i=="*":
-                            value=self.ship_configs['static_data'][olmax_split[0]] * float(olmax_split[2])
-                            if identifier_value<=value:
-                                return True
-                            else:
-                                return False
-                        elif i=="/":
-                            value=self.ship_configs['static_data'][olmax_split[0]] / float(olmax_split[2])
-                            if identifier_value<=value:
-                                return True
-                            else:
-                                return False
-                elif olmax_len==5:
-                    if olmax_split[1]=="+" and olmax_split[3]=="+":
-                        val=self.ship_configs['static_data'][olmax_split[0]] + self.ship_configs['static_data'][olmax_split[2]] + self.ship_configs['static_data'][olmax_split[4]]
-                        if identifier_value<=val:
-                            return True
-                        else:
-                            return False
-                    elif olmax_split[1]=="-" and olmax_split[3]=="-":
-                        val=self.ship_configs['static_data'][olmax_split[0]] - self.ship_configs['static_data'][olmax_split[2]] - self.ship_configs['static_data'][olmax_split[4]]
-                        if identifier_value<=val:
-                            return True
-                        else:
-                            return False
-                    elif olmax_split[1]=="*" and olmax_split[3]=="*":
-                        val=self.ship_configs['static_data'][olmax_split[0]] * self.ship_configs['static_data'][olmax_split[2]] * self.ship_configs['static_data'][olmax_split[4]]
-                        if identifier_value<=val:
-                            
-                            return True
-                        else:
-                            return False    
-        
-
+                elif olmax_len>1 or olmax_len>2:
+                    val=self.base_formula_main_data(olmax)
+                    if identifier_value<=val:
+                        return True
+                    else:
+                        return False #done 
 
         elif (pd.isnull(olmax)==False and pd.isnull(olmin)==False):
             if (type(olmax)==int or type(olmax)==float) and (type(olmin)==int or type(olmin)==float):               #if both are int or float directly we get outlier
@@ -306,13 +191,12 @@ class CheckOutlier:
                 olmin_split=olmin.split()
                 olmin_len=len(olmin_split)
                 if (olmin_len==1 and olmax_len==1) and (("%" not in olmin_split[0]) and ("%" not in olmax_split[0])):
-                    olmin_val=self.ship_configs['static_data'][olmin]
-                    olmax_val=self.ship_configs['static_data'][olmax]
+                    olmin_val=self.base_formula_main_data(olmin)
+                    olmax_val=self.base_formula_main_data(olmax)
                     if identifier_value<=olmax_val and identifier_value>=olmin_val:
                         return True
                     else:
                         return False
-                
 
                 elif (olmin_len==1 and olmax_len==1) and (("%" in olmin_split[0]) and ("%" in olmax_split[0])):
                     olmin_val_percentage=float(olmin_split[0][:-1])/100
@@ -322,102 +206,13 @@ class CheckOutlier:
                         oplow_len=len(oplowsplit)
                         ophigh_split=ophigh.split()
                         ophigh_len=len(ophigh_split)
-                        if oplow_len==1 and ophigh_len==1:
-                            oplow_val=self.ship_configs['static_data'][oplow]*olmin_val_percentage
-                            ophigh_val=self.ship_configs['static_data'][ophigh]*olmax_val_percentage
-                            if identifier_value>=oplow_val and identifier_value<=ophigh_val:
-                                return True
-                            else:
-                                return False
-                        elif oplow_len==1 and ophigh_len==3:
-                            oplow_val=self.ship_configs['static_data'][oplow]*olmin_val_percentage
-                            for i in ophigh_split:
-                                if i=="+":
-                                    val=(self.ship_configs['static_data'][ophigh_split[0]] + float(ophigh_split[2])) * olmax_val_percentage
-                                    if identifier_value>=oplow_val and identifier_value<=val:
-                                        return True
-                                    else:
-                                        return False
-                                elif i=="-":
-                                    val=(self.ship_configs['static_data'][ophigh_split[0]]-float(ophigh_split[2])) *olmax_val_percentage
-                                    if identifier_value>=oplow_val and identifier_value<=val:
-                                        return True
-                                    else:
-                                        return False
-                                elif i=="*":
-                                    val=(self.ship_configs['static_data'][ophigh_split[0]]*float(ophigh_split[2])) * olmax_val_percentage
-                                    if identifier_value>=oplow_val and identifier_value<=val:
-                                        return True
-                                    else:
-                                        return False
-                                elif i=="/":
-                                    val=(self.ship_configs['static_data'][ophigh_split[0]]/float(ophigh_split[2])) * olmax_val_percentage
-                                    if identifier_value>=oplow_val and identifier_value<=val:
-                                        return True
-                                    else:
-                                        return False
-                        elif oplow_len==3 and ophigh_len==1:
-                            ophigh_val=self.ship_configs['static_data'][ophigh]*olmax_val_percentage
-                            for i in oplowsplit:
-                                if i=="+":
-                                    val=(self.ship_configs['static_data'][oplowsplit[0]] + float(oplowsplit[2])) * olmin_val_percentage
-                                    if identifier_value>=val and identifier_value<=ophigh_val:
-                                        return True
-                                    else:
-                                        return False
-                                elif i=="-":
-                                    val=(self.ship_configs['static_data'][oplowsplit[0]]-float(oplowsplit[2])) * olmin_val_percentage
-                                    if identifier_value>=val and identifier_value<=ophigh_val:
-                                        return True
-                                    else:
-                                        return False
-                                elif i=="*":
-                                    val=(self.ship_configs['static_data'][oplowsplit[0]]*float(oplowsplit[2])) * olmin_val_percentage
-                                    if identifier_value>=val and identifier_value<=ophigh_val:
-                                        return True
-                                    else:
-                                        return False
-                                elif i=="/":
-                                    val=(self.ship_configs['static_data'][oplowsplit[0]]/float(oplowsplit[2])) * olmin_val_percentage
-                                    if identifier_value>=val and identifier_value<=ophigh_val:
-                                        return True
-                                    else:
-                                        return False
-                        elif oplow_len==3 and ophigh_len==3:
-                            self.oplow_val_len_three=0
-                            self.ophigh_val_len_three=0
-                            for i in oplowsplit:
-                                if i=="+":
-                                    val=(self.ship_configs['static_data'][oplowsplit[0]] + float(oplowsplit[2])) * olmin_val_percentage
-                                    self.oplow_val_len_three=val
-                                elif i=="-":
-                                    val=(self.ship_configs['static_data'][oplowsplit[0]]-float(oplowsplit[2])) * olmin_val_percentage
-                                    self.oplow_val_len_three=val
-                                elif i=="*":
-                                    val=(self.ship_configs['static_data'][oplowsplit[0]]*float(oplowsplit[2])) * olmin_val_percentage
-                                    self.oplow_val_len_three=val
-                                elif i=="/":
-                                    val=(self.ship_configs['static_data'][oplowsplit[0]]/float(oplowsplit[2])) *olmin_val_percentage
-                                    self.oplow_val_len_three=val
-                                return self.oplow_val_len_three
-                            for j in ophigh_split:     
-                                if j=="+":
-                                    val=(self.ship_configs['static_data'][oplowsplit[0]] + float(oplowsplit[2])) * olmax_val_percentage
-                                    self.ophigh_val_len_three=val
-                                elif j=="-":
-                                    val=(self.ship_configs['static_data'][oplowsplit[0]]-float(oplowsplit[2])) * olmax_val_percentage
-                                    self.ophigh_val_len_three=val
-                                elif j=="*":
-                                    val=(self.ship_configs['static_data'][oplowsplit[0]]*float(oplowsplit[2])) * olmax_val_percentage
-                                    self.ophigh_val_len_three=val
-                                elif j=="/":
-                                    val=(self.ship_configs['static_data'][oplowsplit[0]]/float(oplowsplit[2])) * olmax_val_percentage
-                                    self.ophigh_val_len_three=val
-                                return self.ophigh_val_len_three
-                            if identifier_value<=self.ophigh_val_len_three and identifier_value>=self.oplow_val_len_three:
-                                return True
-                            else:
-                                return False
+                        
+                        oplow_val=self.base_formula_main_data(oplow)*olmin_val_percentage
+                        ophigh_val=self.base_formula_main_data(ophigh)*olmax_val_percentage
+                        if identifier_value>=oplow_val and identifier_value<=ophigh_val:
+                            return True
+                        else:
+                            return False  #extra conditions will come here
 
 
                     elif (type(ophigh)==int or type(ophigh)==float) and (type(oplow)==int or type(oplow)==float):
@@ -432,113 +227,38 @@ class CheckOutlier:
                         ophigh_split=ophigh.split()
                         ophigh_len=len(ophigh_split)
                         oplow_val=oplow*olmin_val_percentage
-                        if ophigh_len==1:
-                            val=self.ship_configs['static_data'][ophigh]*olmax_val_percentage
-                            if identifier_value<=val and identifier_value>=oplow_val:
-                                return True
-                            else:
-                                return False
-                        elif ophigh_len==3:
-                            for i in ophigh_split:
-                                if i=="+":
-                                    olmax_val=(self.ship_configs['static_data'][ophigh_split[0]] + float(ophigh_split[2])) * olmax_val_percentage
-                                    if identifier_value<=olmax_val and identifier_value>=oplow_val:
-                                        return True
-                                    else:
-                                        return False
-                                elif i=="-":
-                                    olmax_val=(self.ship_configs['static_data'][ophigh_split[0]] - float(ophigh_split[2]))* olmax_val_percentage
-                                    if identifier_value<=olmax_val and identifier_value>=oplow_val:
-                                        return True
-                                    else:
-                                        return False
-                                elif i=="*":
-                                    olmax_val=(self.ship_configs['static_data'][ophigh_split[0]] * float(ophigh_split[2]))* olmax_val_percentage
-                                    if identifier_value<=olmax_val and identifier_value>=oplow_val:
-                                        return True
-                                    else:
-                                        return False
-                                elif i=="/":
-                                    olmax_val=(self.ship_configs['static_data'][ophigh_split[0]] / float(ophigh_split[2]))* olmax_val_percentage
-                                    if identifier_value<=olmax_val and identifier_value>=oplow_val:
-                                        return True
-                                    else:
-                                        return False
+        
+                        val=self.base_formula_main_data(ophigh)*olmax_val_percentage
+                        if identifier_value<=val and identifier_value>=oplow_val:
+                            return True
+                        else:
+                            return False
+                        
                     elif (type(ophigh)==int or type(ophigh)==float) and (type(oplow)==str):
                         oplow_split=oplow.split()
                         oplow_len=len(oplow_split)
                         ophigh_val=ophigh*olmax_val_percentage
-                        if oplow_len==1:
-                            oplow_val=self.ship_configs['static_data'][ophigh]*olmin_val_percentage
-                            if identifier_value<=ophigh_val and identifier_value>=oplow_val:
-                                return True
-                            else:
-                                return False
-                        elif oplow_len==3:
-                            for i in oplow_split:
-                                if i=="+":
-                                    oplow_val=(self.ship_configs['static_data'][oplow_split[0]] + float(oplow_split[2])) * olmin_val_percentage
-                                    if identifier_value<=ophigh_val and identifier_value>=oplow_val:
-                                        return True
-                                    else:
-                                        return False
-                                elif i=="-":
-                                    oplow_val=(self.ship_configs['static_data'][oplow_split[0]] - float(oplow_split[2]))* olmin_val_percentage
-                                    if identifier_value<=ophigh_val and identifier_value>=oplow_val:
-                                        return True
-                                    else:
-                                        return False
-                                elif i=="*":
-                                    oplow_val=(self.ship_configs['static_data'][oplow_split[0]] * float(oplow_split[2]))* olmin_val_percentage
-                                    if identifier_value<=ophigh_val and identifier_value>=oplow_val:
-                                        return True
-                                    else:
-                                        return False
-                                elif i=="/":
-                                    oplow_val=(self.ship_configs['static_data'][oplow_split[0]] / float(oplow_split[2]))* olmin_val_percentage
-                                    if identifier_value<=ophigh_val and identifier_value>=oplow_val:
-                                        return True
-                                    else:
-                                        return False
+                
+                        oplow_val=self.base_formula_main_data(oplow)*olmin_val_percentage
+                        if identifier_value<=ophigh_val and identifier_value>=oplow_val:
+                            return True
+                        else:
+                            return False
+                        
 
                 elif (olmax_len==1 and olmin_len==1) and (("%" in olmax_split[0]) and ("%" not in olmin_split[0])):
-                    olmin_val=self.ship_configs['static_data'][olmin]
+                    olmin_val=self.base_formula_main_data(olmin)
                     olmax_val_percentage=float(olmax_split[0][:-1])/100
                     if type(ophigh)==str:
                         ophigh_split=ophigh.split()
                         ophigh_len=len(ophigh_split)
-                        if ophigh_len==1:
-                            ophigh_val=self.ship_configs['static_data'][ophigh] * olmax_val_percentage
-                            if identifier_value<=ophigh_val and identifier_value>=olmin_val:
-                                return True
-                            else:
-                                return False
-                        if ophigh_len==3:
-                            for i in ophigh_split:
-                                if i=="+":
-                                    ophigh_val=(self.ship_configs['static_data'][ophigh_split[0]] + float(ophigh_split[2]))* olmax_val_percentage
-                                    if identifier_value<=ophigh_val and identifier_value>=olmin_val:
-                                        return True
-                                    else:
-                                        return False
-                                elif i=="-":
-                                    ophigh_val=(self.ship_configs['static_data'][ophigh_split[0]] - float(ophigh_split[2]))* olmax_val_percentage
-                                    if identifier_value<=ophigh_val and identifier_value>=olmin_val:
-                                        return True
-                                    else:
-                                        return False
-                                elif i=="*":
-                                    ophigh_val=(self.ship_configs['static_data'][ophigh_split[0]] * float(ophigh_split[2]))* olmax_val_percentage
-                                    if identifier_value<=ophigh_val and identifier_value>=olmin_val:
-                                        return True
-                                    else:
-                                        return False
-                                elif i=="/":
-                                    ophigh_val=(self.ship_configs['static_data'][ophigh_split[0]] / float(ophigh_split[2]))* olmax_val_percentage
-                                    if identifier_value<=ophigh_val and identifier_value>=olmin_val:
-                                        return True
-                                    else:
-                                        return False
+                        
+                        ophigh_val=self.base_formula_main_data(ophigh) * olmax_val_percentage
+                        if identifier_value<=ophigh_val and identifier_value>=olmin_val:
+                            return True
+                        else:
+                            return False
+                        
                     elif type(ophigh)==int or type(ophigh)==float:
                         olmax_val=ophigh*olmax_val_percentage
                         if identifier_value>=olmin_val and identifier_value<=olmax_val:
@@ -547,43 +267,18 @@ class CheckOutlier:
                             return False
 
                 elif (olmax_len==1 and olmin_len==1) and (("%" in olmin_split[0]) and ("%" not in olmax_split[0])):
-                    ophigh_val=self.ship_configs['static_data'][olmax]
+                    ophigh_val=self.base_formula_main_data(olmax)
                     olmin_val_percentage=float(olmin_split[0][-1])/100
                     if type(oplow)==str:
                         oplow_split=oplow.split()
                         oplow_len=len(oplow_split)  
-                        if oplow_len==1:
-                            olmin_val=self.ship_configs['static_data'][oplow] * olmin_val_percentage
-                            if identifier_value<=ophigh_val and identifier_value>=olmin_val:
-                                return True
-                            else:
-                                return False
-                        if oplow_len==3:
-                            for i in oplow_split:
-                                if i=="+":
-                                    olmin_val=(self.ship_configs['static_data'][oplow_split[0]] + float(oplow_split[2]))* olmin_val_percentage
-                                    if identifier_value<=ophigh_val and identifier_value>=olmin_val:
-                                        return True
-                                    else:
-                                        return False
-                                elif i=="-":
-                                    olmin_val=(self.ship_configs['static_data'][oplow_split[0]] - float(oplow_split[2]))* olmin_val_percentage
-                                    if identifier_value<=ophigh_val and identifier_value>=olmin_val:
-                                        return True
-                                    else:
-                                        return False
-                                elif i=="*":
-                                    olmin_val=(self.ship_configs['static_data'][oplow_split[0]] * float(oplow_split[2]))* olmin_val_percentage
-                                    if identifier_value<=ophigh_val and identifier_value>=olmin_val:
-                                        return True
-                                    else:
-                                        return False
-                                elif i=="/":
-                                    olmin_val=(self.ship_configs['static_data'][oplow_split[0]] / float(oplow_split[2]))* olmin_val_percentage
-                                    if identifier_value<=ophigh_val and identifier_value>=olmin_val:
-                                        return True
-                                    else:
-                                        return False
+                        
+                        olmin_val=self.base_formula_main_data(oplow) * olmin_val_percentage
+                        if identifier_value<=ophigh_val and identifier_value>=olmin_val:
+                            return True
+                        else:
+                            return False
+                        
                     elif type(oplow)==int or type(oplow)==float:
                         olmin_val=oplow*olmin_val_percentage
                         if identifier_value>=olmin_val and identifier_value<=ophigh_val:
@@ -591,177 +286,63 @@ class CheckOutlier:
                         else:
                             return False  
 
-                elif olmin_len==1 and olmax_len==3:  
+                elif olmin_len==1 and (olmax_len>1 or olmax_len>2) :  
+                    olmax_val=self.base_formula_main_data(olmax)
                     if "%" not in olmin_split[0]:
-                        olmin_val=self.ship_configs['static_data'][olmin]
-                        for i in olmax_split:
-                            if i=="+":
-                                olmax_val=self.ship_configs['static_data'][olmax_split[0]] + float(olmax_split[2])
-                                if identifier_value<=olmax_val and identifier_value>=olmin_val:
-                                    return True
-                                else:
-                                    return False
-                            elif i=="-":
-                                olmax_val=self.ship_configs['static_data'][olmax_split[0]] - float(olmax_split[2])
-                                if identifier_value<=olmax_val and identifier_value>=olmin_val:
-                                    return True
-                                else:
-                                    return False
-                            elif i=="*":
-                                olmax_val=self.ship_configs['static_data'][olmax_split[0]] * float(olmax_split[2])
-                                if identifier_value<=olmax_val and identifier_value>=olmin_val:
-                                    return True
-                                else:
-                                    return False
-                            elif i=="/":
-                                olmax_val=self.ship_configs['static_data'][olmax_split[0]] / float(olmax_split[2])
-                                if identifier_value<=olmax_val and identifier_value>=olmin_val:
-                                    return True
-                                else:
-                                    return False
+                        olmin_val=self.base_formula_main_data(olmin)
+                        
+                        
+                        if identifier_value<=olmax_val and identifier_value>=olmin_val:
+                            return True
+                        else:
+                            return False
+                            
                     elif "%" in olmin_split[0]:
-                        olmin_val_percentage=float(olmin_split[0][-1])/100
-                        self.golab=0
-                        for i in olmax_split:
-                            if i=="+":
-                                olmax_val=self.ship_configs['static_data'][olmax_split[0]] + float(olmax_split[2])
-                                self.golab=olmax_val
-                            elif i=="-":
-                                olmax_val=self.ship_configs['static_data'][olmax_split[0]] - float(olmax_split[2])
-                                self.golab=olmax_val
-                            elif i=="*":
-                                olmax_val=self.ship_configs['static_data'][olmax_split[0]] * float(olmax_split[2])
-                                self.golab=olmax_val
-                            elif i=="/":
-                                olmax_val=self.ship_configs['static_data'][olmax_split[0]] / float(olmax_split[2])
-                                self.golab=olmax_val
-                            return self.golab
-
+                        olmin_val_percentage=float(olmin_split[0][-1])/100                   
 
                         if type(oplow)==str:
                             oplow_split=oplow.split()
                             oplow_len=len(oplow_split)  
-                            if oplow_len==1:
-                                olmin_val=self.ship_configs['static_data'][oplow] * olmin_val_percentage
-                                if identifier_value<=self.golab and identifier_value>=olmin_val:
-                                    return True
-                                else:
-                                    return False
-                            if oplow_len==3:
-                                for i in oplow_split:
-                                    if i=="+":
-                                        olmin_val=(self.ship_configs['static_data'][oplow_split[0]] + float(oplow_split[2]))* olmin_val_percentage
-                                        if identifier_value<=self.golab and identifier_value>=olmin_val:
-                                            return True
-                                        else:
-                                            return False
-                                    elif i=="-":
-                                        olmin_val=(self.ship_configs['static_data'][oplow_split[0]] - float(oplow_split[2]))* olmin_val_percentage
-                                        if identifier_value<=self.golab and identifier_value>=olmin_val:
-                                            return True
-                                        else:
-                                            return False
-                                    elif i=="*":
-                                        olmin_val=(self.ship_configs['static_data'][oplow_split[0]] * float(oplow_split[2]))* olmin_val_percentage
-                                        if identifier_value<=self.golab and identifier_value>=olmin_val:
-                                            return True
-                                        else:
-                                            return False
-                                    elif i=="/":
-                                        olmin_val=(self.ship_configs['static_data'][oplow_split[0]] / float(oplow_split[2]))* olmin_val_percentage
-                                        if identifier_value<=self.golab and identifier_value>=olmin_val:
-                                            return True
-                                        else:
-                                            return False
+                            
+                            olmin_val=self.base_formula_main_data(oplow) * olmin_val_percentage
+                            if identifier_value<=olmax_val and identifier_value>=olmin_val:
+                                return True
+                            else:
+                                return False
+                            
                         elif type(oplow)==int or type(oplow)==float:
                             olmin_val=oplow*olmin_val_percentage
-                            if identifier_value>=olmin_val and identifier_value<=self.golab:
+                            if identifier_value>=olmin_val and identifier_value<=olmax_val:
                                 return True
                             else:
                                 return False
 
 
 
-                elif olmin_len==3 and olmax_len==1:#now here
+                elif (olmin_len>1 or olmin_len>2) and olmax_len==1:
                     if "%" not in olmax_split[0]:
-                        olmax_val=self.ship_configs['static_data'][olmax]
-                        for i in olmin_split:
-                            if i=="+":
-                                olmin_val=self.ship_configs['static_data'][olmin_split[0]] + float(olmin_split[2])
-                                if identifier_value<=olmax_val and identifier_value>=olmin_val:
-                                    return True
-                                else:
-                                    return False
-                            elif i=="-":
-                                olmin_val=self.ship_configs['static_data'][olmin_split[0]] - float(olmin_split[2])
-                                if identifier_value<=olmax_val and identifier_value>=olmin_val:
-                                    return True
-                                else:
-                                    return False
-                            elif i=="*":
-                                olmin_val=self.ship_configs['static_data'][olmin_split[0]] * float(olmin_split[2])
-                                if identifier_value<=olmax_val and identifier_value>=olmin_val:
-                                    return True
-                                else:
-                                    return False
-                            elif i=="/":
-                                olmin_val=self.ship_configs['static_data'][olmin_split[0]] / float(olmin_split[2])
-                                if identifier_value<=olmax_val and identifier_value>=olmin_val:
-                                    return True
-                                else:
-                                    return False
+                        olmax_val=self.base_formula_main_data(olmax)
+                        
+                        olmin_val=self.base_formula_main_data(olmin) 
+                        if identifier_value<=olmax_val and identifier_value>=olmin_val:
+                            return True
+                        else:
+                            return False
+                            
                     elif "%" in olmax_split[0]:
                         olmax_val_percentage=float(olmax_split[0][:-1])/100
-                        self.golab_1=0
-                        for i in olmin_split:
-                            if i=="+":
-                                olmin_val=self.ship_configs['static_data'][olmin_split[0]] + float(olmin_split[2])
-                                self.golab_1=olmin_val
-                            elif i=="-":
-                                olmin_val=self.ship_configs['static_data'][olmin_split[0]] - float(olmin_split[2])
-                                self.golab_1=olmin_val
-                            elif i=="*":
-                                olmin_val=self.ship_configs['static_data'][olmin_split[0]] * float(olmin_split[2])
-                                self.golab_1=olmin_val
-                            elif i=="/":
-                                olmin_val=self.ship_configs['static_data'][olmin_split[0]] / float(olmin_split[2])
-                                self.golab_1=olmin_val
-                            return self.golab_1
+                        self.golab_1=self.base_formula_main_data(olmin)
+                       
                         if type(ophigh)==str:
                             ophigh_split=ophigh.split()
                             ophigh_len=len(ophigh_split)  
-                            if ophigh_len==1:
-                                olmax_val=self.ship_configs['static_data'][ophigh] * olmax_val_percentage
-                                if identifier_value<=olmax_val and identifier_value>=self.golab_1:
-                                    return True
-                                else:
-                                    return False
-                            if ophigh_len==3:
-                                for i in ophigh_split:
-                                    if i=="+":
-                                        olmax_val=(self.ship_configs['static_data'][ophigh_split[0]] + float(ophigh_split[2]))* olmax_val_percentage
-                                        if identifier_value<=olmax_val and identifier_value>=self.golab_1:
-                                            return True
-                                        else:
-                                            return False
-                                    elif i=="-":
-                                        olmax_val=(self.ship_configs['static_data'][ophigh_split[0]] - float(ophigh_split[2]))* olmax_val_percentage
-                                        if identifier_value<=olmax_val and identifier_value>=self.golab_1:
-                                            return True
-                                        else:
-                                            return False
-                                    elif i=="*":
-                                        olmax_val=(self.ship_configs['static_data'][ophigh_split[0]] * float(ophigh_split[2]))* olmax_val_percentage
-                                        if identifier_value<=olmax_val and identifier_value>=self.golab_1:
-                                            return True
-                                        else:
-                                            return False
-                                    elif i=="/":
-                                        olmax_val=(self.ship_configs['static_data'][ophigh_split[0]] / float(ophigh_split[2]))* olmax_val_percentage
-                                        if identifier_value<=olmax_val and identifier_value>=self.golab_1:
-                                            return True
-                                        else:
-                                            return False
+                            
+                            olmax_val=self.base_formula_main_data(ophigh) * olmax_val_percentage
+                            if identifier_value<=olmax_val and identifier_value>=self.golab_1:
+                                return True
+                            else:
+                                return False
+                            
                         elif type(ophigh)==int or type(ophigh)==float:
                             olmax_val=ophigh*olmax_val_percentage
                             if identifier_value<=olmax_val and identifier_value>=self.golab_1:
@@ -772,275 +353,14 @@ class CheckOutlier:
                             
 
 
-                elif olmin_len==3 and olmax_len==3:
-                    self.olmin_len_three_val=0
-                    self.olmax_len_three_val=0
-                    for i in olmin_split:
-                        if i=="+":
-                            self.olmin_len_three_val=self.ship_configs['static_data'][olmin_split[0]] + float(olmin_split[2])
-                            
-                        elif i=="-":
-                            self.olmin_len_three_val=self.ship_configs['static_data'][olmin_split[0]] - float(olmin_split[2])
-                            
-                        elif i=="*":
-                            self.olmin_len_three_val=self.ship_configs['static_data'][olmin_split[0]] * float(olmin_split[2])
-                            
-                        elif i=="/":
-                            self.olmin_len_three_val=self.ship_configs['static_data'][olmin_split[0]] / float(olmin_split[2])
-                        return self.olmin_len_three_val
-                    for j in olmax_split:
-                        if j=="+":
-                            self.olmin_len_three_val=self.ship_configs['static_data'][olmin_split[0]] + float(olmin_split[2])
-                            
-                        elif j=="-":
-                            self.olmin_len_three_val=self.ship_configs['static_data'][olmin_split[0]] - float(olmin_split[2])
-                            
-                        elif j=="*":
-                            self.olmin_len_three_val=self.ship_configs['static_data'][olmin_split[0]] * float(olmin_split[2])
-                            
-                        elif j=="/":
-                            self.olmin_len_three_val=self.ship_configs['static_data'][olmin_split[0]] / float(olmin_split[2])
-                        return self.olmax_len_three_val
+                elif (olmin_len>1 or olmin_len>2) and (olmax_len>1 or olmax_len>2):
+                    self.olmin_len_three_val=self.base_formula_main_data(olmin)
+                    self.olmax_len_three_val=self.base_formula_main_data(olmax)
+                    
                     if identifier_value>=self.olmin_len_three_val and identifier_value<=self.olmax_len_three_val:
                         return True
                     else:
                         return False
-
-                elif olmax_len==5 and olmin_len==1:
-                    if "%" not in olmin_split[0]:
-                        olmin_val=self.ship_configs['static_data'][olmin]
-                        
-                    elif "%" in olmin_split[0]:
-                        olmin_val_percentage=float(olmin_split[0][-1])/100
-                        self.golab=0
-                        for i in olmax_split:
-                            if olmax_split[1]=="+" and olmax_split[3]=="+":
-                                olmax_val=self.ship_configs['static_data'][olmax_split[0]] + self.ship_configs['static_data'][olmax_split[2]] + self.ship_configs['static_data'][olmax_split[4]]
-                                self.golab=olmax_val
-                            elif olmax_split[1]=="-" and olmax_split[3]=="-":
-                                olmax_val=self.ship_configs['static_data'][olmax_split[0]] - self.ship_configs['static_data'][olmax_split[2]] - self.ship_configs['static_data'][olmax_split[4]]
-                                self.golab=olmax_val
-                            elif olmax_split[1]=="*" and olmax_split[3]=="*":
-                                olmax_val=self.ship_configs['static_data'][olmax_split[0]] * self.ship_configs['static_data'][olmax_split[2]] * self.ship_configs['static_data'][olmax_split[4]]
-                                self.golab=olmax_val
-                            return self.golab
-
-                        if type(oplow)==str:
-                            oplow_split=oplow.split()
-                            oplow_len=len(oplow_split)  
-                            if oplow_len==1:
-                                olmin_val=self.ship_configs['static_data'][oplow] * olmin_val_percentage
-                                if identifier_value<=self.golab and identifier_value>=olmin_val:
-                                    return True
-                                else:
-                                    return False
-                            if oplow_len==3:
-                                for i in oplow_split:
-                                    if i=="+":
-                                        olmin_val=(self.ship_configs['static_data'][oplow_split[0]] + float(oplow_split[2]))* olmin_val_percentage
-                                        if identifier_value<=self.golab and identifier_value>=olmin_val:
-                                            return True
-                                        else:
-                                            return False
-                                    elif i=="-":
-                                        olmin_val=(self.ship_configs['static_data'][oplow_split[0]] - float(oplow_split[2]))* olmin_val_percentage
-                                        if identifier_value<=self.golab and identifier_value>=olmin_val:
-                                            return True
-                                        else:
-                                            return False
-                                    elif i=="*":
-                                        olmin_val=(self.ship_configs['static_data'][oplow_split[0]] * float(oplow_split[2]))* olmin_val_percentage
-                                        if identifier_value<=self.golab and identifier_value>=olmin_val:
-                                            return True
-                                        else:
-                                            return False
-                                    elif i=="/":
-                                        olmin_val=(self.ship_configs['static_data'][oplow_split[0]] / float(oplow_split[2]))* olmin_val_percentage
-                                        if identifier_value<=self.golab and identifier_value>=olmin_val:
-                                            return True
-                                        else:
-                                            return False
-                        elif type(oplow)==int or type(oplow)==float:
-                            olmin_val=oplow*olmin_val_percentage
-                            if identifier_value>=olmin_val and identifier_value<=self.golab:
-                                return True
-                            else:
-                                return False
-
-                elif olmax_len==1 and olmin_len==5:
-                    if "%" not in olmax_split[0]:
-                        olmax_val=self.ship_configs['static_data'][olmax]
-                        if olmin_split[1]=="+" and olmin_split[3]=="+":
-                            olmin_val=self.ship_configs['static_data'][olmin_split[0]] + self.ship_configs['static_data'][olmin_split[2]] + self.ship_configs['static_data'][olmin_split[4]]
-                            if identifier_value<=olmax_val and identifier_value>=olmin_val:
-                                return True
-                            else:
-                                return False
-                        elif olmin_split[1]=="-" and olmin_split[3]=="-":
-                            olmin_val=self.ship_configs['static_data'][olmin_split[0]] - self.ship_configs['static_data'][olmin_split[2]] - self.ship_configs['static_data'][olmin_split[4]]
-                            if identifier_value<=olmax_val and identifier_value>=olmin_val:
-                                return True
-                            else:
-                                return False
-                        elif olmin_split[1]=="*" and olmin_split[3]=="*":
-                            olmin_val=self.ship_configs['static_data'][olmin_split[0]] * self.ship_configs['static_data'][olmin_split[2]] * self.ship_configs['static_data'][olmin_split[4]]
-                            if identifier_value<=olmax_val and identifier_value>=olmin_val:
-                                return True
-                            else:
-                                return False
-                    elif "%" in olmax_split[0]:
-                        olmax_val_percentage=float(olmax_split[0][:-1])/100
-                        self.golab_1=0
-                        for i in olmin_split:
-                            if olmin_split[1]=="+" and olmin_split[3]=="+":
-                                olmin_val=self.ship_configs['static_data'][olmin_split[0]] + self.ship_configs['static_data'][olmin_split[2]] + self.ship_configs['static_data'][olmin_split[4]]
-                                self.golab_1=olmin_val
-                            elif olmin_split[1]=="-" and olmin_split[3]=="-":
-                                olmin_val=self.ship_configs['static_data'][olmin_split[0]] - self.ship_configs['static_data'][olmin_split[2]] - self.ship_configs['static_data'][olmin_split[4]]
-                                self.golab_1=olmin_val
-                            elif olmin_split[1]=="*" and olmin_split[3]=="*":
-                                olmin_val=self.ship_configs['static_data'][olmin_split[0]] * self.ship_configs['static_data'][olmin_split[2]] * self.ship_configs['static_data'][olmin_split[4]]
-                                self.golab_1=olmin_val
-                            return self.golab_1
-
-                        if type(ophigh)==str:
-                            ophigh_split=ophigh.split()
-                            ophigh_len=len(ophigh_split)  
-                            if ophigh_len==1:
-                                olmax_val=self.ship_configs['static_data'][ophigh] * olmax_val_percentage
-                                if identifier_value<=olmax_val and identifier_value>=self.golab_1:
-                                    return True
-                                else:
-                                    return False
-                            if ophigh_len==3:
-                                for i in ophigh_split:
-                                    if i=="+":
-                                        olmax_val=(self.ship_configs['static_data'][ophigh_split[0]] + float(ophigh_split[2]))* olmax_val_percentage
-                                        if identifier_value<=olmax_val and identifier_value>=self.golab_1:
-                                            return True
-                                        else:
-                                            return False
-                                    elif i=="-":
-                                        olmax_val=(self.ship_configs['static_data'][ophigh_split[0]] - float(ophigh_split[2]))* olmax_val_percentage
-                                        if identifier_value<=olmax_val and identifier_value>=self.golab_1:
-                                            return True
-                                        else:
-                                            return False
-                                    elif i=="*":
-                                        olmax_val=(self.ship_configs['static_data'][ophigh_split[0]] * float(ophigh_split[2]))* olmax_val_percentage
-                                        if identifier_value<=olmax_val and identifier_value>=self.golab_1:
-                                            return True
-                                        else:
-                                            return False
-                                    elif i=="/":
-                                        olmax_val=(self.ship_configs['static_data'][ophigh_split[0]] / float(ophigh_split[2]))* olmax_val_percentage
-                                        if identifier_value<=olmax_val and identifier_value>=self.golab_1:
-                                            return True
-                                        else:
-                                            return False
-                        elif type(ophigh)==int or type(ophigh)==float:
-                            olmax_val=ophigh*olmax_val_percentage
-                            if identifier_value<=olmax_val and identifier_value>=self.golab_1:
-                                return True
-                            else:
-                                return False
-
-                elif olmax_len==5 and olmin_len==3:
-                    self.golab_1=0
-                    self.golab=0
-                    for i in olmax_split:
-                        if olmax_split[1]=="+" and olmax_split[3]=="+":
-                            self.golab_1=self.ship_configs['static_data'][olmax_split[0]] + self.ship_configs['static_data'][olmax_split[2]] + self.ship_configs['static_data'][olmax_split[4]]
-                            return self.golab_1
-                        elif olmax_split[1]=="-" and olmax_split[3]=="-":
-                            self.golab_1=self.ship_configs['static_data'][olmax_split[0]] - self.ship_configs['static_data'][olmax_split[2]] - self.ship_configs['static_data'][olmax_split[4]]
-                            return self.golab_1
-                        elif olmax_split[1]=="*" and olmax_split[3]=="*":
-                            self.golab_1=self.ship_configs['static_data'][olmax_split[0]] * self.ship_configs['static_data'][olmax_split[2]] * self.ship_configs['static_data'][olmax_split[4]]                           
-                            return self.golab_1
-                    
-                    for i in olmin_split:
-                        if i=="+":
-                            self.golab=self.ship_configs['static_data'][olmin_split[0]] + float(olmin_split[2])
-                            return self.golab
-                        elif i=="-":
-                            self.golab=self.ship_configs['static_data'][olmin_split[0]] - float(olmin_split[2])
-                            return self.golab
-                        elif i=="*":
-                            self.golab=self.ship_configs['static_data'][olmin_split[0]] * float(olmin_split[2])
-                            return self.golab
-                        elif i=="/":
-                            self.golab=self.ship_configs['static_data'][olmin_split[0]] / float(olmin_split[2])
-                            return self.golab
-                    if identifier_value>=self.golab and identifier_value<=self.golab_1:
-                        return True
-                    else:
-                        return False 
-                
-                elif olmax_len==3 and olmin_len==5:
-                    self.golab_1=0
-                    self.golab=0
-                    for j in olmax_split:
-                        if j=="+":
-                            self.golab_1=self.ship_configs['static_data'][olmin_split[0]] + float(olmin_split[2])
-                            return self.golab_1
-                        elif j=="-":
-                            self.golab_1=self.ship_configs['static_data'][olmin_split[0]] - float(olmin_split[2])
-                            return self.golab_1
-                        elif j=="*":
-                            self.golab_1=self.ship_configs['static_data'][olmin_split[0]] * float(olmin_split[2])
-                            return self.golab_1
-                        elif j=="/":
-                            self.golab_1=self.ship_configs['static_data'][olmin_split[0]] / float(olmin_split[2])
-                            return self.golab_1
-                    
-                    for i in olmin_split:
-                        if olmin_split[1]=="+" and olmin_split[3]=="+":
-                            self.golab=self.ship_configs['static_data'][olmin_split[0]] + self.ship_configs['static_data'][olmin_split[2]] + self.ship_configs['static_data'][olmin_split[4]]
-                            return self.golab
-                        elif olmin_split[1]=="-" and olmin_split[3]=="-":
-                            self.golab=self.ship_configs['static_data'][olmin_split[0]] - self.ship_configs['static_data'][olmin_split[2]] - self.ship_configs['static_data'][olmin_split[4]]
-                            return self.golab
-                            
-                        elif olmin_split[1]=="*" and olmin_split[3]=="*":
-                            self.golab=self.ship_configs['static_data'][olmin_split[0]] * self.ship_configs['static_data'][olmin_split[2]] * self.ship_configs['static_data'][olmin_split[4]]
-                            return self.golab
-                    if identifier_value>=self.golab and identifier_value<=self.golab_1:
-                        return True
-                    else:
-                        return False
-                
-                elif olmax_len==5 and olmin_len==5:
-                    self.golab_1=0
-                    self.golab=0
-                    for i in olmax_split:
-                        if olmax_split[1]=="+" and olmax_split[3]=="+":
-                            self.golab_1=self.ship_configs['static_data'][olmax_split[0]] + self.ship_configs['static_data'][olmax_split[2]] + self.ship_configs['static_data'][olmax_split[4]]
-                            return self.golab_1
-                        elif olmax_split[1]=="-" and olmax_split[3]=="-":
-                            self.golab_1=self.ship_configs['static_data'][olmax_split[0]] - self.ship_configs['static_data'][olmax_split[2]] - self.ship_configs['static_data'][olmax_split[4]]
-                            return self.golab_1
-                        elif olmax_split[1]=="*" and olmax_split[3]=="*":
-                            self.golab_1=self.ship_configs['static_data'][olmax_split[0]] * self.ship_configs['static_data'][olmax_split[2]] * self.ship_configs['static_data'][olmax_split[4]]                           
-                            return self.golab_1
-
-                    for i in olmin_split:
-                        if olmin_split[1]=="+" and olmin_split[3]=="+":
-                            self.golab=self.ship_configs['static_data'][olmin_split[0]] + self.ship_configs['static_data'][olmin_split[2]] + self.ship_configs['static_data'][olmin_split[4]]
-                            return self.golab
-                        elif olmin_split[1]=="-" and olmin_split[3]=="-":
-                            self.golab=self.ship_configs['static_data'][olmin_split[0]] - self.ship_configs['static_data'][olmin_split[2]] - self.ship_configs['static_data'][olmin_split[4]]
-                            return self.golab
-                            
-                        elif olmin_split[1]=="*" and olmin_split[3]=="*":
-                            self.golab=self.ship_configs['static_data'][olmin_split[0]] * self.ship_configs['static_data'][olmin_split[2]] * self.ship_configs['static_data'][olmin_split[4]]
-                            return self.golab
-                    
-                    if identifier_value>=self.golab and identifier_value<=self.golab_1:
-                        return True
-                    else:
-                        return False
-                        
 
 
 
@@ -1048,7 +368,7 @@ class CheckOutlier:
                 olmax_split=olmax.split()
                 olmax_len=len(olmax_split)
                 if (olmax_len==1) and ("%" not in olmax_split[0]):
-                    olmax_val=self.ship_configs['static_data'][olmax]
+                    olmax_val=self.base_formula_main_data(olmax)
                     if identifier_value<=olmax_val and identifier_value>=olmin:
                         return True
                     else:
@@ -1058,38 +378,13 @@ class CheckOutlier:
                     if type(ophigh)==str:
                         ophigh_split=ophigh.split()
                         ophigh_len=len(ophigh_split)  
-                        if ophigh_len==1:
-                            olmax_val=self.ship_configs['static_data'][ophigh] * olmax_val_percentage
-                            if identifier_value<=olmax_val and identifier_value>=olmin:
-                                return True
-                            else:
-                                return False
-                        if ophigh_len==3:
-                            for i in ophigh_split:
-                                if i=="+":
-                                    olmax_val=(self.ship_configs['static_data'][ophigh_split[0]] + float(ophigh_split[2]))* olmax_val_percentage
-                                    if identifier_value<=olmax_val and identifier_value>=olmin:
-                                        return True
-                                    else:
-                                        return False
-                                elif i=="-":
-                                    olmax_val=(self.ship_configs['static_data'][ophigh_split[0]] - float(ophigh_split[2]))* olmax_val_percentage
-                                    if identifier_value<=olmax_val and identifier_value>=olmin:
-                                        return True
-                                    else:
-                                        return False
-                                elif i=="*":
-                                    olmax_val=(self.ship_configs['static_data'][ophigh_split[0]] * float(ophigh_split[2]))* olmax_val_percentage
-                                    if identifier_value<=olmax_val and identifier_value>=olmin:
-                                        return True
-                                    else:
-                                        return False
-                                elif i=="/":
-                                    olmax_val=(self.ship_configs['static_data'][ophigh_split[0]] / float(ophigh_split[2]))* olmax_val_percentage
-                                    if identifier_value<=olmax_val and identifier_value>=olmin:
-                                        return True
-                                    else:
-                                        return False
+                        
+                        olmax_val=self.base_formula_main_data(ophigh) * olmax_val_percentage
+                        if identifier_value<=olmax_val and identifier_value>=olmin:
+                            return True
+                        else:
+                            return False
+                        
                     elif type(ophigh)==int or type(ophigh)==float:
                         olmax_val=ophigh*olmax_val_percentage
                         if identifier_value<=olmax_val and identifier_value>=olmin:
@@ -1097,57 +392,19 @@ class CheckOutlier:
                         else:
                             return False
 
-                elif olmax_len==3:
-                    for i in olmax_split:
-                        if i=="+":
-                            olmax_val=self.ship_configs['static_data'][olmax_split[0]] + float(olmax_split[2])
-                            if identifier_value<=olmax_val and identifier_value>=olmin:
-                                return True
-                            else:
-                                return False
-                        elif i=="-":
-                            olmax_val=self.ship_configs['static_data'][olmax_split[0]] - float(olmax_split[2])
-                            if identifier_value<=olmax_val and identifier_value>=olmin:
-                                return True
-                            else:
-                                return False
-                        elif i=="*":
-                            olmax_val=self.ship_configs['static_data'][olmax_split[0]] * float(olmax_split[2])
-                            if identifier_value<=olmax_val and identifier_value>=olmin:
-                                return True
-                            else:
-                                return False
-                        elif i=="/":
-                            olmax_val=self.ship_configs['static_data'][olmax_split[0]] / float(olmax_split[2])
-                            if identifier_value<=olmax_val and identifier_value>=olmin:
-                                return True
-                            else:
-                                return False
-                elif olmax_len==5:
-                    if olmax_split[1]=="+" and olmax_split[3]=="+":
-                        olmax_val=self.ship_configs['static_data'][olmax_split[0]] + self.ship_configs['static_data'][olmax_split[2]] + self.ship_configs['static_data'][olmax_split[4]]
-                        if identifier_value<=olmax_val and identifier_value>=olmin:
-                            return True
-                        else:
-                            return False
-                    elif olmax_split[1]=="-" and olmax_split[3]=="-":
-                        olmax_val=self.ship_configs['static_data'][olmax_split[0]] - self.ship_configs['static_data'][olmax_split[2]] - self.ship_configs['static_data'][olmax_split[4]]
-                        if identifier_value<=olmax_val and identifier_value>=olmin:
-                            return True
-                        else:
-                            return False
-                    elif olmax_split[1]=="*" and olmax_split[3]=="*":
-                        olmax_val=self.ship_configs['static_data'][olmax_split[0]] * self.ship_configs['static_data'][olmax_split[2]] * self.ship_configs['static_data'][olmax_split[4]]
-                        if identifier_value<=olmax_val and identifier_value>=olmin:
-                            return True
-                        else:
-                            return False
+                elif olmax_len>1 or olmax_len>2 :
+                    
+                    olmax_val=self.base_formula_main_data(olmax) 
+                    if identifier_value<=olmax_val and identifier_value>=olmin:
+                        return True
+                    else:
+                        return False
 
             elif (type(olmax)==int or type(olmax)==float) and (type(olmin)==str):
                 olmin_split=olmin.split()
                 olmin_len=len(olmin_split)
                 if (olmin_len==1) and ("%" not in olmin_split[0]):
-                    olmin_val=self.ship_configs['static_data'][olmin]
+                    olmin_val=self.base_formula_main_data(olmin)
                     if identifier_value<=olmax and identifier_value>=olmin_val:
                         return True
                     else:
@@ -1158,95 +415,29 @@ class CheckOutlier:
                     if type(oplow)==str:
                         oplow_split=oplow.split()
                         oplow_len=len(oplow_split)  
-                        if oplow_len==1:
-                            olmin_val=self.ship_configs['static_data'][oplow] * olmin_val_percentage
-                            if identifier_value<=olmax and identifier_value>=olmin_val:
-                                return True
-                            else:
-                                return False
-                        if oplow_len==3:
-                            for i in oplow_split:
-                                if i=="+":
-                                    olmin_val=(self.ship_configs['static_data'][oplow_split[0]] + float(oplow_split[2]))* olmin_val_percentage
-                                    if identifier_value<=olmax and identifier_value>=olmin_val:
-                                        return True
-                                    else:
-                                        return False
-                                elif i=="-":
-                                    olmin_val=(self.ship_configs['static_data'][oplow_split[0]] - float(oplow_split[2]))* olmin_val_percentage
-                                    if identifier_value<=olmax and identifier_value>=olmin_val:
-                                        return True
-                                    else:
-                                        return False
-                                elif i=="*":
-                                    olmin_val=(self.ship_configs['static_data'][oplow_split[0]] * float(oplow_split[2]))* olmin_val_percentage
-                                    if identifier_value<=olmax and identifier_value>=olmin_val:
-                                        return True
-                                    else:
-                                        return False
-                                elif i=="/":
-                                    olmin_val=(self.ship_configs['static_data'][oplow_split[0]] / float(oplow_split[2]))* olmin_val_percentage
-                                    if identifier_value<=olmax and identifier_value>=olmin_val:
-                                        return True
-                                    else:
-                                        return False
+                        
+                        olmin_val=self.base_formula_main_data(oplow)
+                        if identifier_value<=olmax and identifier_value>=olmin_val:
+                            return True
+                        else:
+                            return False
+                        
                     elif type(oplow)==int or type(oplow)==float:
                         olmin_val=oplow*olmin_val_percentage
                         if identifier_value>=olmin_val and identifier_value<=olmax:
                             return True
                         else:
                             return False
-                elif olmin_len==3:
-                    for i in olmin_split:
-                        if i=="+":
-                            olmin_val=self.ship_configs['static_data'][olmin_split[0]] + float(olmin_split[2])
-                            if identifier_value<=olmax and identifier_value>=olmin_val:
-                                return True
-                            else:
-                                return False
-                        elif i=="-":
-                            olmin_val=self.ship_configs['static_data'][olmin_split[0]] - float(olmin_split[2])
-                            if identifier_value<=olmax and identifier_value>=olmin_val:
-                                return True
-                            else:
-                                return False
-                        elif i=="*":
-                            olmin_val=self.ship_configs['static_data'][olmin_split[0]] * float(olmin_split[2])
-                            if identifier_value<=olmax and identifier_value>=olmin_val:
-                                return True
-                            else:
-                                return False
-                        elif i=="/":
-                            olmin_val=self.ship_configs['static_data'][olmin_split[0]] / float(olmin_split[2])
-                            if identifier_value<=olmax and identifier_value>=olmin_val:
-                                return True
-                            else:
-                                return False
-                elif olmin_len==5:
-                    if olmin_split[1]=="+" and olmin_split[3]=="+":
-                        olmin_val=self.ship_configs['static_data'][olmin_split[0]] + self.ship_configs['static_data'][olmin_split[2]] + self.ship_configs['static_data'][olmin_split[4]]
-                        if identifier_value<=olmax and identifier_value>=olmin_val:
-                            return True
-                        else:
-                            return False
-                    elif olmin_split[1]=="-" and olmin_split[3]=="-":
-                        olmin_val=self.ship_configs['static_data'][olmin_split[0]] - self.ship_configs['static_data'][olmin_split[2]] - self.ship_configs['static_data'][olmin_split[4]]
-                        if identifier_value<=olmax and identifier_value>=olmin_val:
-                            return True
-                        else:
-                            return False
-                    elif olmin_split[1]=="*" and olmin_split[3]=="*":
-                        olmin_val=self.ship_configs['static_data'][olmin_split[0]] * self.ship_configs['static_data'][olmin_split[2]] * self.ship_configs['static_data'][olmin_split[4]]
-                        if identifier_value<=olmax and identifier_value>=olmin_val:
-                            return True
-                        else:
-                            return False
-
-
-            
-        
-
-
+                elif olmin_len>1 or olmin_len>2:
+                    
+                    olmin_val=self.base_formula_main_data(olmin)
+                    if identifier_value<=olmax and identifier_value>=olmin_val:
+                        return True
+                    else:
+                        return False
+                        
+        else:
+            return "not checked"
 
 
     def operational_limit(self,identifier,identifier_value):
@@ -1271,38 +462,13 @@ class CheckOutlier:
             elif type(ophigh)==str:
                 ophigh_split=ophigh.split()
                 ophigh_len=len(ophigh_split)
-                if ophigh_len==1:
-                    ophigh_val=self.ship_configs['static_data'][ophigh]
-                    if identifier_value<=ophigh_val:
-                        return True
-                    else:
-                        return False
-                elif ophigh_len==3:
-                    for i in ophigh_split:
-                        if i=="+":
-                            ophigh_val=self.ship_configs['static_data'][ophigh_split[0]] + float(ophigh_split[2])
-                            if identifier_value<=ophigh_val:
-                                return True
-                            else:
-                                return False
-                        elif i=="-":
-                            ophigh_val=self.ship_configs['static_data'][ophigh_split[0]] - float(ophigh_split[2])
-                            if identifier_value<=ophigh_val:
-                                return True
-                            else:
-                                return False
-                        elif i=="*":
-                            ophigh_val=self.ship_configs['static_data'][ophigh_split[0]] * float(ophigh_split[2])
-                            if identifier_value<=ophigh_val:
-                                return True
-                            else:
-                                return False
-                        elif i=="/":
-                            ophigh_val=self.ship_configs['static_data'][ophigh_split[0]] / float(ophigh_split[2])
-                            if identifier_value<=ophigh_val:
-                                return True
-                            else:
-                                return False
+                
+                ophigh_val=self.base_formula_main_data(ophigh)
+                if identifier_value<=ophigh_val:
+                    return True
+                else:
+                    return False
+               
 
         elif pd.isnull(oplow)==False and pd.isnull(ophigh):
             if type(oplow)==int or type(oplow)==float:
@@ -1314,213 +480,49 @@ class CheckOutlier:
             elif type(oplow)==str:
                 oplow_split=oplow.split()
                 oplow_len=len(oplow_split)
-                if oplow_len==1:
-                    oplow_val=self.ship_configs['static_data'][oplow]
-                    if identifier_value>=oplow_val:
-                        return True
-                    else:
-                        return False
-                elif oplow_len==3:
-                    for i in oplow_split:
-                        if i=="+":
-                            oplow_val=self.ship_configs['static_data'][oplow_split[0]] + float(oplow_split[2])
-                            if identifier_value>=oplow_val:
-                                return True
-                            else:
-                                return False
-                        elif i=="-":
-                            oplow_val=self.ship_configs['static_data'][oplow_split[0]] - float(oplow_split[2])
-                            if identifier_value>=oplow_val:
-                                return True
-                            else:
-                                return False
-                        elif i=="*":
-                            oplow_val=self.ship_configs['static_data'][oplow_split[0]] * float(oplow_split[2])
-                            if identifier_value>=oplow_val:
-                                return True
-                            else:
-                                return False
-                        elif i=="/":
-                            oplow_val=self.ship_configs['static_data'][oplow_split[0]] / float(oplow_split[2])
-                            if identifier_value>=oplow_val:
-                                return True
-                            else:
-                                return False
+                
+                oplow_val=self.base_formula_main_data(oplow)
+                if identifier_value>=oplow_val:
+                    return True
+                else:
+                    return False
+                
 
         elif pd.isnull(oplow)==False and pd.isnull(ophigh)==False:
             if (type(oplow)==int or type(oplow)==float) and type(ophigh)==str:
                 ophigh_split=ophigh.split()
                 ophigh_len=len(ophigh_split)
-                if ophigh_len==1:
-                    ophigh_val=self.ship_configs['static_data'][ophigh]
-                    if identifier_value<=ophigh_val and identifier_value>=oplow:
-                        return True
-                    else:
-                        return False
-                elif ophigh_len==3:
-                    for i in ophigh_split:
-                        if i=="+":
-                            ophigh_val=self.ship_configs['static_data'][ophigh_split[0]] + float(ophigh_split[2])
-                            if identifier_value<=ophigh_val and identifier_value>=oplow:
-                                return True
-                            else:
-                                return False
-                        elif i=="-":
-                            ophigh_val=self.ship_configs['static_data'][ophigh_split[0]] - float(ophigh_split[2])
-                            if identifier_value<=ophigh_val and identifier_value>=oplow:
-                                return True
-                            else:
-                                return False
-                        elif i=="*":
-                            ophigh_val=self.ship_configs['static_data'][ophigh_split[0]] * float(ophigh_split[2])
-                            if identifier_value<=ophigh_val and identifier_value>=oplow:
-                                return True
-                            else:
-                                return False
-                        elif i=="/":
-                            ophigh_val=self.ship_configs['static_data'][ophigh_split[0]] / float(ophigh_split[2])
-                            if identifier_value<=ophigh_val and identifier_value>=oplow:
-                                return True
-                            else:
-                                return False
-
+                
+                ophigh_val=self.base_formula_main_data(ophigh)
+                if identifier_value<=ophigh_val and identifier_value>=oplow:
+                    return True
+                else:
+                    return False
+                
             elif (type(ophigh)==int or type(ophigh)==float) and type(oplow)==str:
                 oplow_split=oplow.split()
                 oplow_len=len(oplow_split)
-                if oplow_len==1:
-                    oplow_val=self.ship_configs['static_data'][oplow]
-                    if identifier_value>=oplow_val and identifier_value<=ophigh:
-                        return True
-                    else:
-                        return False
-                elif oplow_len==3:
-                    for i in oplow_split:
-                        if i=="+":
-                            oplow_val=self.ship_configs['static_data'][oplow_split[0]] + float(oplow_split[2])
-                            if identifier_value>=oplow_val and identifier_value<=ophigh:
-                                return True
-                            else:
-                                return False
-                        elif i=="-":
-                            oplow_val=self.ship_configs['static_data'][oplow_split[0]] - float(oplow_split[2])
-                            if identifier_value>=oplow_val and identifier_value<=ophigh:
-                                return True
-                            else:
-                                return False
-                        elif i=="*":
-                            oplow_val=self.ship_configs['static_data'][oplow_split[0]] * float(oplow_split[2])
-                            if identifier_value>=oplow_val and identifier_value<=ophigh:
-                                return True
-                            else:
-                                return False
-                        elif i=="/":
-                            oplow_val=self.ship_configs['static_data'][oplow_split[0]] / float(oplow_split[2])
-                            if identifier_value>=oplow_val and identifier_value<=ophigh:
-                                return True
-                            else:
-                                return False
+                
+                oplow_val=self.base_formula_main_data(oplow)
+                if identifier_value>=oplow_val and identifier_value<=ophigh:
+                    return True
+                else:
+                    return False
+                
         
             elif type(oplow)==str and type(ophigh)==str:
                 oplowsplit=oplow.split()
                 oplow_len=len(oplowsplit)
                 ophigh_split=ophigh.split()
                 ophigh_len=len(ophigh_split)
-                if oplow_len==1 and ophigh_len==1:
-                    oplow_val=self.ship_configs['static_data'][oplow]
-                    ophigh_val=self.ship_configs['static_data'][ophigh]
-                    if identifier_value>=oplow_val and identifier_value<=ophigh_val:
-                        return True
-                    else:
-                        return False
-                elif oplow_len==1 and ophigh_len==3:
-                    oplow_val=self.ship_configs['static_data'][oplow]
-                    for i in ophigh_split:
-                        if i=="+":
-                            val=self.ship_configs['static_data'][ophigh_split[0]] + float(ophigh_split[2])
-                            if identifier_value>=oplow_val and identifier_value<=val:
-                                return True
-                            else:
-                                return False
-                        elif i=="-":
-                            val=self.ship_configs['static_data'][ophigh_split[0]]-float(ophigh_split[2])
-                            if identifier_value>=oplow_val and identifier_value<=val:
-                                return True
-                            else:
-                                return False
-                        elif i=="*":
-                            val=self.ship_configs['static_data'][ophigh_split[0]]*float(ophigh_split[2])
-                            if identifier_value>=oplow_val and identifier_value<=val:
-                                return True
-                            else:
-                                return False
-                        elif i=="/":
-                            val=self.ship_configs['static_data'][ophigh_split[0]]/float(ophigh_split[2])
-                            if identifier_value>=oplow_val and identifier_value<=val:
-                                return True
-                            else:
-                                return False
-                elif oplow_len==3 and ophigh_len==1:
-                    ophigh_val=self.ship_configs['static_data'][ophigh]
-                    for i in oplowsplit:
-                        if i=="+":
-                            val=self.ship_configs['static_data'][oplowsplit[0]] + float(oplowsplit[2])
-                            if identifier_value>=val and identifier_value<=ophigh_val:
-                                return True
-                            else:
-                                return False
-                        elif i=="-":
-                            val=self.ship_configs['static_data'][oplowsplit[0]]-float(oplowsplit[2])
-                            if identifier_value>=val and identifier_value<=ophigh_val:
-                                return True
-                            else:
-                                return False
-                        elif i=="*":
-                            val=self.ship_configs['static_data'][oplowsplit[0]]*float(oplowsplit[2])
-                            if identifier_value>=val and identifier_value<=ophigh_val:
-                                return True
-                            else:
-                                return False
-                        elif i=="/":
-                            val=self.ship_configs['static_data'][oplowsplit[0]]/float(oplowsplit[2])
-                            if identifier_value>=val and identifier_value<=ophigh_val:
-                                return True
-                            else:
-                                return False
-                elif oplow_len==3 and ophigh_len==3:
-                    self.oplow_val_len_three=0
-                    self.ophigh_val_len_three=0
-                    for i in oplowsplit:
-                        if i=="+":
-                            val=self.ship_configs['static_data'][oplowsplit[0]] + float(oplowsplit[2])
-                            self.oplow_val_len_three=val
-                        elif i=="-":
-                            val=self.ship_configs['static_data'][oplowsplit[0]]-float(oplowsplit[2])
-                            self.oplow_val_len_three=val
-                        elif i=="*":
-                            val=self.ship_configs['static_data'][oplowsplit[0]]*float(oplowsplit[2])
-                            self.oplow_val_len_three=val
-                        elif i=="/":
-                            val=self.ship_configs['static_data'][oplowsplit[0]]/float(oplowsplit[2])
-                            self.oplow_val_len_three=val
-                        return self.oplow_val_len_three
-                    for j in ophigh_split:     
-                        if j=="+":
-                            val=self.ship_configs['static_data'][oplowsplit[0]] + float(oplowsplit[2])
-                            self.ophigh_val_len_three=val
-                        elif j=="-":
-                            val=self.ship_configs['static_data'][oplowsplit[0]]-float(oplowsplit[2])
-                            self.ophigh_val_len_three=val
-                        elif j=="*":
-                            val=self.ship_configs['static_data'][oplowsplit[0]]*float(oplowsplit[2])
-                            self.ophigh_val_len_three=val
-                        elif j=="/":
-                            val=self.ship_configs['static_data'][oplowsplit[0]]/float(oplowsplit[2])
-                            self.ophigh_val_len_three=val
-                        return self.ophigh_val_len_three
-                    if identifier_value<=self.ophigh_val_len_three and identifier_value>=self.oplow_val_len_three:
-                        return True
-                    else:
-                        return False
+                
+                oplow_val=self.base_formula_main_data(oplow)
+                ophigh_val=self.base_formula_main_data(ophigh)
+                if identifier_value>=oplow_val and identifier_value<=ophigh_val:
+                    return True
+                else:
+                    return False
+                
 
             elif (type(oplow)==int or type(oplow)==float) and (type(ophigh)==int or type(ophigh)==float):
                 if identifier_value<=ophigh and identifier_value>=oplow:
@@ -1528,16 +530,18 @@ class CheckOutlier:
                 else:
                     return False
 
+        else:
+            return "not checked"
 
 
 
 
 
 
+# obj=CheckOutlier("gds","kh")
+# obj.get_ship_configs()
+# obj.get_main_data()
+# # print(obj.Outlierlimitcheck("vsl_load",14*3))
+# # print(obj.operational_limit("main_hsdo",0))
 
-"""obj=CheckOutlier("gds")
-obj.get_ship_configs()
-obj.get_daily_data()
-print(obj.Outlierlimitcheck("displ",10))
-print(obj.operational_limit("draft_mean",22))"""
-
+# print(obj.base_formula_main_data("cplsfo_cons"))
