@@ -24,47 +24,55 @@ class InteractiveStatsExtractor():
         self.configuration = Configurator(self.ship_imo)
         self.ship_configs = self.configuration.get_ship_configs()
         self.main_db = self.configuration.get_main_data()
-        maindb = self.main_db.find({"ship_imo": self.ship_imo}).sort('processed_daily_data.rep_dt.processed', ASCENDING)
-        actual_maindb = self.configuration.create_maindb_according_to_duration(self.duration, loads(dumps(maindb)))
-        short_name_dict = self.configuration.create_short_names_dictionary()
+        # maindb = self.main_db.find({"ship_imo": self.ship_imo}).sort('processed_daily_data.rep_dt.processed', ASCENDING)
+        close_by_date = self.configuration.create_maindb_according_to_duration(self.duration)
+        # short_name_dict = self.configuration.create_short_names_dictionary()
         # newvariables = [short_name_dict[i].strip() for i in self.variables for j in short_name_dict.keys() if i == j]
         print(self.variables)
         # stats = self.configuration.get_ship_stats(actual_maindb, *variables)
-        stats = self.configuration.get_ship_stats_2(actual_maindb, *self.variables)
+        stats = self.configuration.get_ship_stats_2(close_by_date, *self.variables)
         print(stats)
         for i in self.variables:
             try:
-                if i == 'trim' or i == 'Trim':
-                    step = 0.5
-                    stats[i]['Step'] = step
-                else:
-                    minvalue = stats[i]['Min']
-                    maxvalue = stats[i]['Max']
-                    step = (maxvalue - minvalue)
-                    if step < 10:
-                        step = step / 6
-                        new_step = self.configuration.makeDecimal(step, True)
-                        stats[i]['Step'] = new_step
-                    else:
-                        step = step / 4
-                        new_step = self.configuration.makeDecimal(step, True)
-                        stats[i]['Step'] = new_step
+                step = stats[i]['Max'] - stats[i]['Min']
+                if int(step) > 10:
+                    step = 6
+                if int(step) < 5:
+                    step = 5
+                stats[i]['Step'] = step
+                # if i == 'trim' or i == 'Trim':
+                #     step = 0.5
+                #     stats[i]['Step'] = step
+                # else:
+                #     minvalue = stats[i]['Min']
+                #     maxvalue = stats[i]['Max']
+                #     step = (maxvalue - minvalue)
+                #     if step < 10:
+                #         step = step / 6
+                #         new_step = self.configuration.makeDecimal(step, True)
+                #         stats[i]['Step'] = new_step
+                #     else:
+                #         step = step / 4
+                #         new_step = self.configuration.makeDecimal(step, True)
+                #         stats[i]['Step'] = new_step
             except KeyError:
                 continue
+        print("END CREATE STEPS")
         
         new_stats_dict = self.create_marks_based_on_steps(stats)
+        print("END CREATE MARKS")
+        # print(new_stats_dict)
         return new_stats_dict
     
     def create_marks_based_on_steps(self, stats_dict):
         for key in stats_dict.keys():
             tempDict={}
-            for i in np.arange(stats_dict[key]['Min'], stats_dict[key]['Max'], stats_dict[key]['Step']):
+            for i in np.linspace(stats_dict[key]['Min'], stats_dict[key]['Max'], stats_dict[key]['Step']):
                 # if i<= math.floor(stats_dict[key]['Max']):
                 #     a = i + stats_dict[key]['Step']
                 #     new_a = self.configuration.makeDecimal(a,True)
                 #     tempDict.update({str(int(new_a)): str(int(new_a))})
-                new_i = self.configuration.makeDecimal(i, True)
-                tempDict.update({str(int(new_i)): str(int(new_i))})
+                tempDict.update({str(int(i)): str(int(i))})
             stats_dict[key]['Marks'] = tempDict
         
         return stats_dict
