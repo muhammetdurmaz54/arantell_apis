@@ -1,5 +1,6 @@
 import sys
 from numpy.core.numeric import outer
+from pandas.core.algorithms import factorize
 
 from pandas.core.dtypes.missing import isnull 
 sys.path.insert(1,"F:\\Afzal_cs\\Internship\\arantell_apis-main")
@@ -176,6 +177,67 @@ class ConfigExtractor():
 
             if pd.isnull(self.anamoly_messages['PARAM /EQPT'][i])==True or self.anamoly_messages['PARAM /EQPT'][i]=='':
                 self.outlier_anamoly[self.anamoly_messages['Type of anamoly'][i]]=self.anamoly_dict(i)
+    
+
+    def input_output(self,input):
+        spl=None
+        if pd.isnull(input)==False:
+            input=input.replace(',','  ')
+            spl=input.split()
+        return spl
+    
+    def sister_list(self,input):
+        spl=None
+        if pd.isnull(input)==False:
+            input=input.replace(',','  ')
+            spl=input.split()
+        for i in range(0,len(spl)):
+            spl[i]=int(spl[i])
+        return spl
+        #     for i in spl:
+        #         i=i.replace(',','  ')
+        #         i=str(i)
+        #         print(i)
+        #         list_var.append(i)
+        # print(list_var)
+        # print(len(list_var))
+        # exit()
+
+
+
+    def create_indices(self):
+        indices={}
+        for i in range(0, len(self.df_variables['Identifer NEW'])):   #Fetches column Identifier_NEW from
+            if pd.isnull(self.df_variables['Param or Eqpt'][i])==False and type(self.df_variables['Param or Eqpt'][i])==str and pd.isnull(self.df_variables['Identifer NEW'][i])==False:
+                if self.df_variables['Param or Eqpt'][i].strip() == 'T2&SPE' or self.df_variables['Param or Eqpt'][i].strip() == 'INDX':
+                    indices[self.df_variables['Identifer NEW'][i]]={
+                        'name':self.df_variables['Identifer NEW'][i],
+                        'unit':self.df_variables['Units'][i],
+                        'category':self.category(self.df_variables['Category'][i]),
+                        'subcategory':self.df_variables['SubCategory'][i],
+                        'variable':self.df_variables['Variable'][i],
+                        'short_names':self.df_variables['Short Names'][i],
+                        'source_idetifier':self.df_variables['Source Identifier'][i],
+                        'static_data': self.df_variables['Static Data'][i],
+                        'input':self.input_output(self.df_variables['Input'][i]),
+                        'output':self.input_output(self.df_variables['Output'][i]),
+                        'var_type':self.df_variables['Param or Eqpt'][i],    #p=parameter, E=equipment, E1=psuedo equipment or notional equipment
+                        'identifier_old':self.df_variables['Identifer OLD'][i],
+                        'Derived':self.derived(self.df_variables['Derived'][i]),
+                        'Daily Availability':self.derived(self.df_variables['Daily Availability'][i]),
+                        'availabe_for_groups':self.availability(self.df_variables['AVAILABLE FOR GROUPS'][i]),
+                        'dependent':self.availability(self.df_variables['DEPENDENT?'][i]),
+                               #create funtion to get groups if 1 it is single parameter,if 2 split and look for 20,if 3 split and look for 30 ....
+                        'limits':{
+                        'type': self.df_variables['Limit Type'][i],
+                        'oplow': self.df_variables['OP Low'][i],
+                        'ophigh': self.df_variables['OP High'][i],
+                        'olmin': self.df_variables['OL LOW'][i],
+                        'olmax': self.df_variables['OL High'][i]                  
+                    }
+                }
+                
+        return indices 
 
     # @check_status
     def process_file(self):
@@ -187,6 +249,9 @@ class ConfigExtractor():
         self.ship_imo = self.df_configurations['Value'][0]
         self.ship_name = self.df_configurations['Value'][1]
         self.ship_description = self.df_configurations['Value'][2]
+        self.sister_vessel_list=self.sister_list(self.df_configurations['Value'][3])
+        self.similar_vessel_list=self.sister_list(self.df_configurations['Value'][4])
+        
     
         self.data_available_nav = list(self.df_variables[self.df_variables['Data Type']=='N']['Identifer NEW'].str.strip())
         self.data_available_nav=self.data_available_nav.__add__(list(self.df_variables[self.df_variables['Data Type']=='N+E']['Identifer NEW']))
@@ -280,11 +345,13 @@ class ConfigExtractor():
         #     identifier_mapping = self.identifier_mapping,
         #     data = self.data
         # )
-
+        
         ship = {
             "ship_imo" : self.ship_imo,
             "ship_name" : self.ship_name,
             "ship_description" : self.ship_description,
+            "sister_vessel_list":self.sister_vessel_list,
+            "similar_vessel_list":self.similar_vessel_list,
             "static_data":self.stat(self.static),
             "data_available_nav" :self.data_available_nav,
             "data_available_engine": self.data_available_engine,
@@ -295,8 +362,12 @@ class ConfigExtractor():
             "equipment_anamoly":self.equipment_anamoly,
             "outlier_anamoly":self.outlier_anamoly,
             "identifier_mapping" : self.identifier_mapping,
+            "indices_data":self.create_indices(),
             "data" : self.data
         }
+      
+    
+
         
         # if self.override:
         #     if not Ship.objects(ship_imo = self.ship_imo):
@@ -315,6 +386,7 @@ class ConfigExtractor():
                 return ship_collection.insert_one(ship).inserted_id
                 
             else:
+                print("ksssssssssssssssssssssssssssss")
                 return ship_collection.insert_one(ship).inserted_id
         
         elif self.override==False:
@@ -325,18 +397,14 @@ class ConfigExtractor():
                 return ship_collection.insert_one(ship).inserted_id
 
 
-    # def read_configs(self):
-    #     ship_configs_collection = database.get_collection("ship")
-
-    #     self.ship_configs = ship_configs_collection.find({"ship_imo": self.ship_imo})[0]
-
-
-obj=ConfigExtractor(9591302,'F:\Afzal_cs\Internship\ConfiguratorRev_9591302.xlsx',True)
+obj=ConfigExtractor(9591301,'F:\Afzal_cs\Internship\ConfiguratorRev_9591301.xlsx',True)
 # obj.read_files()
 # obj.anamoly()
 # obj.process_file()
 # obj.connect()
 # obj.write_configs()
 #obj.read_configs()
+# obj.create_indices()
+
 
 obj.do_steps()
