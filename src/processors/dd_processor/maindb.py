@@ -7,14 +7,18 @@ from numpy.lib.shape_base import dsplit
 
 import pandas
 from pandas.core.algorithms import factorize
+from pandas.core.frame import DataFrame
 from pandas.tseries.offsets import Second 
 sys.path.insert(1,"F:\\Afzal_cs\\Internship\\arantell_apis-main")
 from src.db.setup_mongo import connect_db
 from src.processors.dd_processor.individual_processors import IndividualProcessors
 from src.processors.dd_processor.outlier_two import OutlierTwo
-from src.processors.dd_processor.update_individual_processor import UpdateIndividualProcessors
+from src.processors.dd_processor.universal_limit import Universal_limits
+from src.processors.dd_processor.update_individual_processor import UpdateIndividualProcessors,EWMA
 from src.processors.dd_processor.update_individual_predictions import UpdateIndividualProcessorspredictions
-from src.processors.dd_processor.indices_procesor import Indice_Processing
+from src.processors.dd_extractor.extractor_new import DailyInsert
+from src.processors.dd_processor.indices_procesor import Indice_Processing,mewma
+from src.processors.dd_processor.Universal_indice_limits import Universal_indices_limits
 from src.configurations.logging_config import CommonLogger
 from datetime import date, datetime
 from src.db.schema.main import Main_db
@@ -28,9 +32,11 @@ from pymongo import ASCENDING
 from dateutil.relativedelta import relativedelta
 import matplotlib.pyplot as plt
 log = CommonLogger(__name__,debug=True).setup_logger()
-client = MongoClient("mongodb+srv://iamuser:iamuser@democluster.lw5i0.mongodb.net/test?ssl=true&ssl_cert_reqs=CERT_NONE")
+from bson import json_util
+import scipy.stats as st
+# client = MongoClient("mongodb+srv://iamuser:iamuser@democluster.lw5i0.mongodb.net/test?ssl=true&ssl_cert_reqs=CERT_NONE")
 
-# client = MongoClient("mongodb://localhost:27017/aranti")
+client = MongoClient("mongodb://localhost:27017/aranti")
 db=client.get_database("aranti")
 database = db
 
@@ -178,8 +184,8 @@ class MainDB():
 
     #@check_status
     def get_ship_configs(self):
-        ship_configs_collection = database.get_collection("ship")
-        self.ship_configs = ship_configs_collection.find({"ship_imo": self.ship_imo})[0]
+        self.ship_configs_collection = database.get_collection("ship")
+        self.ship_configs = self.ship_configs_collection.find({"ship_imo": self.ship_imo})[0]
         
 
     #@check_status
@@ -187,7 +193,7 @@ class MainDB():
         daily_data_collection =database.get_collection("daily_data")
         # self.daily_data = daily_data_collection.find({"ship_imo": self.ship_imo})[index]
         # self.daily_data = daily_data_collection.find({"ship_imo": self.ship_imo})[0]
-        self.daily_data = daily_data_collection.find({"ship_imo": self.ship_imo,"data.rep_dt":{"$lte":datetime(2015,12,1,12)}})[index]
+        self.daily_data = daily_data_collection.find({"ship_imo": self.ship_imo})[index]
        
 
     #@check_status
@@ -275,53 +281,39 @@ class MainDB():
                 self.processed_equipment_data[key]=equipment_base_dict
                 # equipment t2 spe codes functin here later
             else:
-                base_dict = self.build_base_dict(key)
-                try:
-                    self.ship_configs['data'][key]
-                    self.processed_daily_data[key] = eval("IP."+key.strip()+"_processor")(base_dict) # IP.rpm_processor(base_dict)
-                except KeyError:
-                    self.processed_daily_data[key] = IP.base_individual_processor(key,base_dict)
-                except AttributeError:
-                    self.processed_daily_data[key] = IP.base_individual_processor(key,base_dict)
+                if (self.ship_configs['data'][key]['var_type']!='INDX') and (self.ship_configs['data'][key]['var_type']!='T2&SPE'):
+                    base_dict = self.build_base_dict(key)
+                    try:
+                        self.ship_configs['data'][key]
+                        self.processed_daily_data[key] = eval("IP."+key.strip()+"_processor")(base_dict) # IP.rpm_processor(base_dict)
+                    except KeyError:
+                        self.processed_daily_data[key] = IP.base_individual_processor(key,base_dict)
+                    except AttributeError:
+                        self.processed_daily_data[key] = IP.base_individual_processor(key,base_dict)
             
 
-    def get_main_db(self,identifier):
+    def get_main_db(self,index):
         self.maindb = database.get_collection("Main_db")
         # self.maindb.delete_many(self.maindb.find({"ship_imo":self.ship_imo}),{"processed_daily_data.main_fuel_index"})
         # self.maindb.delete_many({"ship_imo": int(self.ship_imo),"processed_daily_data.rep_dt.processed":{"$lte":datetime(2016,2,1,12)}})
+        # self.maindb.update_many( {}, { "$rename": { "processed_daily_data.ext_pres": "processed_daily_data.ext_press" } } )
         # self.maindb.update_many({}, {'$unset': {"processed_daily_data.main_fuel_index":1}})
         # print("done")
+        # self.maindb.update_many({},{"$set":{"processed_daily_data.cp_speed.identifier":"cp_speed"}})
         # exit()
-        self.main_data = self.maindb.find({"ship_imo": int(self.ship_imo)})
+        self.main_data = self.maindb.find({"ship_imo": int(self.ship_imo)})[index]
+
+        
         # self.main_data = self.maindb.find({"ship_imo": int(self.ship_imo),"within_good_voyage_limit":True,"processed_daily_data.rep_dt.processed":{"$lte":datetime(2015,7,1,12),"$gte":datetime(2015,5,1,12)}})[index]
-        # self.main_data = self.maindb.find({"ship_imo": int(self.ship_imo),"processed_daily_data.rep_dt.processed":{"$gte":datetime(2016,2,1,12)}})
-        # print(self.main_data['processed_daily_data']['main_fuel'])
+        # self.main_data = self.maindb.find({"ship_imo": int(self.ship_imo),"processed_daily_data.rep_dt.processed":{"$gte":datetime(2016,2,1,12)}})[index]
+        # print(self.main_data['processed_daily_data']['rep_dt']['processed'])
         # # print(self.main_data['within_good_voyage_limit'])
         # exit()
     
         # self.main_data = self.maindb.find({"ship_imo": int(self.ship_imo),"processed_daily_data.rep_dt.processed":datetime(2015,6,21,12)})[0]
-        # print(self.main_data['processed_daily_data']['comp_pres2'])
+        # print(self.main_data['processed_daily_data']['pwr']['processed'])
         # print(self.main_data['processed_daily_data']['peak_pres1'])
         # exit()
-        pred=[]
-        observed=[]
-        dat=[]
-        for doc in self.maindb.find({"ship_imo": int(self.ship_imo)}):
-            for key in doc["processed_daily_data"].keys():
-                try:
-                    if key==identifier:
-                        if pandas.isnull(doc["processed_daily_data"][key]['predictions']["m3"][1])==False:
-                            pred.append(doc["processed_daily_data"][key]['predictions']["m3"][1])
-                            observed.append(doc["processed_daily_data"][key]['processed'])
-                            dat.append(doc["processed_daily_data"]["rep_dt"]['processed'])
-                except:
-                    continue
-        data=pandas.DataFrame({"rep_dt":dat,identifier:observed,"expected":pred})
-        print(data)
-        exit()
-
-
-
 
         # self.main_data = self.maindb.find({"ship_imo": self.ship_imo}, {'processed_daily_data.rep_dt.processed': 1}).sort('processed_daily_data.rep_dt.processed',ASCENDING)[0]
         # first_date=self.main_data['processed_daily_data']['rep_dt']['processed']
@@ -512,7 +504,7 @@ class MainDB():
                         main_data_dict_key['outlier_limit_value']=outliermin_max
                         main_data_dict_key['operational_limit_value']=operationalmin_max
 
-                        self.maindb.update_one(self.maindb.find({"ship_imo": int(self.ship_imo),"processed_daily_data.rep_dt.processed":{"$lte":datetime(2015,5,1,12)}})[index],{"$set":{"processed_daily_data."+key:main_data_dict_key}})
+                        self.maindb.update_one(self.maindb.find({"ship_imo": int(self.ship_imo)})[index],{"$set":{"processed_daily_data."+key:main_data_dict_key}})
                         print("kiiiiiiiiiiiiiiiiiiiiii")
                        
                         
@@ -556,7 +548,7 @@ class MainDB():
         maindb = database.get_collection("Main_db")
         # maindata = maindb.find({"ship_imo": int(self.ship_imo)})
         # maindata = maindb.find({"ship_imo": int(self.ship_imo),"processed_daily_data.rep_dt.processed":{"$lte":datetime(2015,7,1,12),"$gte":datetime(2015,5,1,12)}})
-        maindata = maindb.find({"ship_imo": int(self.ship_imo),"processed_daily_data.rep_dt.processed":{"$lte":datetime(2015,5,1,12)}})
+        maindata = maindb.find({"ship_imo": int(self.ship_imo)})
         print(maindata.count())
         for i in range(0,maindata.count()):
         # for i in range(0,34):
@@ -569,7 +561,7 @@ class MainDB():
     def process_main_data_predictions(self,index):
         "processing maindb data for updation ,only processed daily data for each identifier prediction value will be updated."
         self.base_main_data_prediction={}
-        UIP = UpdateIndividualProcessors(configs=self.ship_configs,md=self.main_data,ss=self.ship_stats,imo=self.ship_imo)
+        UIP = UpdateIndividualProcessors(configs=self.ship_configs,md=self.main_data,imo=self.ship_imo)
         
         main_data_dict=self.main_data['processed_daily_data']
         ml_control=self.ship_configs['mlcontrol']
@@ -589,102 +581,58 @@ class MainDB():
                 
                 main_data_dict[key]['predictions']=None
                 main_data_dict[key]['SPEy']=None
-                main_data_dict[key]['Q_x']=None
-                main_data_dict[key]['ucl_crit_beta']=None
-                main_data_dict[key]['ucl_crit_fcrit']=None
+                # main_data_dict[key]['Q_x']=None
+                # main_data_dict[key]['ucl_crit_beta']=None
+                # main_data_dict[key]['ucl_crit_fcrit']=None
                 main_data_dict[key]['t2_initial']=None
-                main_data_dict[key]['t_2_daily']=None
-                main_data_dict[key]['spe_anamoly']=None
-                main_data_dict[key]['Q_y']=None
-                main_data_dict[key]['t2_anamoly']=None
+                # main_data_dict[key]['t_2_daily']=None
+                # main_data_dict[key]['spe_anamoly']=None
+                # main_data_dict[key]['Q_y']=None
+                # main_data_dict[key]['t2_anamoly']=None
+                main_data_dict[key]['ewma']=None
+                main_data_dict[key]['cumsum']=None
+                # main_data_dict[key]['ewma_ucl']=None
                 # print(main_data_dict[key]['processed'])
-                pred,spe,crit_data,crit_val_dynamic,t2_initial,t2_final,spe_limit_array,spe_anamoly,spe_y_limit_array,t2_anamoly,length_dataframe=UIP.base_prediction_processor(key,main_data_dict_key,val,main_data_dict)
+                # pred,spe,crit_data,crit_val_dynamic,t2_initial,t2_final,spe_limit_array,spe_anamoly,spe_y_limit_array,t2_anamoly,length_dataframe,ewma,cumsum,ewma_ucl=UIP.base_prediction_processor(key,main_data_dict_key,val,main_data_dict)
+                pred,spe,t2_initial,length_dataframe,ewma,cumsum=UIP.base_prediction_processor(key,main_data_dict_key,val,main_data_dict)
                 main_data_dict[key]['predictions']=pred
                 main_data_dict[key]['SPEy']=spe
-                main_data_dict[key]['Q_x']=spe_limit_array
-                main_data_dict[key]['ucl_crit_beta']=crit_data
-                main_data_dict[key]['ucl_crit_fcrit']=crit_val_dynamic
+                # main_data_dict[key]['Q_x']=spe_limit_array
+                # main_data_dict[key]['ucl_crit_beta']=crit_data
+                # main_data_dict[key]['ucl_crit_fcrit']=crit_val_dynamic
                 main_data_dict[key]['t2_initial']=t2_initial
-                main_data_dict[key]['t_2_daily']=t2_final
-                main_data_dict[key]['spe_anamoly']=spe_anamoly
-                main_data_dict[key]['Q_y']=spe_y_limit_array
-                main_data_dict[key]['t2_anamoly']=t2_anamoly
+                # main_data_dict[key]['t_2_daily']=t2_final
+                # main_data_dict[key]['spe_anamoly']=spe_anamoly
+                # main_data_dict[key]['Q_y']=spe_y_limit_array
+                # main_data_dict[key]['t2_anamoly']=t2_anamoly
                 main_data_dict[key]['length_dataframe']=length_dataframe
-                print(length_dataframe)
+                main_data_dict[key]['ewma']=ewma
+                main_data_dict[key]['cumsum']=cumsum
+                # main_data_dict[key]['ewma_ucl']=ewma_ucl
+                
                 # print(main_data_dict[key]['predictions'])
                 # self.maindb.update_one(self.maindb.find({"ship_imo": int(self.ship_imo),"within_good_voyage_limit":True})[index],{"$set":{"processed_daily_data."+key:main_data_dict_key}})
-                self.maindb.update_one(self.maindb.find({"ship_imo": int(self.ship_imo),"processed_daily_data.rep_dt.processed":{"$gte":datetime(2016,2,1,12)}})[index],{"$set":{"processed_daily_data."+key:main_data_dict[key]}})
+                self.maindb.update_one(self.maindb.find({"ship_imo": int(self.ship_imo)})[index],{"$set":{"processed_daily_data."+key:main_data_dict[key]}})
                 print("kiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii")
 
                 
 
     def update_maindb_predictions_alldoc(self):
         maindb = database.get_collection("Main_db")
-        # maindata = maindb.find({"ship_imo": int(self.ship_imo),"within_good_voyage_limit":True})
-        maindata = maindb.find({"ship_imo": int(self.ship_imo),"processed_daily_data.rep_dt.processed":{"$gte":datetime(2016,2,1,12)}})
+        maindata = maindb.find({"ship_imo": int(self.ship_imo)})
+        # maindata = maindb.find({"ship_imo": int(self.ship_imo),"processed_daily_data.rep_dt.processed":{"$gte":datetime(2016,2,1,12)}})
         print(maindata.count())
-        for i in range(205,maindata.count()): 
+        for i in range(250,maindata.count()): 
             print("boooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooom",i)
             self.get_main_db(i)
             self.process_main_data_predictions(i)
             
 
-    def process_main_data_predictions_second(self,index):
-        "processing maindb data for updation ,only processed daily data for each identifier prediction value will be updated."
-        self.base_main_data_prediction={}
-        UIP = UpdateIndividualProcessorspredictions(configs=self.ship_configs,md=self.main_data,ss=self.ship_stats,imo=self.ship_imo)
-        
-        main_data_dict=self.main_data['processed_daily_data']
-        ml_control=self.ship_configs['mlcontrol']
-        
-        for key in ml_control:
-            # if key=="ext_temp1":
-            if key in main_data_dict and pandas.isnull(main_data_dict[key]['processed'])==False:
-                print(key)
-                main_data_dict_key=main_data_dict[key]
-                val=ml_control[key]
-                for i in val:
-                    if i=="" or i==" " or i=="  ":
-                        val.remove(i)
-                val.append("vsl_load_bal")
-            
-                pred,spe,crit_data,crit_val_dynamic,t2_initial,t2_final,spe_limit_array,spe_anamoly=UIP.base_prediction_processor(key,main_data_dict_key,val,main_data_dict)
-                main_data_dict[key]['predictions']=pred
-                main_data_dict[key]['SPEy']=spe
-                main_data_dict[key]['spe_limit_array']=spe_limit_array
-                main_data_dict[key]['ucl_crit_beta']=crit_data
-                main_data_dict[key]['ucl_crit_fcrit']=crit_val_dynamic
-                main_data_dict[key]['t2_initial']=t2_initial
-                main_data_dict[key]['t_2_daily']=t2_final
-                main_data_dict[key]['spe_anamoly']=spe_anamoly
-
-                # self.maindb.update_one(self.maindb.find({"ship_imo": int(self.ship_imo),"within_good_voyage_limit":True,"processed_daily_data.rep_dt.processed":{"$lte":datetime(2015,7,1,12),"$gte":datetime(2015,5,1,12)}})[index],{"$set":{"processed_daily_data."+key:main_data_dict_key}})
-                print("kiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii")
-            
-    def update_maindb_predictions_alldoc_second(self):
-        maindb = database.get_collection("Main_db")
-        # maindata = maindb.find({"ship_imo": int(self.ship_imo)})
-        maindata = maindb.find({"ship_imo": int(self.ship_imo),"within_good_voyage_limit":True,"processed_daily_data.rep_dt.processed":{"$lte":datetime(2015,7,1,12),"$gte":datetime(2015,5,1,12)}})
-        print(maindata.count())
-        for i in range(23,maindata.count()):
-            print("boooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooom",i)
-            self.get_main_db(i)
-            self.process_main_data_predictions_second(i)
-            # self.update_maindb_preds(i)
-
-    def update_maindb_preds(self,index):
-        # for key in self.main_data['processed_daily_data']:
-        
-            #self.maindb.update_one({"ship_imo": int(self.ship_imo)},{"$set":{"processed_daily_data":self.base_main_data}})
-        self.maindb.update_one(self.maindb.find({"ship_imo": int(self.ship_imo)})[index],{"$set":{"processed_daily_data":self.base_main_data_prediction}})
-        print("kiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii")
-
-
 
     def processing_indices(self,index):
         ship_indices_data=self.ship_configs['indices_data']
         main_processed_daily_data=self.main_data['processed_daily_data']
-        indice=Indice_Processing(self.ship_configs,self.main_data,self.ship_stats,self.ship_imo)
+        indice=Indice_Processing(self.ship_configs,self.main_data,self.ship_imo)
         for i in ship_indices_data:
             if i == "main_fuel_index":
                 indice_dict={}
@@ -698,38 +646,41 @@ class MainDB():
                 indice_dict['IndexName']=ship_indices_data[i]['short_names']
                 indice_dict['ParamGroup']=None
                 indice_dict['SPE']=None
-                indice_dict['Q_y']=None
-                indice_dict['ucl_crit_beta']=None
-                indice_dict['ucl_crit_fcrit']=None
+                # indice_dict['Q_y']=None
+                # indice_dict['ucl_crit_beta']=None
+                # indice_dict['ucl_crit_fcrit']=None
                 indice_dict['t2_initial']=None
-                indice_dict['t_2_daily']=None
+                # indice_dict['t_2_daily']=None
                 indice_dict['length_dataframe']=None
-                indice_dict['spe_anamoly']=None
-                val,spe_chi_square,crit_data,crit_val_dynamic,t2_initial,t2_final,length_dataframe,spe_anamoly,t2_anamoly=indice.base_prediction_processor(output,input,main_data_dict)
+                # indice_dict['spe_anamoly']=None
+                val,t2_initial,length_dataframe,mewma_val,mewma_ucl=indice.base_prediction_processor(output,input,main_data_dict)
                 indice_dict['SPEy']=val
-                indice_dict['Q_y']=spe_chi_square
+                # indice_dict['Q_y']=spe_chi_square
                 # print(indice_dict['SPE'],indice_dict['Q_y'])
-                indice_dict['ucl_crit_beta']=crit_data
-                indice_dict['ucl_crit_fcrit']=crit_val_dynamic
+                # indice_dict['ucl_crit_beta']=crit_data
+                # indice_dict['ucl_crit_fcrit']=crit_val_dynamic
                 indice_dict['t2_initial']=t2_initial
-                indice_dict['t_2_daily']=t2_final
+                # indice_dict['t_2_daily']=t2_final
                 indice_dict['length_dataframe']=length_dataframe
-                indice_dict['spe_anamoly']=spe_anamoly
-                indice_dict['t2_anamoly']=t2_anamoly
+                # indice_dict['spe_anamoly']=spe_anamoly
+                # indice_dict['t2_anamoly']=t2_anamoly
+                indice_dict['mewma_val']=mewma_val
+                indice_dict['mewma_ucl']=mewma_ucl
                 # self.maindb.update_one(self.maindb.find({"ship_imo": int(self.ship_imo),"within_good_voyage_limit":True,"processed_daily_data.rep_dt.processed":{"$lte":datetime(2015,7,1,12),"$gte":datetime(2015,5,1,12)}})[index],{"$set":{"independent_indices."+i:indice_dict}})
-                self.maindb.update_one(self.maindb.find({"ship_imo": int(self.ship_imo),"processed_daily_data.rep_dt.processed":{"$gte":datetime(2016,2,1,12)}})[index],{"$set":{"independent_indices."+i:indice_dict}})
+                self.maindb.update_one(self.maindb.find({"ship_imo": int(self.ship_imo)})[index],{"$set":{"independent_indices."+i:indice_dict}})
                 print("kiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii")
                 
     def update_indices(self):
         maindb = database.get_collection("Main_db")
-        # maindata = maindb.find({"ship_imo": int(self.ship_imo)})
+        maindata = maindb.find({"ship_imo": int(self.ship_imo)})
         # maindata = maindb.find({"ship_imo": int(self.ship_imo),"within_good_voyage_limit":True,"processed_daily_data.rep_dt.processed":{"$lte":datetime(2015,7,1,12),"$gte":datetime(2015,5,1,12)}})
-        maindata = maindb.find({"ship_imo": int(self.ship_imo),"processed_daily_data.rep_dt.processed":{"$gte":datetime(2016,2,1,12)}})
+        # maindata = maindb.find({"ship_imo": int(self.ship_imo),"processed_daily_data.rep_dt.processed":{"$gte":datetime(2016,2,1,12)}})
         print(maindata.count())
-        for i in range(111,maindata.count()):
+        for i in range(100,maindata.count()):
             print("boooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooom",i)
             self.get_main_db(i)
             self.processing_indices(i)
+            # exit()
 
     #@check_status
     def process_weather_api_data(self):
@@ -779,6 +730,8 @@ class MainDB():
             if speed>6 and rpm_op==True and w_force<5 and sea_state<5 and stm_hrs>10 and draft==True:
                 self.maindb.update_one(self.maindb.find({"ship_imo": int(self.ship_imo)})[index],{"$set":{"within_good_voyage_limit":True}})
                 # self.maindb.update_one(self.maindb.find({"ship_imo": int(self.ship_imo),"processed_daily_data.rep_dt.processed":{"$lte":datetime(2015,5,1,12)}})[index],{"$set":{"within_good_voyage_limit":True}})
+            # else:
+            #     self.maindb.update_one(self.maindb.find({"ship_imo": int(self.ship_imo)})[index],{"$set":{"within_good_voyage_limit":False}})
         except:
             self.maindb.update_one(self.maindb.find({"ship_imo": int(self.ship_imo)})[index],{"$set":{"within_good_voyage_limit":True}})
             # self.maindb.update_one(self.maindb.find({"ship_imo": int(self.ship_imo),"processed_daily_data.rep_dt.processed":{"$lte":datetime(2015,5,1,12)}})[index],{"$set":{"within_good_voyage_limit":False}})
@@ -810,7 +763,7 @@ class MainDB():
             "data_available_nav":self.data_available_check(nav),
             "weather_api": self.process_weather_api_data(),
             "position_api": self.process_positions(),
-            "indices": self.process_indices(),
+            # "indices": self.process_indices(),
             "faults": self.process_faults(),
             "health_status": self.process_health_status(),
             "Equipment":self.processed_equipment_data
@@ -823,7 +776,7 @@ class MainDB():
     def ad_all(self):
         daily_data_collection =database.get_collection("daily_data")
         
-        self.all_data = daily_data_collection.find({"ship_imo": self.ship_imo,"data.rep_dt":{"$lte":datetime(2015,12,1,12)}})
+        self.all_data = daily_data_collection.find({"ship_imo": self.ship_imo})
         
         print(self.all_data.count())
         for i in range(0,self.all_data.count()):
@@ -839,6 +792,16 @@ class MainDB():
         maindata = maindb.find({"ship_imo": int(self.ship_imo),"processed_daily_data.rep_dt.processed":{"$gte":datetime(2016,2,1,12)}})
         for i in range(0,maindata.count()):
             try:
+                dst_main =maindb.find({"ship_imo":self.ship_imo,"within_good_voyage_limit":True},{"processed_daily_data.dst_last.processed":1,"_id":0})
+                mainobject=json_util.dumps(dst_main)
+                load=json_util.loads(mainobject)
+                temp_list_2=[]
+                for k in range(0,len(load)):
+                    try:
+                        temp_list_2.append(load[k]['processed_daily_data']['dst_last']['processed'])
+                    except KeyError:
+                        temp_list_2.append(None)
+                dst_mean=round(np.mean(temp_list_2),2)
                 print(i)
                 self.get_main_db(i)
                 main_fuel_per_dst_m3=self.main_data['processed_daily_data']['main_fuel_per_dst']['predictions']['m3']
@@ -925,8 +888,8 @@ class MainDB():
                         t_2[month]=None
                     main_fuel['t2_initial']=t_2
 
-                    if T_2_limit[month] and pandas.isnull(T_2_limit[month])==False and pandas.isnull(dst_last)==False:
-                        t_2_ucl[month]=T_2_limit[month] * dst_last
+                    if T_2_limit[month] and pandas.isnull(T_2_limit[month])==False:
+                        t_2_ucl[month]=T_2_limit[month] * dst_mean
                         if pandas.isnull(t_2[month])==False or t_2[month]!=None:
                             if t_2[month]>t_2_ucl[month]:
                                 t_2_anamoly[month]=False
@@ -940,13 +903,13 @@ class MainDB():
                     main_fuel['ucl_crit_beta']=t_2_ucl
                     main_fuel['t2_anamoly']=t_2_anamoly
 
-                    if Q_y_list[month] and pandas.isnull(Q_y_list[month][1])==False and pandas.isnull(dst_last)==False:
+                    if Q_y_list[month] and pandas.isnull(Q_y_list[month][1])==False:
                         temp_list1=[]
                         temp_list2=[]
                         if pandas.isnull(Q_y_list[month][0])==False or Q_y_list[month][0]!=None:
-                            temp_list1.append(Q_y_list[month][0] * dst_last)
-                            if pandas.isnull(Q_y_list[month][0] * dst_last)==False and pandas.isnull(main_fuel['SPEy'][month])==False:
-                                if (Q_y_list[month][0] * dst_last)<main_fuel['SPEy'][month]:
+                            temp_list1.append(Q_y_list[month][0] * dst_mean)
+                            if pandas.isnull(Q_y_list[month][0] * dst_mean)==False and pandas.isnull(main_fuel['SPEy'][month])==False:
+                                if (Q_y_list[month][0] * dst_mean)<main_fuel['SPEy'][month]:
                                     temp_list2.append(False)
                                 else:
                                     temp_list2.append(True)
@@ -956,9 +919,9 @@ class MainDB():
                             temp_list1.append(None)
                             temp_list2.append(None)
 
-                        temp_list1.append(Q_y_list[month][1] *  dst_last)
-                        if pandas.isnull(Q_y_list[month][1] *  dst_last)==False and pandas.isnull(main_fuel['SPEy'][month])==False:
-                            if (Q_y_list[month][1] *  dst_last)<main_fuel['SPEy'][month]:
+                        temp_list1.append(Q_y_list[month][1] *  dst_mean)
+                        if pandas.isnull(Q_y_list[month][1] *  dst_mean)==False and pandas.isnull(main_fuel['SPEy'][month])==False:
+                            if (Q_y_list[month][1] *  dst_mean)<main_fuel['SPEy'][month]:
                                 temp_list2.append(False)
                             else:
                                 temp_list2.append(True)
@@ -966,9 +929,9 @@ class MainDB():
                             temp_list2.append(True)
 
                         if pandas.isnull(Q_y_list[month][2])==False or Q_y_list[month][2]!=None:
-                            temp_list1.append(Q_y_list[month][2] * dst_last)
-                            if pandas.isnull(Q_y_list[month][2] * dst_last)==False and pandas.isnull(main_fuel['SPEy'][month])==False:
-                                if (Q_y_list[month][2] * dst_last)<main_fuel['SPEy'][month]:
+                            temp_list1.append(Q_y_list[month][2] * dst_mean)
+                            if pandas.isnull(Q_y_list[month][2] * dst_mean)==False and pandas.isnull(main_fuel['SPEy'][month])==False:
+                                if (Q_y_list[month][2] * dst_mean)<main_fuel['SPEy'][month]:
                                     temp_list2.append(False)
                                 else:
                                     temp_list2.append(True)
@@ -995,6 +958,16 @@ class MainDB():
         maindata = maindb.find({"ship_imo": int(self.ship_imo),"processed_daily_data.rep_dt.processed":{"$gte":datetime(2016,2,1,12)}})
         for i in range(0,maindata.count()):
             try:
+                stm_main =maindb.find({"ship_imo":self.ship_imo,"within_good_voyage_limit":True},{"processed_daily_data.stm_hrs.processed":1,"_id":0})
+                mainobject=json_util.dumps(stm_main)
+                load=json_util.loads(mainobject)
+                temp_list_2=[]
+                for k in range(0,len(load)):
+                    try:
+                        temp_list_2.append(load[k]['processed_daily_data']['stm_hrs']['processed'])
+                    except KeyError:
+                        temp_list_2.append(None)
+                stm_mean=round(np.mean(temp_list_2),2)
                 print(i)
                 self.get_main_db(i)
                 sfoc=self.main_data['processed_daily_data']['sfoc']
@@ -1050,7 +1023,7 @@ class MainDB():
                     sfoc['t2_initial']=t_2
 
                     if main_fuel['ucl_crit_beta'][month] and pandas.isnull(main_fuel['ucl_crit_beta'][month])==False and pwr['ucl_crit_beta'][month] and pandas.isnull(pwr['ucl_crit_beta'][month])==False and pandas.isnull(stm_hrs)==False:
-                        t_2_ucl[month]=((main_fuel['ucl_crit_beta'][month]/pwr['ucl_crit_beta'][month])/stm_hrs)*1000
+                        t_2_ucl[month]=((main_fuel['ucl_crit_beta'][month]/pwr['ucl_crit_beta'][month])/stm_mean)*1000
                         if pandas.isnull(t_2[month])==False or t_2[month]!=None:
                             if t_2[month]>t_2_ucl[month]:
                                 t_2_anamoly[month]=False
@@ -1068,9 +1041,9 @@ class MainDB():
                         temp_list1=[]
                         temp_list2=[]
                         if pandas.isnull(main_fuel['Q_y'][month][0])==False or main_fuel['Q_y'][month][0]!=None and pandas.isnull(pwr['Q_y'][month][0])==False or pwr['Q_y'][month][0]!=None:
-                            temp_list1.append(((main_fuel['Q_y'][month][0]/pwr['Q_y'][month][0])/stm_hrs)*1000)
-                            if pandas.isnull(((main_fuel['Q_y'][month][0]/pwr['Q_y'][month][0])/stm_hrs)*1000)==False and pandas.isnull(sfoc['SPEy'][month])==False:
-                                if (((main_fuel['Q_y'][month][0]/pwr['Q_y'][month][0])/stm_hrs)*1000)<sfoc['SPEy'][month]:
+                            temp_list1.append(((main_fuel['Q_y'][month][0]/pwr['Q_y'][month][0])/stm_mean)*1000)
+                            if pandas.isnull(((main_fuel['Q_y'][month][0]/pwr['Q_y'][month][0])/stm_mean)*1000)==False and pandas.isnull(sfoc['SPEy'][month])==False:
+                                if (((main_fuel['Q_y'][month][0]/pwr['Q_y'][month][0])/stm_mean)*1000)<sfoc['SPEy'][month]:
                                     temp_list2.append(False)
                                 else:
                                     temp_list2.append(True)
@@ -1080,9 +1053,9 @@ class MainDB():
                             temp_list1.append(None)
                             temp_list2.append(None)
 
-                        temp_list1.append(((main_fuel['Q_y'][month][1]/pwr['Q_y'][month][1])/stm_hrs)*1000)
-                        if pandas.isnull(((main_fuel['Q_y'][month][1]/pwr['Q_y'][month][1])/stm_hrs)*1000)==False and pandas.isnull(sfoc['SPEy'][month])==False:
-                            if (((main_fuel['Q_y'][month][1]/pwr['Q_y'][month][1])/stm_hrs)*1000)<sfoc['SPEy'][month]:
+                        temp_list1.append(((main_fuel['Q_y'][month][1]/pwr['Q_y'][month][1])/stm_mean)*1000)
+                        if pandas.isnull(((main_fuel['Q_y'][month][1]/pwr['Q_y'][month][1])/stm_mean)*1000)==False and pandas.isnull(sfoc['SPEy'][month])==False:
+                            if (((main_fuel['Q_y'][month][1]/pwr['Q_y'][month][1])/stm_mean)*1000)<sfoc['SPEy'][month]:
                                 temp_list2.append(False)
                             else:
                                 temp_list2.append(True)
@@ -1090,9 +1063,9 @@ class MainDB():
                             temp_list2.append(True)
 
                         if pandas.isnull(main_fuel['Q_y'][month][2])==False or main_fuel['Q_y'][month][2]!=None and pandas.isnull(pwr['Q_y'][month][2])==False or pwr['Q_y'][month][2]!=None:
-                            temp_list1.append(((main_fuel['Q_y'][month][2]/pwr['Q_y'][month][2])/stm_hrs)*1000)
-                            if pandas.isnull(((main_fuel['Q_y'][month][2]/pwr['Q_y'][month][2])/stm_hrs)*1000)==False and pandas.isnull(sfoc['SPEy'][month])==False:
-                                if (((main_fuel['Q_y'][month][2]/pwr['Q_y'][month][2])/stm_hrs)*1000)<sfoc['SPEy'][month]:
+                            temp_list1.append(((main_fuel['Q_y'][month][2]/pwr['Q_y'][month][2])/stm_mean)*1000)
+                            if pandas.isnull(((main_fuel['Q_y'][month][2]/pwr['Q_y'][month][2])/stm_mean)*1000)==False and pandas.isnull(sfoc['SPEy'][month])==False:
+                                if (((main_fuel['Q_y'][month][2]/pwr['Q_y'][month][2])/stm_mean)*1000)<sfoc['SPEy'][month]:
                                     temp_list2.append(False)
                                 else:
                                     temp_list2.append(True)
@@ -1205,7 +1178,215 @@ class MainDB():
             except:
                 continue
     
-            
+    
+    def ewma_limits(self):
+        maindb = database.get_collection("Main_db")
+        ml_control=self.ship_configs['mlcontrol']
+        months=['m3','m6','m12','ly_m3','ly_m6','ly_m12']
+        alpha=[0.2,0.1,0.05]
+        for j in ml_control:
+            # if j=="pwr":
+            try:
+                print(j)
+                ewma_limits={}
+                spe_limits={}
+                for month in months:
+                    try:
+                        print(month)
+                        spe_main =maindb.find({"ship_imo":self.ship_imo,"within_good_voyage_limit":True,"processed_daily_data."+j+".SPEy."+month:{"$lte":8}},{"processed_daily_data."+j+".SPEy."+month:1,"_id":0})
+                        mainobject=json_util.dumps(spe_main)
+                        load=json_util.loads(mainobject)
+                        temp_list_2=[]
+                        for k in range(0,len(load)):
+                            try:
+                                temp_list_2.append(load[k]['processed_daily_data'][j]['SPEy'][month])
+                            except KeyError:
+                                temp_list_2.append(None)
+                        spe_data=pandas.DataFrame({"spe":temp_list_2})
+                        spe_data=spe_data.dropna()
+                        spe_data=spe_data.reset_index(drop=True)
+                        std_val=np.std(spe_data['spe'])
+                        mean_val=np.mean(spe_data['spe'])
+                        var_sped=np.var(spe_data['spe'])
+                        ewma_limit_list=[]
+                        h_val=2*(mean_val**2)/(var_sped)
+                        g_val=(var_sped)/(2*(mean_val))
+                        spe_y_limit_array=[]
+                        for alphas in alpha:
+                            ewma_obj=EWMA()
+                            ewma_obj.fit(spe_data['spe'],0.2,mean_val)
+                            L=st.norm.ppf(1-alphas)
+                            ewma_val_cal,ewma_ucl_cal,ewma_lcl_cal=ewma_obj.ControlChart(L=L,sigma=std_val)
+                            # ewma_val_cal_2=spe_data['spe'].ewm(alpha=0.05,adjust=False).mean()
+                            # ewma_val=round(ewma_val_cal[-1],2)
+                            # ewma_ucl_val=round(ewma_ucl_cal[-1],2)
+                            ewma_limit_list.append(round(ewma_ucl_cal[-1],2))
+                            chi_val=st.chi2.ppf(1-alphas, h_val)
+                            spe_limit_g_val=g_val*chi_val
+                            spe_y_limit_array.append(spe_limit_g_val)
+                            
+                        ewma_limits[month]=ewma_limit_list
+                        spe_limits[month]=spe_y_limit_array
+                        
+                    except:
+                        ewma_limits[month]=None
+                        spe_limits[month]=None
+                
+                self.ship_configs_collection.update_one(self.ship_configs_collection.find({"ship_imo": int(self.ship_imo)})[0],{"$set":{"spe_limits."+j:spe_limits,"ewma_limits."+j:ewma_limits}})
+                print("kiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii")
+            except:
+                self.ship_configs_collection.update_one(self.ship_configs_collection.find({"ship_imo": int(self.ship_imo)})[0],{"$set":{"spe_limits."+j:None,"ewma_limits."+j:None}})
+                print("nuuuuuuuuuuuuuuuuuuuuuuuuuuuuullllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll")
+    
+
+    def indice_ewma_limit(self):
+        maindb = database.get_collection("Main_db")
+        ship_indices_data=self.ship_configs['indices_data']
+        months=['m3','m6','m12','ly_m3','ly_m6','ly_m12']
+        alpha=[0.2,0.1,0.05]
+        for j in ship_indices_data:
+            try:
+                print(j)
+                mewma_limits={}
+                spe_limits={}
+                for month in months:
+                    try:
+                        print(month)
+                        spe_main =maindb.find({"ship_imo":self.ship_imo,"within_good_voyage_limit":True,"independent_indices."+j+".SPEy."+month:{"$lte":8}},{"independent_indices."+j+".SPEy."+month:1,"_id":0})
+                        mainobject=json_util.dumps(spe_main)
+                        load=json_util.loads(mainobject)
+                        temp_list_2=[]
+                        for k in range(0,len(load)):
+                            try:
+                                temp_list_2.append(load[k]['independent_indices'][j]['SPEy'][month])
+                            except KeyError:
+                                temp_list_2.append(None)
+                        spe_data=pandas.DataFrame({"spe":temp_list_2})
+                        spe_data=spe_data.dropna()
+                        spe_data=spe_data.reset_index(drop=True)
+                        std_val=np.std(spe_data['spe'])
+                        mean_val=np.mean(spe_data['spe'])
+                        var_sped=np.var(spe_data['spe'])
+                        mewma_limit_list=[]
+                        h_val=2*(mean_val**2)/(var_sped)
+                        g_val=(var_sped)/(2*(mean_val))
+                        spe_y_limit_array=[]
+                        for alphas in alpha:
+                            mewma_obj=EWMA()
+                            mewma_obj.fit(spe_data['spe'],0.2,mean_val)
+                            L=st.norm.ppf(1-alphas)
+                            mewma_val_cal,mewma_ucl_cal,mewma_lcl_cal=mewma_obj.ControlChart(L=L,sigma=std_val)
+                            # ewma_val_cal_2=spe_data['spe'].ewm(alpha=0.05,adjust=False).mean()
+                            # ewma_val=round(ewma_val_cal[-1],2)
+                            # ewma_ucl_val=round(ewma_ucl_cal[-1],2)
+                            mewma_limit_list.append(round(mewma_ucl_cal[-1],2))
+                            chi_val=st.chi2.ppf(1-alphas, h_val)
+                            spe_limit_g_val=g_val*chi_val
+                            spe_y_limit_array.append(spe_limit_g_val)
+                        mewma_limits[month]=mewma_limit_list 
+                        spe_limits[month]=spe_y_limit_array
+                    except:
+                        mewma_limits[month]=None
+                        spe_limits[month]=None
+                self.ship_configs_collection.update_one(self.ship_configs_collection.find({"ship_imo": int(self.ship_imo)})[0],{"$set":{"spe_limits_indices."+j:spe_limits,"mewma_limits."+j:mewma_limits}})
+                print("kiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii")
+            except:
+                self.ship_configs_collection.update_one(self.ship_configs_collection.find({"ship_imo": int(self.ship_imo)})[0],{"$set":{"spe_limits_indices."+j:None,"mewma_limits."+j:None}})
+                print("nuuuuuuuuuuuuuuuuuuuuuuuuuuuuullllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll")
+
+                
+    def universal_limit(self):
+        ml_control=self.ship_configs['mlcontrol']
+        for key in ml_control:
+            # if key=="pwr":
+            val=ml_control[key]
+            for i in val:
+                if i=="" or i==" " or i=="  ":
+                    val.remove(i)
+            val.append("vsl_load_bal")
+            try:
+                print(key)
+                full_data=Universal_limits(key,val,self.ship_imo,self.ship_configs)
+                # spe_limits,t2_limits=full_data.spe_limit()
+                t2_limits=full_data.spe_limit()
+                self.ship_configs_collection.update_one(self.ship_configs_collection.find({"ship_imo": int(self.ship_imo)})[0],{"$set":{"t2_limits."+key:t2_limits}})
+                print("done")
+            except:
+                print(key)
+                self.ship_configs_collection.update_one(self.ship_configs_collection.find({"ship_imo": int(self.ship_imo)})[0],{"$set":{"t2_limits."+key:None}})
+                print("no")
+
+
+    def anamolies_by_config(self):
+        ml_control=self.ship_configs['mlcontrol']
+        spe_limits=self.ship_configs['spe_limits']
+        t2_limits=self.ship_configs['t2_limits']
+        maindb = database.get_collection("Main_db")
+        maindata = maindb.find({"ship_imo": int(self.ship_imo),"processed_daily_data.rep_dt.processed":{"$gte":datetime(2016,2,1,12)}})
+        months=['m3','m6','m12','ly_m3','ly_m6','ly_m12']
+        alpha=['zero_two','zero_one','zero_zero_five']
+        spe_anamoly={}
+        t2_anamoly={}
+        for i in range(0,maindata.count()):
+            print("boooooooooooooooooooooooooooooooom",i)
+            try:
+                for key in ml_control:
+                    try:
+                        if key in maindata[i]['processed_daily_data']:
+                            print(key)
+                            for month in months:
+                                spe_list=[]
+                                t2_list=[]
+                                if pandas.isnull(maindata[i]['processed_daily_data'][key]['SPEy'][month])==False:
+                                    for alphas in alpha:
+                                        if spe_limits[key][alphas]>maindata[i]['processed_daily_data'][key]['SPEy'][month]:
+                                            spe_list.append(True)
+                                        else:
+                                            spe_list.append(False)
+                                else:
+                                    spe_list.append(False)
+                                spe_anamoly[month]=spe_list
+                                if pandas.isnull(maindata[i]['processed_daily_data'][key]['t2_initial'][month])==False:
+                                    for alphas in alpha:
+                                        if t2_limits[key][alphas]>maindata[i]['processed_daily_data'][key]['t2_initial'][month]:
+                                            t2_list.append(True)
+                                        else:
+                                            t2_list.append(False)
+                                else:
+                                    t2_list.append(False)
+                                t2_anamoly[month]=t2_list
+                            print(spe_anamoly)
+                            print(t2_anamoly)
+                            maindb.update_one(maindb.find({"ship_imo": int(self.ship_imo),"processed_daily_data.rep_dt.processed":{"$gte":datetime(2016,2,1,12)}})[i],{"$set":{"processed_daily_data."+key+".spe_anamoly":spe_anamoly,"processed_daily_data."+key+".t2_anamoly":t2_anamoly}})
+                    except:
+                        continue
+            except:
+                continue
+    
+    def universal_indices_limits(self):
+        ship_indices_data=self.ship_configs['indices_data']
+        for key in ship_indices_data:
+            input=ship_indices_data[key]['input']
+            output=ship_indices_data[key]['output']
+            input.append("vsl_load_bal")
+            for i in input:
+                if i=="" or i==" " or i=="  ":
+                    input.remove(i)
+            for i in output:
+                if i=="" or i==" " or i=="  ":
+                    output.remove(i)
+            try:
+                print(key)
+                full_data=Universal_indices_limits(output,input,self.ship_imo,self.ship_configs)
+                # spe_limits,t2_limits=full_data.indices_limit()
+                t2_limits=full_data.indices_limit()
+                self.ship_configs_collection.update_one(self.ship_configs_collection.find({"ship_imo": int(self.ship_imo)})[0],{"$set":{"t2_limits_indices."+key:t2_limits}})
+                print("done")
+            except:
+                print(key)
+                self.ship_configs_collection.update_one(self.ship_configs_collection.find({"ship_imo": int(self.ship_imo)})[0],{"$set":{"t2_limits_indices."+key:None}})
+                print("no")
+
     def write_ship_stats(self):
         "writing into shipstats"
             
@@ -1227,47 +1408,68 @@ class MainDB():
     #             print("nullllllllllll")
 
 
-obj=MainDB(9591301)
+
+
+
+
+# obj=MainDB(9591301)
 import time
 start_time = time.time()
-obj.get_ship_configs()
-# obj.get_daily_data()
-# obj.process_daily_data()
-obj.get_ship_stats()
-obj.get_main_db("pwr")
-# obj.process_main_data()
-# obj.update_maindb()
-# obj.update_maindb_alldoc()
-# obj.process_main_data_predictions(1)
-# obj.example_equipment()
-#obj.main_db_writer()
-# obj.ad_all()
-# obj.processing_indices()
-obj.update_indices()
-# obj.update_main_fuel()
-# obj.update_sfoc()
-# obj.update_sfoc_processed()
-# obj.update_avg_hfo()
-# obj.update_maindb_predictions_alldoc()
-# obj.update_maindb_predictions_alldoc_second()
-# obj.good_voyage()
-# obj.update_good_voyage()
-end_time=time.time()
-print(end_time-start_time)
-
-# obj=MainDB(9591302)
-
 # obj.get_ship_configs()
 # # obj.get_daily_data()
 # # obj.process_daily_data()
-# # obj.get_ship_stats()
-# # obj.get_main_db()
+# obj.get_ship_stats()
+# # obj.get_main_db(1)
 # # obj.process_main_data()
 # # obj.update_maindb()
 # # obj.update_maindb_alldoc()
-# # obj.process_main_data_predictions()
-# # obj.main_db_writer()
+# # obj.process_main_data_predictions(1)
+# # obj.example_equipment()
+# #obj.main_db_writer()
+# # obj.ad_all()
+# # obj.processing_indices()
+# # obj.update_indices()
+# # obj.update_main_fuel()
+# # obj.update_sfoc()
+# # obj.update_sfoc_processed()
+# # obj.update_avg_hfo()
+# # obj.update_maindb_predictions_alldoc()
+# # obj.good_voyage()
+# # obj.update_good_voyage()
+# # obj.ewma_limits()
+# # obj.universal_limit()
+# obj.anamolies_by_config()
+# # obj.universal_indices_limits()
+# obj.indice_ewma_limit()
+# end_time=time.time()
+# print(end_time-start_time)
+
+# daily_obj=DailyInsert('F:\Afzal_cs\Internship\Arvind data files\RTM FUEL.xlsx','F:\Afzal_cs\Internship\Arvind data files\RTM ENGINE.xlsx',9591301,True)
+# daily_obj.do_steps()
+obj=MainDB(9591301)
+obj.get_ship_configs()
 # obj.ad_all()
+#initial population done (remove date condition on find  before uploading in aws)
+# obj.update_maindb_alldoc()
+#outlier (both outlier 1 and 2 inside this) and (remove date condition on find  before uploading in aws)
+# obj.update_good_voyage()
+#good voyage tag created here essential for predictions process 
+# obj.update_maindb_predictions_alldoc()
+#predictions, spe, t2, ewma, cumsum all done here (remove date condition on find  before uploading in aws)
+# obj.update_main_fuel()
+#backcalculationg main fuel by given furlmula (all values which are created in predictions processe will be backcalculated with same formula )
+# obj.update_sfoc()
+#backcalculating 
+# obj.update_avg_hfo()
+#Backcalculating
+# obj.update_indices()
+#creating indices as well as prediction, spe, t2, mewma, mcumsum, all done here
 
-
-
+#temporarily added for checking spe and ewma using a diferent dataframe and formula
+# done till here  
+# obj.universal_limit()
+# obj.universal_indices_limits()
+obj.ewma_limits()
+obj.indice_ewma_limit()
+end_time=time.time()
+print(end_time-start_time)
