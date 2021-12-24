@@ -37,6 +37,7 @@ class ConfigExtractor():
         self.override = override
         self.error = False
         self.traceback_msg = None
+        self.anamoly_messages = None
 
         
 
@@ -55,22 +56,22 @@ class ConfigExtractor():
 
     @check_status
     def connect(self):
-        self.db = connect_db()
+        # self.db = connect_db()
+        self.db = MongoClient("mongodb+srv://iamuser:iamuser@democluster.lw5i0.mongodb.net/test?ssl=true&ssl_cert_reqs=CERT_NONE")
 
     
     @check_status
     def read_files(self):
-        self.df_configurations = pd.read_excel(self.file, sheet_name='Configurations')
-        self.df_variables = pd.read_excel(self.file, sheet_name='N&E')
-        self.df_groups = pd.read_excel(self.file, sheet_name="Groups", header=[0, 1])
+        self.df_configurations = pd.read_excel(self.file, sheet_name='Configurations', engine='openpyxl')
+        self.df_variables = pd.read_excel(self.file, sheet_name='N&E', engine='openpyxl')
+        self.df_groups = pd.read_excel(self.file, sheet_name="Groups", header=[0, 1], engine='openpyxl')
         # Convert the headers and sub-headers in the dataframe to MultiIndex headers of the form ('Header', 'SubHeader')
         a = self.df_groups.columns.get_level_values(0).to_series()
         b = a.mask(a.str.startswith('Unnamed')).ffill().fillna('')
         self.df_groups.columns = [b, self.df_groups.columns.get_level_values(1)]
         self.grpnames = pd.read_excel(self.file, sheet_name="GrpDir", engine='openpyxl')
-        self.mlcontrol=pd.read_excel(self.file, sheet_name='MLcontrol',skiprows = [0, 1, 2])
-        self.anamoly_messages=pd.read_excel(self.file, sheet_name='AnamolyMessages')
-        
+        self.mlcontrol=pd.read_excel(self.file, sheet_name='MLcontrol',skiprows = [0, 1, 2], engine='openpyxl')
+        self.anamoly_messages=pd.read_excel(self.file, sheet_name='AnamolyMessages', engine='openpyxl')
         
 
     def stat(self,s):
@@ -269,7 +270,6 @@ class ConfigExtractor():
         self.ais_api=self.ais_api.__add__(list(self.df_variables[self.df_variables['Data Type']=='API']['Identifer NEW']))
         self.ais_api=self.ais_api.__add__(list(self.df_variables[self.df_variables['Data Type']=='AIS']['Identifer NEW']))
         self.calculated=list(self.df_variables[self.df_variables['Derived'].str.strip()=='YES']['Identifer NEW']) 
-
         for k, v in self.identifier_mapping.items():
             if type(v) == float and np.isnan(v):
                 self.identifier_mapping[k]=str(k).strip()
@@ -279,6 +279,7 @@ class ConfigExtractor():
         
 
         for i in range(0, len(self.df_variables['Identifer NEW'])):   #Fetches column Identifier_NEW from
+            print("kooooooooooooooooooooooooooooooooooooooooo")
             if self.df_variables['Data Type'][i] != 'static':#variables_file checks if type is 'static'   #converts into dictionary
                 self.newList = []
                 # Only add specific groups
@@ -305,6 +306,7 @@ class ConfigExtractor():
                     'Derived':self.derived(self.df_variables['Derived'][i]),
                     'Daily Availability':self.derived(self.df_variables['Daily Availability'][i]),
                     'availabe_for_groups':self.availability(self.df_variables['AVAILABLE FOR GROUPS'][i]),
+                    'equipment_block':self.df_variables['EQUIPMENT BLOCK'][i],
                     'dependent':self.availability(self.df_variables['DEPENDENT?'][i]),
                     'group_selection':self.newList,        #create funtion to get groups if 1 it is single parameter,if 2 split and look for 20,if 3 split and look for 30 ....
                     'limits':{
@@ -329,6 +331,7 @@ class ConfigExtractor():
         database=self.db.get_database("aranti")
         ship_collection=database.get_collection("ship")
         ship_imos=ship_collection.distinct("ship_imo")
+        
         # ship = Ship(
         #     ship_imo = self.ship_imo,
         #     ship_name = self.ship_name,
@@ -382,7 +385,9 @@ class ConfigExtractor():
         #         return "Record already exists!"
         if self.override==True:
             if self.ship_imo in ship_imos:
+                print("yes")
                 ship_collection.delete_one({"ship_imo": self.ship_imo})
+                print("deleteddd")
                 return ship_collection.insert_one(ship).inserted_id
                 
             else:
@@ -397,14 +402,15 @@ class ConfigExtractor():
                 return ship_collection.insert_one(ship).inserted_id
 
 
-obj=ConfigExtractor(9591301,'F:\Afzal_cs\Internship\ConfiguratorRev_9591301.xlsx',True)
+# obj=ConfigExtractor(9591301,'F:\Afzal_cs\Internship\ConfiguratorRev_9591301.xlsx',True)
+# obj.connect()
 # obj.read_files()
 # obj.anamoly()
 # obj.process_file()
-# obj.connect()
 # obj.write_configs()
-#obj.read_configs()
-# obj.create_indices()
+# import time
+# start_time = time.time()
 
-
-obj.do_steps()
+# obj.do_steps()
+# end_time=time.time()
+# print(end_time-start_time)
