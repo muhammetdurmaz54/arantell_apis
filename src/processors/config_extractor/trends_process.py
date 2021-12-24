@@ -225,6 +225,8 @@ class TrendsExtractor():
         spelimitdict = {}
         t2dict = {}
         t2limitdict = {}
+        spe_number_dict = {}
+        t2_number_dict = {}
         if('Multi Axis' in self.group):
             ''' TEMPORARY PURPOSES'''
             nameslist = self.configuration.temporary_dict_and_list_according_to_groups(self.group)
@@ -244,6 +246,16 @@ class TrendsExtractor():
             new_duration = durationActual.replace('ly_','') if 'ly_' in durationActual else durationActual
             groups = self.groupsList
             print("START LIST")
+            for name in nameslist:
+                try:
+                    cursor_temp_spe = self.ship_configs.find({'ship_imo': self.ship_imo}, {'spe_limits.'+name+'.zero_zero_five': 1, 't2_limits.'+name+'.zero_two': 1})
+                    temp_spe = loads(dumps(cursor_temp_spe))
+                    print("TEMP SPE", temp_spe)
+                    spe_number_dict[name] = temp_spe[0]['spe_limits'][name]['zero_zero_five']
+                    t2_number_dict[name] = temp_spe[0]['t2_limits'][name]['zero_two']
+                except KeyError:
+                    continue
+            print("SPE & T2", spe_number_dict, t2_number_dict)
             for name in nameslist:
                 newlist=[]
                 explist=[]
@@ -265,6 +277,7 @@ class TrendsExtractor():
                 # opacityList=[]
                 # if name != 'rep_dt':
                 # print(name)
+                # spe_limit_number = self.ship_configs.find({'ship_imo': self.ship_imo}, {''})
                 try:
                     for doc in self.main_db.find({'ship_imo': self.ship_imo}, {'ship_imo': 1, 'processed_daily_data.'+name: 1, '_id': 0}).sort('processed_daily_data.rep_dt.processed', ASCENDING):
                         # try:
@@ -358,9 +371,12 @@ class TrendsExtractor():
                                     # t2_list.append(None)
                                     # t2_limit_list.append(None)
                                 
+                                # if self.anomalies == 'false':
                                 try:
-                                    if doc['processed_daily_data'][name]['spe_anamoly'][durationActual][1] == True:
+                                    # if doc['processed_daily_data'][name]['spe_anamoly'][durationActual][2] == True:
+                                    if doc['processed_daily_data'][name]['SPEy'][durationActual] < spe_number_dict[name]:
                                         spe_list.append(doc['processed_daily_data'][name]['SPEy'][durationActual])
+                                        # spe_list.append(spe_number_dict[name])
                                     else:
                                         spe_list.append(None)
                                 except KeyError:
@@ -371,8 +387,9 @@ class TrendsExtractor():
                                     spe_list.append(None)
                                 
                                 try:
-                                    if doc['processed_daily_data'][name]['spe_anamoly'][durationActual][1] == True:
-                                        spe_limit_list.append(doc['processed_daily_data'][name]['Q_y'][durationActual][1])
+                                    if doc['processed_daily_data'][name]['spe_anamoly'][durationActual][2] == True:
+                                        # spe_limit_list.append(doc['processed_daily_data'][name]['Q_y'][durationActual][1])
+                                        spe_limit_list.append(spe_number_dict[name])
                                     else:
                                         spe_limit_list.append(None)
                                 except KeyError:
@@ -384,7 +401,8 @@ class TrendsExtractor():
                                 
                                 #T2----------------------------------------------------------------------
                                 try:
-                                    if doc['processed_daily_data'][name]['t2_anamoly'][durationActual] == True:
+                                    # if doc['processed_daily_data'][name]['t2_anamoly'][durationActual][0] == True:
+                                    if doc['processed_daily_data'][name]['t2_initial'][durationActual] < t2_number_dict[name]:
                                         t2_list.append(doc['processed_daily_data'][name]['t2_initial'][durationActual])
                                     else:
                                         t2_list.append(None)
@@ -396,8 +414,9 @@ class TrendsExtractor():
                                     t2_list.append(None)
                                 
                                 try:
-                                    if doc['processed_daily_data'][name]['t2_anamoly'][durationActual] == True:
-                                        t2_limit_list.append(doc['processed_daily_data'][name]['ucl_crit_beta'][durationActual])
+                                    if doc['processed_daily_data'][name]['t2_anamoly'][durationActual][0] == True:
+                                        # t2_limit_list.append(doc['processed_daily_data'][name]['ucl_crit_beta'][durationActual])
+                                        t2_limit_list.append(t2_number_dict[name])
                                     else:
                                         t2_limit_list.append(None)
                                 except KeyError:
@@ -406,6 +425,58 @@ class TrendsExtractor():
                                     t2_limit_list.append(None)
                                 except IndexError:
                                     t2_limit_list.append(None)
+
+                                # if self.anomalies == 'true':
+                                #     try:
+                                #         # if doc['processed_daily_data'][name]['spe_anamoly'][durationActual][1] == True:
+                                #         spe_list.append(doc['processed_daily_data'][name]['SPEy'][durationActual])
+                                #         # else:
+                                #         #     spe_list.append(None)
+                                #     except KeyError:
+                                #         spe_list.append(None)
+                                #     except TypeError:
+                                #         spe_list.append(None)
+                                #     except IndexError:
+                                #         spe_list.append(None)
+                                    
+                                #     try:
+                                #         # if doc['processed_daily_data'][name]['spe_anamoly'][durationActual][1] == True:
+                                #             # spe_limit_list.append(doc['processed_daily_data'][name]['Q_y'][durationActual][1])
+                                #         spe_limit_list.append(spe_number_dict[name])
+                                #         # else:
+                                #         #     spe_limit_list.append(None)
+                                #     except KeyError:
+                                #         spe_limit_list.append(None)
+                                #     except TypeError:
+                                #         spe_limit_list.append(None)
+                                #     except IndexError:
+                                #         spe_limit_list.append(None)
+                                    
+                                #     #T2----------------------------------------------------------------------
+                                #     try:
+                                #         # if doc['processed_daily_data'][name]['t2_anamoly'][durationActual] == True:
+                                #         t2_list.append(doc['processed_daily_data'][name]['t2_initial'][durationActual])
+                                #         # else:
+                                #         #     t2_list.append(None)
+                                #     except KeyError:
+                                #         t2_list.append(None)
+                                #     except TypeError:
+                                #         t2_list.append(None)
+                                #     except IndexError:
+                                #         t2_list.append(None)
+                                    
+                                #     try:
+                                #         # if doc['processed_daily_data'][name]['t2_anamoly'][durationActual] == True:
+                                #             # t2_limit_list.append(doc['processed_daily_data'][name]['ucl_crit_beta'][durationActual])
+                                #         t2_limit_list.append(t2_number_dict[name])
+                                #         # else:
+                                #         #     t2_limit_list.append(None)
+                                #     except KeyError:
+                                #         t2_limit_list.append(None)
+                                #     except TypeError:
+                                #         t2_limit_list.append(None)
+                                #     except IndexError:
+                                #         t2_limit_list.append(None)
                                 print("SPE!!!!!", name)
                                 # try:
                                 #     if doc['processed_daily_data'][name]['spe_anamoly'][durationActual][0] == False:
