@@ -1,6 +1,5 @@
 from __future__ import division
 
-
 from numpy.core.fromnumeric import reshape, var
 from numpy.core.function_base import linspace
 from numpy.lib.function_base import diff
@@ -74,10 +73,9 @@ from scipy.stats import f
 class Indice_Processing():
 
 
-    def __init__(self,configs,md,ss,imo):
+    def __init__(self,configs,md,imo):
         self.ship_configs = configs
         self.main_data= md
-        self.ship_stats= ss
         self.ship_imo=imo
         pass
 
@@ -212,7 +210,7 @@ class Indice_Processing():
             dataframe=dataframe.dropna()
                     
             dataframe=dataframe.reset_index(drop=True)
-        
+            
             if len(dataframe)>=5 and len(dataframe.columns)>2:
                 x=[]
                 y=identifier
@@ -314,18 +312,24 @@ class Indice_Processing():
                     spe_value=sum(spe_list_upper)
                     
                     spe_sum=spe_dataframe.sum(axis=1)
-                    var_sped=np.var(spe_sum)
-                    mean_var=np.mean(spe_sum)
-                    # h_val=(2*(mean_var**2))/(var_sped)
-                    # g_val=(var_sped)/(2*(mean_var))
+                    # print(spe_dataframe)
+                    spe_matrix=spe_dataframe.values
+                    # print(spe_matrix)
+                    mewma_obj=mewma(lambd=0.2)
+                    mewma_val,mewma_ucl=mewma_obj.plot(spe_matrix)
+                    # print(mewma_val,mewma_ucl)
+                    # var_sped=np.var(spe_sum)
+                    # mean_var=np.mean(spe_sum)
+                    # # h_val=(2*(mean_var**2))/(var_sped)
+                    # # g_val=(var_sped)/(2*(mean_var))
                     
-                    param_alpha=[]
-                    param_alpha.append(self.ship_configs['parameter_anamoly']['SPE_alpha1']['alpha'])
-                    param_alpha.append(self.ship_configs['parameter_anamoly']['SPE_alpha2']['alpha'])
-                    param_alpha.append(self.ship_configs['parameter_anamoly']['SPE_alpha3']['alpha'])
+                    # param_alpha=[]
+                    # param_alpha.append(self.ship_configs['parameter_anamoly']['SPE_alpha1']['alpha'])
+                    # param_alpha.append(self.ship_configs['parameter_anamoly']['SPE_alpha2']['alpha'])
+                    # param_alpha.append(self.ship_configs['parameter_anamoly']['SPE_alpha3']['alpha'])
 
-                    spe_y_limit_array=[]
-                    spe_anamoly=[]
+                    # spe_y_limit_array=[]
+                    # spe_anamoly=[]
                     # for i in param_alpha:
                     #     chi_val=st.chi2.ppf(1-i, h_val)
                     #     spe_limit_g_val=g_val*chi_val
@@ -352,28 +356,28 @@ class Indice_Processing():
                         pls_dataframe[i]=pls_y_dataframe[i]
                     dis_listnew=[]
 
-                    if len(x)>4:
-                        var_list=[]
-                        for i in range(4,len(pls_col)):
-                            var_list.append(np.var(pls_dataframe[pls_col[i]]))
-                        cube_list=[]
-                        for i in var_list:
-                            cube_list.append(i**3)
-                        theta_1=round(sum(var_list),3)
-                        theta_2 = round(functools.reduce(lambda i, j: i + j * j, [var_list[:1][0]**2]+var_list[1:]),3)
-                        g_val=theta_2/theta_1
-                        h_val=(theta_1**2)/theta_2
-                        for i in param_alpha:
-                            chi_val=st.chi2.ppf(1-i, h_val)
-                            spe_limit_g_val=g_val*chi_val
-                            spe_y_limit_array.append(spe_limit_g_val)
-                            if spe_limit_g_val < spe:
-                                spe_anamoly.append(False)
-                            elif spe_limit_g_val > spe:
-                                spe_anamoly.append(True)
-                    else:
-                        spe_anamoly=None
-                        spe_y_limit_array=None
+                    # if len(x)>4:
+                    #     var_list=[]
+                    #     for i in range(4,len(pls_col)):
+                    #         var_list.append(np.var(pls_dataframe[pls_col[i]]))
+                    #     cube_list=[]
+                    #     for i in var_list:
+                    #         cube_list.append(i**3)
+                    #     theta_1=round(sum(var_list),3)
+                    #     theta_2 = round(functools.reduce(lambda i, j: i + j * j, [var_list[:1][0]**2]+var_list[1:]),3)
+                    #     g_val=theta_2/theta_1
+                    #     h_val=(theta_1**2)/theta_2
+                    #     for i in param_alpha:
+                    #         chi_val=st.chi2.ppf(1-i, h_val)
+                    #         spe_limit_g_val=g_val*chi_val
+                    #         spe_y_limit_array.append(spe_limit_g_val)
+                    #         if spe_limit_g_val < spe:
+                    #             spe_anamoly.append(False)
+                    #         elif spe_limit_g_val > spe:
+                    #             spe_anamoly.append(True)
+                    # else:
+                    #     spe_anamoly=None
+                    #     spe_y_limit_array=None
 
 
 
@@ -406,18 +410,19 @@ class Indice_Processing():
                     # lcl=cl*(st.beta.ppf(0.01, p/2, (m - p - 1) / 2))
                     # center=cl*(st.beta.ppf(0.5,p/2,(m-p-1)/2))
                     # ucl=cl*(st.beta.ppf(0.75,p/2,(m-p-1)/2))
-                    t_2limit=st.f.ppf(1-0.1,p,m-p)*multiplier
+                    # t_2limit=st.f.ppf(1-0.1,p,m-p)*multiplier
                     # t_2limit=ucl-center
-                    crit_data=t_2limit
-                    if t2_initial>crit_data:
-                        t2_anamoly=False
-                    else:
-                        t2_anamoly=True
+                    # crit_data=t_2limit
+                    # if t2_initial>crit_data:
+                    #     t2_anamoly=False
+                    # else:
+                    #     t2_anamoly=True
                     
-                    crit_val_dynamic=None
-                    t2_final=None
+                    # crit_val_dynamic=None
+                    # t2_final=None
+                    
                     print("donweeeeeeeeeeeeeeeeeee")
-                    return spe_value,spe_y_limit_array,crit_data,crit_val_dynamic,t2_initial,t2_final,length_dataframe,spe_anamoly,t2_anamoly
+                    return spe_value,t2_initial,length_dataframe,mewma_val,mewma_ucl
                     # pls_dataframe=pls_dataframe.drop(index=pls_dataframe[pls_dataframe['t_2'] > t_2limit].index)
                     # if len(pls_dataframe)>=2:
                     #     if dataframe.index[-1]==pls_dataframe.index[-1]:
@@ -511,38 +516,26 @@ class Indice_Processing():
                     #     return spe_value,spe_y_limit_array,crit_data,crit_val_dynamic,t2_initial,t2_final
                 except:
                     spe_value=None
-                    spe_y_limit_array=None
-                    crit_data=None
-                    crit_val_dynamic=None
                     t2_initial=None
-                    t2_final=None
-                    spe_anamoly=None
-                    t2_anamoly=None
+                    mewma_val=None
+                    mewma_ucl=None
                     # print(pred_list,spe,crit_data,crit_val_dynamic,t2_initial,t2_final,spe_limit_array)
-                    return spe_value,spe_y_limit_array,crit_data,crit_val_dynamic,t2_initial,t2_final,length_dataframe,spe_anamoly,t2_anamoly
+                    return spe_value,t2_initial,length_dataframe,mewma_val,mewma_ucl
 
             else:
                 spe_value=None
-                spe_y_limit_array=None
-                crit_data=None
-                crit_val_dynamic=None
                 t2_initial=None
-                t2_final=None
-                spe_anamoly=None
-                t2_anamoly=None
+                mewma_val=None
+                mewma_ucl=None
                 # print(pred_list,spe,crit_data,crit_val_dynamic,t2_initial,t2_final,spe_limit_array)
-                return spe_value,spe_y_limit_array,crit_data,crit_val_dynamic,t2_initial,t2_final,length_dataframe,spe_anamoly,t2_anamoly
+                return spe_value,t2_initial,length_dataframe,mewma_val,mewma_ucl
         else:
             spe_value=None
-            spe_y_limit_array=None
-            crit_data=None
-            crit_val_dynamic=None
             t2_initial=None
-            t2_final=None
-            spe_anamoly=None
-            t2_anamoly=None
+            mewma_val=None
+            mewma_ucl=None
             # print(pred_list,spe,crit_data,crit_val_dynamic,t2_initial,t2_final,spe_limit_array)
-            return spe_value,spe_y_limit_array,crit_data,crit_val_dynamic,t2_initial,t2_final,length_dataframe,spe_anamoly,t2_anamoly
+            return spe_value,t2_initial,length_dataframe,mewma_val,mewma_ucl
             
 
 
@@ -556,85 +549,99 @@ class Indice_Processing():
         length_dataframe={}
         spe_anamoly={}
         t2_anamoly={}
+        mewma_val={}
+        mewma_ucl={}
 
         m3_dataframe=self.dataframe_generator(identifier,dependent_variables,processed_daily_data,3,0)
-        m3_spe,m3_spe_chisquare,crit_data_m3,crit_val_dynamic_m3,t2_initial_m3,t2_final_m3,ld_m3,spe_anamoly_m3,t2_anamoly_m3=self.prediction(identifier,m3_dataframe,processed_daily_data,dependent_variables)
+        m3_spe,t2_initial_m3,ld_m3,mewma_val_m3,mewma_ucl_m3=self.prediction(identifier,m3_dataframe,processed_daily_data,dependent_variables)
         spe['m3']=m3_spe
-        spe_chi_square['m3']=m3_spe_chisquare
-        crit_data['m3']=crit_data_m3
-        crit_val_dynamic['m3']=crit_val_dynamic_m3
+        # spe_chi_square['m3']=m3_spe_chisquare
+        # crit_data['m3']=crit_data_m3
+        # crit_val_dynamic['m3']=crit_val_dynamic_m3
         t2_initial['m3']=t2_initial_m3
-        t2_final['m3']=t2_final_m3
+        # t2_final['m3']=t2_final_m3
         length_dataframe['m3']=ld_m3
-        spe_anamoly['m3']=spe_anamoly_m3
-        t2_anamoly['m3']=t2_anamoly_m3
+        # spe_anamoly['m3']=spe_anamoly_m3
+        # t2_anamoly['m3']=t2_anamoly_m3
+        mewma_val['m3']=mewma_val_m3
+        mewma_ucl['m3']=mewma_ucl_m3
 
         # exit()
         m6_dataframe=self.dataframe_generator(identifier,dependent_variables,processed_daily_data,6,0)
-        m6_spe,m6_spe_chisquare,crit_data_m6,crit_val_dynamic_m6,t2_initial_m6,t2_final_m6,ld_m6,spe_anamoly_m6,t2_anamoly_m6=self.prediction(identifier,m6_dataframe,processed_daily_data,dependent_variables)
+        m6_spe,t2_initial_m6,ld_m6,mewma_val_m6,mewma_ucl_m6=self.prediction(identifier,m6_dataframe,processed_daily_data,dependent_variables)
         spe['m6']=m6_spe
-        spe_chi_square['m6']=m6_spe_chisquare
-        crit_data['m6']=crit_data_m6
-        crit_val_dynamic['m6']=crit_val_dynamic_m6
+        # spe_chi_square['m6']=m6_spe_chisquare
+        # crit_data['m6']=crit_data_m6
+        # crit_val_dynamic['m6']=crit_val_dynamic_m6
         t2_initial['m6']=t2_initial_m6
-        t2_final['m6']=t2_final_m6
+        # t2_final['m6']=t2_final_m6
         length_dataframe['m6']=ld_m6
-        spe_anamoly['m6']=spe_anamoly_m6
-        t2_anamoly['m6']=t2_anamoly_m6
+        # spe_anamoly['m6']=spe_anamoly_m6
+        # t2_anamoly['m6']=t2_anamoly_m6
+        mewma_val['m6']=mewma_val_m6
+        mewma_ucl['m6']=mewma_ucl_m6
 
         m12_dataframe=self.dataframe_generator(identifier,dependent_variables,processed_daily_data,12,0)
-        m12_spe,m12_spe_chisquare,crit_data_m12,crit_val_dynamic_m12,t2_initial_m12,t2_final_m12,ld_m12,spe_anamoly_m12,t2_anamoly_m12=self.prediction(identifier,m12_dataframe,processed_daily_data,dependent_variables)
+        m12_spe,t2_initial_m12,ld_m12,mewma_val_m12,mewma_ucl_m12=self.prediction(identifier,m12_dataframe,processed_daily_data,dependent_variables)
         spe['m12']=m12_spe
-        spe_chi_square['m12']=m12_spe_chisquare
-        crit_data['m12']=crit_data_m12
-        crit_val_dynamic['m12']=crit_val_dynamic_m12
+        # spe_chi_square['m12']=m12_spe_chisquare
+        # crit_data['m12']=crit_data_m12
+        # crit_val_dynamic['m12']=crit_val_dynamic_m12
         t2_initial['m12']=t2_initial_m12
-        t2_final['m12']=t2_final_m12
+        # t2_final['m12']=t2_final_m12
         length_dataframe['m12']=ld_m12
-        spe_anamoly['m12']=spe_anamoly_m12
-        t2_anamoly['m12']=t2_anamoly_m12
+        # spe_anamoly['m12']=spe_anamoly_m12
+        # t2_anamoly['m12']=t2_anamoly_m12
+        mewma_val['m12']=mewma_val_m12
+        mewma_ucl['m12']=mewma_ucl_m12
         
         ly_m3_dataframe=self.dataframe_generator(identifier,dependent_variables,processed_daily_data,0,3)
-        ly_m3_spe,ly_m3_spe_chisquare,crit_data_ly_m3,crit_val_dynamic_ly_m3,t2_initial_ly_m3,t2_final_ly_m3,ld_ly_m3,spe_anamoly_ly_m3,t2_anamoly_ly_m3=self.prediction(identifier,ly_m3_dataframe,processed_daily_data,dependent_variables)
+        ly_m3_spe,t2_initial_ly_m3,ld_ly_m3,mewma_val_ly_m3,mewma_ucl_ly_m3=self.prediction(identifier,ly_m3_dataframe,processed_daily_data,dependent_variables)
         spe['ly_m3']=ly_m3_spe
-        spe_chi_square['ly_m3']=ly_m3_spe_chisquare
-        crit_data['ly_m3']=crit_data_ly_m3
-        crit_val_dynamic['ly_m3']=crit_val_dynamic_ly_m3
+        # spe_chi_square['ly_m3']=ly_m3_spe_chisquare
+        # crit_data['ly_m3']=crit_data_ly_m3
+        # crit_val_dynamic['ly_m3']=crit_val_dynamic_ly_m3
         t2_initial['ly_m3']=t2_initial_ly_m3
-        t2_final['ly_m3']=t2_final_ly_m3
+        # t2_final['ly_m3']=t2_final_ly_m3
         length_dataframe['ly_m3']=ld_ly_m3
-        spe_anamoly['ly_m3']=spe_anamoly_ly_m3
-        t2_anamoly['ly_m3']=t2_anamoly_ly_m3
+        # spe_anamoly['ly_m3']=spe_anamoly_ly_m3
+        # t2_anamoly['ly_m3']=t2_anamoly_ly_m3
+        mewma_val['ly_m3']=mewma_val_ly_m3
+        mewma_ucl['ly_m3']=mewma_ucl_ly_m3
 
         ly_m6_dataframe=self.dataframe_generator(identifier,dependent_variables,processed_daily_data,0,6)
-        ly_m6_spe,ly_m6_spe_chisquare,crit_data_ly_m6,crit_val_dynamic_ly_m6,t2_initial_ly_m6,t2_final_ly_m6,ld_ly_m6,spe_anamoly_ly_m6,t2_anamoly_ly_m6=self.prediction(identifier,ly_m6_dataframe,processed_daily_data,dependent_variables)
+        ly_m6_spe,t2_initial_ly_m6,ld_ly_m6,mewma_val_ly_m6,mewma_ucl_ly_m6=self.prediction(identifier,ly_m6_dataframe,processed_daily_data,dependent_variables)
         spe['ly_m6']=ly_m6_spe
-        spe_chi_square['ly_m6']=ly_m6_spe_chisquare
-        crit_data['ly_m6']=crit_data_ly_m6
-        crit_val_dynamic['ly_m6']=crit_val_dynamic_ly_m6
+        # spe_chi_square['ly_m6']=ly_m6_spe_chisquare
+        # crit_data['ly_m6']=crit_data_ly_m6
+        # crit_val_dynamic['ly_m6']=crit_val_dynamic_ly_m6
         t2_initial['ly_m6']=t2_initial_ly_m6
-        t2_final['ly_m6']=t2_final_ly_m6
+        # t2_final['ly_m6']=t2_final_ly_m6
         length_dataframe['ly_m6']=ld_ly_m6
-        spe_anamoly['ly_m6']=spe_anamoly_ly_m6
-        t2_anamoly['ly_m6']=t2_anamoly_ly_m6
+        # spe_anamoly['ly_m6']=spe_anamoly_ly_m6
+        # t2_anamoly['ly_m6']=t2_anamoly_ly_m6
+        mewma_val['ly_m6']=mewma_val_ly_m6
+        mewma_ucl['ly_m6']=mewma_ucl_ly_m6
 
         ly_m12_dataframe=self.dataframe_generator(identifier,dependent_variables,processed_daily_data,0,12)
-        ly_m12_spe,ly_m12_spe_chisquare,crit_data_ly_m12,crit_val_dynamic_ly_m12,t2_initial_ly_m12,t2_final_ly_m12,ld_ly_m12,spe_anamoly_ly_m12,t2_anamoly_ly_m12=self.prediction(identifier,ly_m12_dataframe,processed_daily_data,dependent_variables)
+        ly_m12_spe,t2_initial_ly_m12,ld_ly_m12,mewma_val_ly_m12,mewma_ucl_ly_m12=self.prediction(identifier,ly_m12_dataframe,processed_daily_data,dependent_variables)
         spe['ly_m12']=ly_m12_spe
-        spe_chi_square['ly_m12']=ly_m12_spe_chisquare
-        crit_data['ly_m12']=crit_data_ly_m12
-        crit_val_dynamic['ly_m12']=crit_val_dynamic_ly_m12
+        # spe_chi_square['ly_m12']=ly_m12_spe_chisquare
+        # crit_data['ly_m12']=crit_data_ly_m12
+        # crit_val_dynamic['ly_m12']=crit_val_dynamic_ly_m12
         t2_initial['ly_m12']=t2_initial_ly_m12
-        t2_final['ly_m12']=t2_final_ly_m12
+        # t2_final['ly_m12']=t2_final_ly_m12
         length_dataframe['ly_m12']=ld_ly_m12
-        spe_anamoly['ly_m12']=spe_anamoly_ly_m12
-        t2_anamoly['ly_m12']=t2_anamoly_ly_m12
+        # spe_anamoly['ly_m12']=spe_anamoly_ly_m12
+        # t2_anamoly['ly_m12']=t2_anamoly_ly_m12
+        mewma_val['ly_m12']=mewma_val_ly_m12
+        mewma_ucl['ly_m12']=mewma_ucl_ly_m12
         
         # print(spe_limit_array)
         # print(pred)
         # exit()
         
-        return spe,spe_chi_square,crit_data,crit_val_dynamic,t2_initial,t2_final,length_dataframe,spe_anamoly,t2_anamoly
+        return spe,t2_initial,length_dataframe,mewma_val,mewma_ucl
 
     # def rpm_processor(self,main_data_dict,processed_daily_data):
         
@@ -704,3 +711,58 @@ class LRPI_low_x:
         results.loc[:,"lower"] = results['Pred'].subtract((self.t_value)* (np.sqrt(self.MSE.values + np.multiply(SE,self.MSE.values) )),  axis=0)
         results.loc[:,"upper"] = results['Pred'].add((self.t_value)* (np.sqrt(self.MSE.values + np.multiply(SE,self.MSE.values) )),  axis=0)
         return results
+
+
+class mewma():
+
+    _title = "MEWMA Chart"
+
+    def __init__(self, lambd=0.2):
+        super(mewma, self).__init__()
+        self.lambd = lambd
+
+    def plot(self, data):
+        nrow, ncol = data.shape
+        mean = data.mean(axis=0)
+        # print(ncol)
+        v = np.zeros(shape=(nrow - 1, ncol))
+        
+        for i in range(nrow - 1):
+            v[i] = data[i + 1] - data[i]
+
+        vv = v.T @ v
+        
+        s = np.zeros(shape=(ncol, ncol))
+        for i in range(ncol):
+            s[i] = (1 / (2 * (nrow - 1))) * (vv[i])
+
+        mx = data - mean
+        
+        z = np.zeros(shape=(nrow + 1, ncol))
+        for i in range(nrow):
+            z[i + 1] = self.lambd * mx[i] + (1 - self.lambd) * z[i]
+        z = z[1:, :]
+    
+        t2 = [] # values
+        for i in range(nrow):
+            w = (self.lambd / (2 - self.lambd)) * (1 - (1 - self.lambd)**(2 * (i + 1)))
+            inv = np.linalg.inv(w * s)
+            t2.append((z[i].T @ inv) @ z[i])
+        
+        # ucl = ((self.lambd * 10) - 1)*(ncol - 1)
+        ucl = np.zeros(len(data))
+        
+        # lcl = np.zeros(len(self.X))
+        I   = np.arange(1,len(data)+1)
+       
+        sigma=np.std(t2)
+        
+        L=st.norm.ppf(1-0.2)
+        for i in range(len(data)):
+            # print(i)
+            ucl[i] = np.mean(t2) + L*sigma*np.sqrt((self.lambd / (2 - self.lambd))*(1-(1-self.lambd)**(I[i])))
+        
+        mewma_val=round(t2[-1],2)
+        ucl_val=round(ucl[-1],2)
+        
+        return mewma_val,ucl_val 
