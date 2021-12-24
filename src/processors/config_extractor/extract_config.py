@@ -1,7 +1,7 @@
 import sys
 
 from pandas.core.dtypes.missing import isnull 
-sys.path.insert(1,"F:\\Afzal_cs\\Internship\\arantell_apis-main")
+# sys.path.insert(1,"D:\\Internship\\Repository\\Aranti\\arantell_apis")
 from src.db.setup_mongo import connect_db
 from src.configurations.logging_config import CommonLogger
 from src.helpers.check_status import check_status
@@ -13,9 +13,10 @@ from pymongo import MongoClient
 import os
 
 log = CommonLogger(__name__,debug=True).setup_logger()
-client = MongoClient("mongodb://localhost:27017/aranti")
+# client = MongoClient("mongodb://localhost:27017/aranti")
+# db=client.get_database("aranti")
+client = MongoClient("mongodb+srv://iamuser:iamuser@democluster.lw5i0.mongodb.net/test")
 db=client.get_database("aranti")
-    
 
 
 database = db
@@ -23,7 +24,7 @@ database = db
 
 
 
-connect("aranti")
+# connect("aranti") Uncomment later
 class ConfigExtractor():
 
     def __init__(self,
@@ -59,9 +60,14 @@ class ConfigExtractor():
     
     @check_status
     def read_files(self):
-        self.df_configurations = pd.read_excel(self.file, sheet_name='Configurations')
-        self.df_variables = pd.read_excel(self.file, sheet_name='N&E')
-        
+        self.df_configurations = pd.read_excel(self.file, sheet_name='Configurations', engine='openpyxl')
+        self.df_variables = pd.read_excel(self.file, sheet_name='N&E', engine='openpyxl')
+        self.df_groups = pd.read_excel(self.file, sheet_name="Groups", engine='openpyxl', header=[0, 1])
+        # Convert the headers and sub-headers in the dataframe to MultiIndex headers of the form ('Header', 'SubHeader')
+        a = self.df_groups.columns.get_level_values(0).to_series()
+        b = a.mask(a.str.startswith('Unnamed')).ffill().fillna('')
+        self.df_groups.columns = [b, self.df_groups.columns.get_level_values(1)]
+        self.grpnames = pd.read_excel(self.file, sheet_name="GrpDir", engine='openpyxl')
     
 
     def stat(self,s):
@@ -89,11 +95,38 @@ class ConfigExtractor():
             return True
         elif identifier_new==0 or identifier_new==isnull:
             return False
+    
+    # Function to get the group selection
+    def get_group_selection(self):
+        groupsData=[]
+        # List of the variables in identifier new other than the ones with data type static
+        # Added for convenience
+        id_new=[self.df_variables['Identifer NEW'][i] for i in range(0, len(self.df_variables['Identifer NEW'])) if self.df_variables['Data Type'][i] != 'static']
+        # Get the group selection list of dictionaries
+        for i in range(0, len(self.df_groups[('', 'id_new')])):
+            if self.df_groups[('', 'id_new')][i] in id_new:
+                for j in self.df_groups.iloc[:, 4:]:
+                    new_index = int(j[0].replace('Group', '')) - 1
+                    if self.df_groups[j][i] > 0:
+                        newdict = {
+                            'name': self.df_groups[('', 'id_new')][i], #Added for convenience
+                            'groupname': self.grpnames['Name'][new_index],
+                            'groupnumber': j[0].replace('Group',''),
+                            'availability_code': self.df_groups[j][i],
+                            'block_number': self.df_groups[(j[0], 'BLOCK NO')][i]
+                        }
+                        groupsData.append(newdict)
+        del groupsData[1::2]
+        return groupsData
+
+
 
 
     @check_status
     def process_file(self):
         self.data = {}
+        # get group selection
+        self.groupsData = self.get_group_selection()
         
 
         self.ship_imo = self.df_configurations['Value'][0]
@@ -111,16 +144,24 @@ class ConfigExtractor():
         self.identifier_mapping = dict(zip(self.nulli['Identifer NEW'],self.nulli['Source Identifier']))
         #identifier_mapping = dict((k,v) for k, v in identifier_mapping.items() if not (type(k) == float and np.isnan(k)))
         self.static = list(self.df_variables[self.df_variables['Data Type']=='static']['Identifer NEW'])
+        
 
         for k, v in self.identifier_mapping.items():
             if type(v) == float and np.isnan(v):
                 self.identifier_mapping[k]=str(k).strip()
         if(self.identifier_mapping[np.NaN]):
             del self.identifier_mapping[np.NaN]
-        self.identifier_mapping = { x.translate({32:None}) : y for x, y in self.identifier_mapping.items()}
+                
+        
+        
 
         for i in range(0, len(self.df_variables['Identifer NEW'])):   #Fetches column Identifier_NEW from
-            if self.df_variables['Data Type'][i] != 'static':               #variables_file checks if type is 'static'   #converts into dictionary
+            if self.df_variables['Data Type'][i] != 'static':#variables_file checks if type is 'static'   #converts into dictionary
+                self.newList = []
+                # Only add specific groups
+                for elem in self.groupsData:
+                    if elem['name'] == self.df_variables['Identifer NEW'][i]:
+                        self.newList.append(elem)
                 self.data[self.df_variables['Identifer NEW'][i]] = {  
                     
                     
@@ -137,12 +178,7 @@ class ConfigExtractor():
                     'Daily Availability':self.derived(self.df_variables['Daily Availability'][i]),
                     'availabe_for_groups':self.availability(self.df_variables['AVAILABLE FOR GROUPS'][i]),
                     'dependent':self.availability(self.df_variables['DEPENDENT?'][i]),
-                    'group_selection':[{        #create funtion to get groups
-                        "groupname":"abc",
-                        "groupnumber": 1,
-                        "usability_code":1,     #if 1 it is single parameter,if 2 split and look for 20,if 3 split and look for 30 ....
-                        "block_number":1        
-                    },],
+                    'group_selection':self.newList,        #create funtion to get groups if 1 it is single parameter,if 2 split and look for 20,if 3 split and look for 30 ....
                     'limits':{
                     'type': self.df_variables['Limit Type'][i],
                     'oplow': self.df_variables['OP Low'][i],
@@ -155,7 +191,7 @@ class ConfigExtractor():
            
         self.data = dict((k,v) for k, v in self.data.items() if not (type(k) == float and np.isnan(k)))
 
-        self.data = { x.translate({32:None}) : y for x, y in self.data.items()}
+        
 
        
 
@@ -163,30 +199,43 @@ class ConfigExtractor():
     
     @check_status
     def write_configs(self):
+
+        # Remove or comment later
+        ship = {
+            "ship_imo": self.ship_imo,
+            "ship_name": self.ship_name,
+            "ship_description": self.ship_description,
+            "static_data": self.stat(self.static),
+            "data_available_nav": self.data_available_nav,
+            "data_available_engine": self.data_available_engine,
+            "identifier_mapping": self.identifier_mapping,
+            "data": self.data
+        }
         
+        database.ship.insert_one(ship)
+        '''Uncomment below later'''
+        # ship = Ship(
+        #     ship_imo = self.ship_imo,
+        #     ship_name = self.ship_name,
+        #     ship_description = self.ship_description,
+        #     static_data=self.stat(self.static),
+        #     data_available_nav = self.data_available_nav,
+        #     data_available_engine = self.data_available_engine,
+        #     identifier_mapping = self.identifier_mapping,
+        #     data = self.data
+        # )
 
-        ship = Ship(
-            ship_imo = self.ship_imo,
-            ship_name = self.ship_name,
-            ship_description = self.ship_description,
-            static_data=self.stat(self.static),
-            data_available_nav = self.data_available_nav,
-            data_available_engine = self.data_available_engine,
-            identifier_mapping = self.identifier_mapping,
-            data = self.data
-        )
-
-        if self.override:
-            if not Ship.objects(ship_imo = self.ship_imo):
-                ship.save()
-            else:
-                Ship.objects.get(ship_imo = self.ship_imo).delete()
-                ship.save()
-        else:
-            if not Ship.objects(ship_imo = self.ship_imo):
-                ship.save()
-            else:
-                return "Record already exists!"
+        # if self.override:
+        #     if not Ship.objects(ship_imo = self.ship_imo):
+        #         ship.save()
+        #     else:
+        #         Ship.objects.get(ship_imo = self.ship_imo).delete()
+        #         ship.save()
+        # else:
+        #     if not Ship.objects(ship_imo = self.ship_imo):
+        #         ship.save()
+        #     else:
+        #         return "Record already exists!"
 
 
     def read_configs(self):
@@ -195,7 +244,7 @@ class ConfigExtractor():
         self.ship_configs = ship_configs_collection.find({"ship_imo": self.ship_imo})[0]
 
 
-obj=ConfigExtractor(9591301,'F:\Afzal_cs\Internship\ConfiguratorRev_04 A.xlsx',True)
+obj=ConfigExtractor(9591301,'D:\Internship\Helper Files\ConfiguratorRev_04 A.xlsx',True)
 obj.read_files()
 obj.process_file()
 
