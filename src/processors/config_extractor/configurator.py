@@ -21,7 +21,7 @@ import math
 # client = MongoClient("mongodb://localhost:27017")
 # db=client.get_database("aranti")
 client = MongoClient("mongodb+srv://iamuser:iamuser@democluster.lw5i0.mongodb.net/test?ssl=true&ssl_cert_reqs=CERT_NONE")
-# client = MongoClient("mongodb+srv://iamuser:iamuser@democluster.lw5i0.mongodb.net/test")
+# client = MongoClient("mongodb://iamuser:iamuser@democluster.lw5i0.mongodb.net/myFirstDatabase?retryWrites=true&w=majority")
 db=client.get_database("aranti")
 database = db
 
@@ -37,11 +37,12 @@ daily_report_column_headers = {
     'CHANGE IN SPEED': ["Name", "Unit", "Reported", "Expected", "Statement"],
     'WEATHER PARAMETERS': ["Name", "Unit", "Reported", "API_DATA"],
     'DISTANCE AND TIME': ["Name", "Unit", "Reported", "Expected", "API_DATA"],
-    'VESSEL POSITION': ["Name", "Reported"],
+    'VESSEL POSITION': ["Name", "Reported", "Expected"],
     'FUEL OIL CONSUMPTION': common_header,
     'MAIN ENGINE': common_header,
     'GENERATOR': common_header,
-    'AUXILLIARIES': common_header
+    'AUXILLIARIES': common_header,
+    'INDICES': common_header
 }
 position_of_collapsible_category = {
     'VESSEL PARTICULARS': 0,
@@ -917,6 +918,7 @@ class Configurator():
                     res_data['Ballast'].append(tempList)
             else:
                 tempList = []
+        tempList = []
         for doc in maindbcollection.find({'ship_imo': self.ship_imo}, {'ship_imo': 1, 'vessel_loaded_check': 1, 'data_available_engine': 1, 'data_available_nav': 1, 'processed_daily_data.rep_dt.processed': 1, '_id': 0}).sort('processed_daily_data.rep_dt.processed', ASCENDING):
             newdate = doc['processed_daily_data']['rep_dt']['processed'].strftime('%Y-%m-%d')
             if doc['vessel_loaded_check'] == "Loaded":
@@ -933,6 +935,7 @@ class Configurator():
                     res_data['Loaded'].append(tempList)
             else:
                 tempList = []
+        tempList = []
         for doc in maindbcollection.find({'ship_imo': self.ship_imo}, {'ship_imo': 1, 'data_available_engine': 1, 'data_available_nav': 1, 'processed_daily_data.rep_dt.processed': 1, '_id': 0}).sort('processed_daily_data.rep_dt.processed', ASCENDING):
             newdate = doc['processed_daily_data']['rep_dt']['processed'].strftime('%Y-%m-%d')
             if doc['data_available_engine'] == False and doc['data_available_nav'] == True:
@@ -948,15 +951,16 @@ class Configurator():
         # print("RES NO DATA!!!!!!!!", res_data['No Data'])
         
         for i in res_data['Ballast']:
+            print(i)
             tempballast={'type': 'rect','xref': 'x','yref': 'paper','y0': 0,'y1': 1,'fillcolor': 'rgb(249, 226, 226)','opacity': 0.4,'line': {'width': 0}}
             try:
-                tempOne = datetime.strptime(i[0], '%Y-%m-%d')
-                tempTwo = datetime.strptime(i[-1], '%Y-%m-%d')
-                rel_date = relativedelta(tempOne, tempTwo)
-                if rel_date.years == 0 and rel_date.months <= 3:
-                    tempballast['x0'] = i[0]
-                    tempballast['x1'] = i[-1]
-                    loaded_ballast_list.append(tempballast)
+                # tempOne = datetime.strptime(i[0], '%Y-%m-%d')
+                # tempTwo = datetime.strptime(i[-1], '%Y-%m-%d')
+                # rel_date = relativedelta(tempOne, tempTwo)
+                # if rel_date.years == 0 and rel_date.months <= 3:
+                tempballast['x0'] = i[0]
+                tempballast['x1'] = i[-1]
+                loaded_ballast_list.append(tempballast)
                 # if rel_date.months <= 3:
                 #     print(rel_date.months)
                 #     tempballast['x0'] = i[0]
@@ -967,13 +971,13 @@ class Configurator():
         for i in res_data['Loaded']:
             temploaded={'type': 'rect','xref': 'x','yref': 'paper','y0': 0,'y1': 1,'fillcolor': 'rgb(196, 192, 192)','opacity': 0.4,'line': {'width': 0}}
             try:
-                tempOne = datetime.strptime(i[0], '%Y-%m-%d')
-                tempTwo = datetime.strptime(i[-1], '%Y-%m-%d')
-                rel_date = relativedelta(tempOne, tempTwo)
-                if rel_date.years == 0 and rel_date.months <= 3:
-                    temploaded['x0'] = i[0]
-                    temploaded['x1'] = i[-1]
-                    loaded_ballast_list.append(temploaded)
+                # tempOne = datetime.strptime(i[0], '%Y-%m-%d')
+                # tempTwo = datetime.strptime(i[-1], '%Y-%m-%d')
+                # rel_date = relativedelta(tempOne, tempTwo)
+                # if rel_date.years == 0 and rel_date.months <= 3:
+                temploaded['x0'] = i[0]
+                temploaded['x1'] = i[-1]
+                loaded_ballast_list.append(temploaded)
                 # if rel_date.months <= 3:
                 #     temploaded['x0'] = i[0]
                 #     temploaded['x1'] = i[-1]
@@ -982,24 +986,24 @@ class Configurator():
                 continue
         for i in res_data['Engine']:
             tempdata = {'type': 'rect','xref': 'x','yref': 'paper','y0': 0,'y1': 1,'fillcolor': 'rgb(255, 255, 51)','opacity': 0.1,'line': {'width': 0}}
-            tempOne = datetime.strptime(i[0], '%Y-%m-%d')
-            tempTwo = datetime.strptime(i[-1], '%Y-%m-%d')
-            rel_date = relativedelta(tempOne, tempTwo)
-            if rel_date.years == 0:
-                tempdata['x0'] = i[0]
-                tempdata['x1'] = i[-1]
-                # if tempdata not in loaded_ballast_list:
-                loaded_ballast_list.append(tempdata)
+            # tempOne = datetime.strptime(i[0], '%Y-%m-%d')
+            # tempTwo = datetime.strptime(i[-1], '%Y-%m-%d')
+            # rel_date = relativedelta(tempOne, tempTwo)
+            # if rel_date.years == 0:
+            tempdata['x0'] = i[0]
+            tempdata['x1'] = i[-1]
+            # if tempdata not in loaded_ballast_list:
+            loaded_ballast_list.append(tempdata)
         for i in res_data['Nav']:
             tempdata = {'type': 'rect','xref': 'x','yref': 'paper','y0': 0,'y1': 1,'fillcolor': 'rgb(213, 250, 252)','opacity': 0.3,'line': {'width': 0}}
-            tempOne = datetime.strptime(i[0], '%Y-%m-%d')
-            tempTwo = datetime.strptime(i[-1], '%Y-%m-%d')
-            rel_date = relativedelta(tempOne, tempTwo)
-            if rel_date.years == 0:
-                tempdata['x0'] = i[0]
-                tempdata['x1'] = i[-1]
-                # if tempdata not in loaded_ballast_list:
-                loaded_ballast_list.append(tempdata)
+            # tempOne = datetime.strptime(i[0], '%Y-%m-%d')
+            # tempTwo = datetime.strptime(i[-1], '%Y-%m-%d')
+            # rel_date = relativedelta(tempOne, tempTwo)
+            # if rel_date.years == 0:
+            tempdata['x0'] = i[0]
+            tempdata['x1'] = i[-1]
+            # if tempdata not in loaded_ballast_list:
+            loaded_ballast_list.append(tempdata)
         return loaded_ballast_list
 
 
@@ -1175,13 +1179,14 @@ class Configurator():
 
         for var in singledata.keys():
             if pd.isnull(singledata[var]['var_type']) != True:
-                if 'E' in singledata[var]['var_type'] and '1' not in singledata[var]['var_type']:
+                if 'E' in singledata[var]['var_type'] and '1' not in singledata[var]['var_type'] and singledata[var]['source_idetifier'] == 'available':
                     equipment_list.append(var)
                 if 'P' in singledata[var]['var_type']:
                     parameter_list.append(var)
         # for var in singledata.keys():
         #     if singledata[var]['var_type'] == 'E':
         #         print(singledata[var])
+        print("EQUIPMENT LIST", equipment_list)
         
         return equipment_list, parameter_list
     
@@ -1192,15 +1197,18 @@ class Configurator():
                 if subvar == 'predictions':
                     for i in range(0, 3):
                         try:
-                            if pd.isnull(dupli_data['processed_daily_data'][var][subvar]['m3'][i]) == True or dupli_data['processed_daily_data'][var][subvar]['m3'][i] == -np.inf or dupli_data['processed_daily_data'][var][subvar]['m3'][i] == np.inf:
-                                dupli_data['processed_daily_data'][var][subvar]['m3'].pop(i)
-                                dupli_data['processed_daily_data'][var][subvar]['m3'].insert(i, 'null')
-                            if pd.isnull(dupli_data['processed_daily_data'][var][subvar]['m6'][i]) == True or dupli_data['processed_daily_data'][var][subvar]['m6'][i] == -np.inf or dupli_data['processed_daily_data'][var][subvar]['m6'][i] == np.inf:
-                                dupli_data['processed_daily_data'][var][subvar]['m6'].pop(i)
-                                dupli_data['processed_daily_data'][var][subvar]['m6'].insert(i, 'null')
-                            if pd.isnull(dupli_data['processed_daily_data'][var][subvar]['m12'][i]) == True or dupli_data['processed_daily_data'][var][subvar]['m12'][i] == -np.inf or dupli_data['processed_daily_data'][var][subvar]['m12'][i] == np.inf:
-                                dupli_data['processed_daily_data'][var][subvar]['m12'].pop(i)
-                                dupli_data['processed_daily_data'][var][subvar]['m12'].insert(i, 'null')
+                            try:
+                                if pd.isnull(dupli_data['processed_daily_data'][var][subvar]['m3'][i]) == True or dupli_data['processed_daily_data'][var][subvar]['m3'][i] == -np.inf or dupli_data['processed_daily_data'][var][subvar]['m3'][i] == np.inf:
+                                    dupli_data['processed_daily_data'][var][subvar]['m3'].pop(i)
+                                    dupli_data['processed_daily_data'][var][subvar]['m3'].insert(i, 'null')
+                                if pd.isnull(dupli_data['processed_daily_data'][var][subvar]['m6'][i]) == True or dupli_data['processed_daily_data'][var][subvar]['m6'][i] == -np.inf or dupli_data['processed_daily_data'][var][subvar]['m6'][i] == np.inf:
+                                    dupli_data['processed_daily_data'][var][subvar]['m6'].pop(i)
+                                    dupli_data['processed_daily_data'][var][subvar]['m6'].insert(i, 'null')
+                                if pd.isnull(dupli_data['processed_daily_data'][var][subvar]['m12'][i]) == True or dupli_data['processed_daily_data'][var][subvar]['m12'][i] == -np.inf or dupli_data['processed_daily_data'][var][subvar]['m12'][i] == np.inf:
+                                    dupli_data['processed_daily_data'][var][subvar]['m12'].pop(i)
+                                    dupli_data['processed_daily_data'][var][subvar]['m12'].insert(i, 'null')
+                            except IndexError:
+                                continue
                             try:
                                 if pd.isnull(dupli_data['processed_daily_data'][var][subvar]['ly_m3'][i]) == True or dupli_data['processed_daily_data'][var][subvar]['ly_m3'][i] == -np.inf or dupli_data['processed_daily_data'][var][subvar]['ly_m3'][i] == np.inf:
                                     dupli_data['processed_daily_data'][var][subvar]['ly_m3'].pop(i)
@@ -1284,6 +1292,76 @@ class Configurator():
                 except KeyError:
                     continue
         return subcategoryDictData
+    
+    def get_category_and_subcategory_with_issues(self, dateString):
+        ''' Returns all the categories and the subcategories that have outlier parameters.'''
+        result={}
+        ship_collection = self.get_ship_configs()
+        issues, issuesCount = self.create_dict_of_issues(dateString=dateString) if dateString != "" else self.create_dict_of_issues("")
+        for doc in ship_collection.find({'ship_imo': self.ship_imo}):
+            for key in doc['data'].keys():
+                for var in issues[str(self.ship_imo)]:
+                    if pd.isnull(doc['data'][key]['short_names']) == False and doc['data'][key]['short_names'].strip() == var:
+                        tempList=[]
+                        if doc['data'][key]['subcategory'].strip() not in tempList:
+                            tempList.append(doc['data'][key]['subcategory'].strip())
+                            print(tempList)
+                        if doc['data'][key]['category'].strip() not in result.keys():
+                            result[doc['data'][key]['category'].strip()] = tempList
+                            print(tempList)
+                        else:
+                            result[doc['data'][key]['category'].strip()].extend(tempList)
+        print(result)
+        return result
+    
+    def get_static_data_for_charter_party(self):
+        ''' Returns the dictionary with the static data of the charter party parameters. '''
+        ship_collection = self.get_ship_configs()
+        result = {}
+
+        for doc in ship_collection.find({'ship_imo': self.ship_imo}):
+            for key in doc['data'].keys():
+                if doc['data'][key]['subcategory'] == 'Charter party':
+                    result[key] = doc['data'][key]['static_data'] if pd.isnull(doc['data'][key]['static_data']) == False else None
+        
+        return result
+    
+    def get_charter_party_list(self):
+        ''' Returns the dict of source identifiers for parameters in the charter party subcategory.'''
+        ship_collection = self.get_ship_configs()
+        result = {}
+
+        for doc in ship_collection.find({'ship_imo': self.ship_imo}):
+            for key in doc['data'].keys():
+                if doc['data'][key]['subcategory'] == 'Charter party':
+                    if pd.isnull(doc['data'][key]['source_idetifier']) == False:
+                        result[key] = doc['data'][key]['source_idetifier']
+
+        return result
+    
+    def get_daily_charter_party_values(self, dateString=''):
+        ''' Returns the values of the charter party parameters.'''
+        maindb_collection = self.get_main_data()
+        charter_party_dict = self.get_charter_party_list()
+        result = {}
+
+        if dateString != '':
+            findDate = datetime.strptime(dateString,"%Y-%m-%d, %H:%M:%S")
+            for cp in charter_party_dict.keys():
+                for doc in maindb_collection.find({'ship_imo': self.ship_imo, 'processed_daily_data.rep_dt.processed': findDate}):
+                    for key in doc['processed_daily_data'].keys():
+                        if key == charter_party_dict[cp]:
+                            result[cp] = self.makeDecimal(doc['processed_daily_data'][key]['processed'])
+            return result
+        else:
+            for cp in charter_party_dict.keys():
+                for doc in maindb_collection.find({'ship_imo': self.ship_imo}).sort('processed_daily_data.rep_dt.processed', DESCENDING).limit(1):
+                    for key in doc['processed_daily_data'].keys():
+                        if key == charter_party_dict[cp]:
+                            result[cp] = self.makeDecimal(doc['processed_daily_data'][key]['processed'])
+        return result
+
+
 
     ''' Functions for Interactive processing '''
     print("START CREATE REGRESSION")
@@ -1715,6 +1793,122 @@ class Configurator():
                 break
         
         return result
+    
+    def create_list_of_active_ships(self):
+        ''' Returns the list of active ships.'''
+        result=[]
+        ship_imos = self.get_list_of_ship_imos()
+        daily_data_collection = database.get_collection('daily_data')
+        for imo in ship_imos:
+            try:
+                for doc in daily_data_collection.find_one({'ship_imo': imo}):
+                    if imo not in result:
+                        result.append(imo)
+            except TypeError:
+                result.append(None)
+        
+        return result
+    
+    def create_dict_of_issues(self, dateString=''):
+        ''' Returns a dictionary of all the issues per ship. 
+            Also used in the daily report process
+        '''
+        ship_imos = self.get_list_of_ship_imos()
+        maindb_collection = self.get_main_data()
+        result = {}
+        
+        issuesCount = {}
+        if dateString != "":
+            findDate = datetime.strptime(dateString,"%Y-%m-%d, %H:%M:%S")
+            for imo in ship_imos:
+            # print(imo)
+                tempList = []
+                outlierCount = 0
+                operationalCount = 0
+                indicesCount = 0
+                for doc in maindb_collection.find({'ship_imo': imo, 'processed_daily_data.rep_dt.processed': findDate}):
+                    for key in doc['processed_daily_data'].keys():
+                        try:
+                            if doc['processed_daily_data'][key]['within_outlier_limits']['m3'] == False or doc['processed_daily_data'][key]['within_operational_limits']['m3'] == False or (doc['processed_daily_data'][key]['SPEy']['m3'] > doc['processed_daily_data'][key]['Q_y']['m3'][1]):
+                                # print("YES")
+                                if key not in tempList:
+                                    tempList.append(doc['processed_daily_data'][key]['name'].strip())
+                                    result[str(imo)] = tempList
+                            if doc['processed_daily_data'][key]['within_outlier_limits']['m3'] == False:
+                                outlierCount = outlierCount + 1
+                            elif doc['processed_daily_data'][key]['within_operational_limits']['m3'] == False:
+                                operationalCount = operationalCount + 1
+                            # elif doc['processed_daily_data'][key]['SPEy']['m3'] > doc['processed_daily_data'][key]['Q_y']['m3'][1]:
+                            #     indicesCount = indicesCount + 1
+
+                        except TypeError:
+                            continue
+                        except KeyError:
+                            continue
+                issuesCount[imo] = {'outlier': outlierCount, 'operational': operationalCount}
+        else:
+            for imo in ship_imos:
+                # print(imo)
+                tempList = []
+                outlierCount = 0
+                operationalCount = 0
+                indicesCount = 0
+                for doc in maindb_collection.find({'ship_imo': imo}).sort('processed_daily_data.rep_dt.processed', DESCENDING).limit(1):
+                    for key in doc['processed_daily_data'].keys():
+                        try:
+                            if doc['processed_daily_data'][key]['within_outlier_limits']['m3'] == False or doc['processed_daily_data'][key]['within_operational_limits']['m3'] == False or (doc['processed_daily_data'][key]['SPEy']['m3'] > doc['processed_daily_data'][key]['Q_y']['m3'][1]):
+                                # print("YES")
+                                if key not in tempList:
+                                    tempList.append(doc['processed_daily_data'][key]['name'].strip())
+                                    result[str(imo)] = tempList
+                            
+                            if doc['processed_daily_data'][key]['within_outlier_limits']['m3'] == False:
+                                outlierCount = outlierCount + 1
+                            elif doc['processed_daily_data'][key]['within_operational_limits']['m3'] == False:
+                                operationalCount = operationalCount + 1
+                            # elif doc['processed_daily_data'][key]['SPEy']['m3'] > doc['processed_daily_data'][key]['Q_y']['m3'][1]:
+                            #     indicesCount = indicesCount + 1
+                        except TypeError:
+                            continue
+                        except KeyError:
+                            continue
+                issuesCount[imo] = {'outlier': outlierCount, 'operational': operationalCount}
+                    # result[imo] = tempList
+                        # result[imo] = tempList
+        print("DICT OF ISSUES", result)
+        return result, issuesCount
+
+    def create_cp_compliance_dict(self):
+        ''' Returns if the ship is cp compliant.'''
+        ship_collection = self.get_ship_configs()
+        maindb_collection = self.get_main_data()
+        charter_party_info = {}
+
+        for doc in ship_collection.find({}).sort('ship_imo', ASCENDING):
+            tempList = []
+            print(doc['ship_imo'])
+            for key in doc['data'].keys():
+                if doc['data'][key]['subcategory'] == 'Charter party':
+                    if pd.isnull(doc['data'][key]['static_data']) == False:
+                        tempList.append({'identifier': key, 'static_data': doc['data'][key]['static_data'], 'source_identifier': doc['data'][key]['source_idetifier']})
+                        charter_party_info[doc['ship_imo']] = tempList
+                    else:
+                        continue
+
+        compliant=""
+        for imo in charter_party_info.keys():
+            for doc in maindb_collection.find({'ship_imo': imo}).sort('processed_daily_data.rep_dt.processed', DESCENDING).limit(1):
+                for key in doc['processed_daily_data'].keys():
+                    for dicts in charter_party_info[imo]:
+                        if key == dicts['source_identifier']:
+                            if doc['processed_daily_data'][key]['processed'] > dicts['static_data']:
+                                compliant = "No"
+                            else:
+                                compliant = "Yes"
+                        dicts.update({'compliant': compliant})
+
+        return charter_party_info
+
 
 
 
