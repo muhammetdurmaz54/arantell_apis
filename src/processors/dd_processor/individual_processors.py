@@ -4,10 +4,6 @@ import pandas
 from pandas.core import base
 from pandas.core.dtypes.missing import isnull 
 sys.path.insert(1,"F:\\Afzal_cs\\Internship\\arantell_apis-main")
-#from mongoengine import *
-from src.db.schema.ship import Ship 
-from src.processors.config_extractor.outlier import CheckOutlier
-from src.db.schema.ddschema import DailyData
 import numpy as np
 import math
 from pymongo import MongoClient
