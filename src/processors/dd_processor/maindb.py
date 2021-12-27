@@ -27,16 +27,17 @@ from src.db.schema.ddschema import DailyData
 import numpy as np
 from pymongo import MongoClient
 import random
-from src.processors.config_extractor.outlier import CheckOutlier
+from src.processors.dd_processor.outlier import CheckOutlier
 from pymongo import ASCENDING
 from dateutil.relativedelta import relativedelta
 import matplotlib.pyplot as plt
 log = CommonLogger(__name__,debug=True).setup_logger()
 from bson import json_util
 import scipy.stats as st
-# client = MongoClient("mongodb+srv://iamuser:iamuser@democluster.lw5i0.mongodb.net/test?ssl=true&ssl_cert_reqs=CERT_NONE")
+import time
+client = MongoClient("mongodb+srv://iamuser:iamuser@democluster.lw5i0.mongodb.net/test?ssl=true&ssl_cert_reqs=CERT_NONE")
 
-client = MongoClient("mongodb://localhost:27017/aranti")
+# client = MongoClient("mongodb://localhost:27017/aranti")
 db=client.get_database("aranti")
 database = db
 
@@ -111,7 +112,7 @@ class MainDB():
         self.process_daily_data()
         self.process_weather_api_data()
         self.process_position_api_data()
-        self.process_indices()
+        # self.process_indices()
         inserted_id = self.main_db_writer()
         if self.error:
             return False, str(self.traceback_msg)
@@ -414,13 +415,15 @@ class MainDB():
         
         
 
-    def process_main_data(self,index):
+    def process_main_data(self,doc):
         "processing maindb data for updation ,only processed daily data will be updated."
+        maindb = database.get_collection("Main_db")
         self.base_main_data={}
-        check_outlier=CheckOutlier(configs=self.ship_configs,main_db=self.main_data,ship_imo=self.ship_imo)
-        outlier_two=OutlierTwo(self.ship_configs,self.main_data,self.ship_imo)
+        check_outlier=CheckOutlier(configs=self.ship_configs,main_db=doc,ship_imo=self.ship_imo)
+        outlier_two=OutlierTwo(self.ship_configs,doc,self.ship_imo)
+        outlier_two.connect()
         #UIP = UpdateIndividualProcessors(configs=self.ship_configs,md=self.main_data,ss=self.ship_stats)
-        main_data_dict=self.main_data['processed_daily_data']
+        main_data_dict=doc['processed_daily_data']
         self.rep_dt=main_data_dict['rep_dt']['processed']
 
         for key in main_data_dict:
@@ -430,6 +433,7 @@ class MainDB():
                 # print(main_data_dict_key['processed'])
                 if pandas.isnull(main_data_dict_key['processed'])==False:
                     try:
+                        print(key)
                         oplow=self.ship_configs['data'][key]['limits']['oplow'] 
                         ophigh=self.ship_configs['data'][key]['limits']['ophigh']                                    #rpm with % 
                         olmin=self.ship_configs['data'][key]['limits']['olmin']
@@ -503,8 +507,8 @@ class MainDB():
                         main_data_dict_key['z_score']=z_score
                         main_data_dict_key['outlier_limit_value']=outliermin_max
                         main_data_dict_key['operational_limit_value']=operationalmin_max
-
-                        self.maindb.update_one(self.maindb.find({"ship_imo": int(self.ship_imo)})[index],{"$set":{"processed_daily_data."+key:main_data_dict_key}})
+                        # exit()
+                        maindb.update_one(maindb.find({"ship_imo": int(self.ship_imo),"processed_daily_data.rep_dt.processed": self.rep_dt})[0],{"$set":{"processed_daily_data."+key:main_data_dict_key}})
                         print("kiiiiiiiiiiiiiiiiiiiiii")
                        
                         
@@ -548,13 +552,12 @@ class MainDB():
         maindb = database.get_collection("Main_db")
         # maindata = maindb.find({"ship_imo": int(self.ship_imo)})
         # maindata = maindb.find({"ship_imo": int(self.ship_imo),"processed_daily_data.rep_dt.processed":{"$lte":datetime(2015,7,1,12),"$gte":datetime(2015,5,1,12)}})
-        maindata = maindb.find({"ship_imo": int(self.ship_imo)})
-        print(maindata.count())
-        for i in range(0,maindata.count()):
+        # maindata = maindb.find({"ship_imo": int(self.ship_imo)})
+        # print(maindata.count())
+        for doc in maindb.find({"ship_imo": int(self.ship_imo)}):
         # for i in range(0,34):
-            print(i)
-            self.get_main_db(i)
-            self.process_main_data(i)
+            # self.get_main_db(i)
+            self.process_main_data(doc)
             # self.update_maindb(i)
             # print("done")
 
@@ -622,7 +625,7 @@ class MainDB():
         maindata = maindb.find({"ship_imo": int(self.ship_imo)})
         # maindata = maindb.find({"ship_imo": int(self.ship_imo),"processed_daily_data.rep_dt.processed":{"$gte":datetime(2016,2,1,12)}})
         print(maindata.count())
-        for i in range(250,maindata.count()): 
+        for i in range(0,maindata.count()): 
             print("boooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooom",i)
             self.get_main_db(i)
             self.process_main_data_predictions(i)
@@ -709,31 +712,34 @@ class MainDB():
 
     def update_good_voyage(self):
         maindb = database.get_collection("Main_db")
-        maindata = maindb.find({"ship_imo": int(self.ship_imo)})
+        # maindata = maindb.find({"ship_imo": int(self.ship_imo)})
         # maindata = maindb.find({"ship_imo": int(self.ship_imo),"processed_daily_data.rep_dt.processed":{"$lte":datetime(2015,7,1,12),"$gte":datetime(2015,5,1,12)}})
         # maindata = maindb.find({"ship_imo": int(self.ship_imo),"processed_daily_data.rep_dt.processed":{"$lte":datetime(2015,5,1,12)}})
-        print(maindata.count())
-        for i in range(0,maindata.count()): 
-            print("boooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooom",i)
-            self.get_main_db(i)
-            self.good_voyage(i)
+        # print(maindata.count())
+        for doc in maindb.find({"ship_imo": int(self.ship_imo)}): 
+            # print("boooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooom",i)
+            # self.get_main_db(i)
+            self.good_voyage(doc)
 
-    def good_voyage(self,index):
+    def good_voyage(self,doc):
         try:
-            speed=self.main_data['processed_daily_data']['speed_sog']['processed']
-            rpm=self.main_data['processed_daily_data']['rpm']['processed']
-            w_force=self.main_data['processed_daily_data']['w_force']['processed']
-            sea_state=self.main_data['processed_daily_data']['sea_st']['processed']
-            stm_hrs=self.main_data['processed_daily_data']['stm_hrs']['processed']
-            draft=self.main_data['processed_daily_data']['draft_mean']['within_operational_limits']['m3']
-            rpm_op=self.main_data['processed_daily_data']['rpm']['within_operational_limits']['m3']
+            maindb = database.get_collection("Main_db")
+            speed=doc['processed_daily_data']['speed_sog']['processed']
+            rpm=doc['processed_daily_data']['rpm']['processed']
+            w_force=doc['processed_daily_data']['w_force']['processed']
+            sea_state=doc['processed_daily_data']['sea_st']['processed']
+            stm_hrs=doc['processed_daily_data']['stm_hrs']['processed']
+            draft=doc['processed_daily_data']['draft_mean']['within_operational_limits']['m3']
+            rpm_op=doc['processed_daily_data']['rpm']['within_operational_limits']['m3']
+            print(doc['processed_daily_data']['rep_dt']['processed'])
             if speed>6 and rpm_op==True and w_force<5 and sea_state<5 and stm_hrs>10 and draft==True:
-                self.maindb.update_one(self.maindb.find({"ship_imo": int(self.ship_imo)})[index],{"$set":{"within_good_voyage_limit":True}})
+                maindb.update_one(maindb.find({"ship_imo": int(self.ship_imo),"processed_daily_data.rep_dt.processed": doc['processed_daily_data']['rep_dt']['processed']})[0],{"$set":{"within_good_voyage_limit":True}})
                 # self.maindb.update_one(self.maindb.find({"ship_imo": int(self.ship_imo),"processed_daily_data.rep_dt.processed":{"$lte":datetime(2015,5,1,12)}})[index],{"$set":{"within_good_voyage_limit":True}})
             # else:
             #     self.maindb.update_one(self.maindb.find({"ship_imo": int(self.ship_imo)})[index],{"$set":{"within_good_voyage_limit":False}})
         except:
-            self.maindb.update_one(self.maindb.find({"ship_imo": int(self.ship_imo)})[index],{"$set":{"within_good_voyage_limit":True}})
+            print(doc['processed_daily_data']['rep_dt']['processed'])
+            maindb.update_one(maindb.find({"ship_imo": int(self.ship_imo),"processed_daily_data.rep_dt.processed": doc['processed_daily_data']['rep_dt']['processed']})[0],{"$set":{"within_good_voyage_limit":True}})
             # self.maindb.update_one(self.maindb.find({"ship_imo": int(self.ship_imo),"processed_daily_data.rep_dt.processed":{"$lte":datetime(2015,5,1,12)}})[index],{"$set":{"within_good_voyage_limit":False}})
 
     #@check_status
@@ -1184,6 +1190,7 @@ class MainDB():
         ml_control=self.ship_configs['mlcontrol']
         months=['m3','m6','m12','ly_m3','ly_m6','ly_m12']
         alpha=[0.2,0.1,0.05]
+        t2_alpha_str={"0.2":"zero_two","0.1":"zero_one","0.05":"zero_zero_five"}
         for j in ml_control:
             # if j=="pwr":
             try:
@@ -1211,7 +1218,7 @@ class MainDB():
                         ewma_limit_list=[]
                         h_val=2*(mean_val**2)/(var_sped)
                         g_val=(var_sped)/(2*(mean_val))
-                        spe_y_limit_array=[]
+                        spe_y_limit_array={}
                         for alphas in alpha:
                             ewma_obj=EWMA()
                             ewma_obj.fit(spe_data['spe'],0.2,mean_val)
@@ -1223,7 +1230,7 @@ class MainDB():
                             ewma_limit_list.append(round(ewma_ucl_cal[-1],2))
                             chi_val=st.chi2.ppf(1-alphas, h_val)
                             spe_limit_g_val=g_val*chi_val
-                            spe_y_limit_array.append(spe_limit_g_val)
+                            spe_y_limit_array[t2_alpha_str[str(alphas)]]=spe_limit_g_val
                             
                         ewma_limits[month]=ewma_limit_list
                         spe_limits[month]=spe_y_limit_array
@@ -1244,6 +1251,7 @@ class MainDB():
         ship_indices_data=self.ship_configs['indices_data']
         months=['m3','m6','m12','ly_m3','ly_m6','ly_m12']
         alpha=[0.2,0.1,0.05]
+        t2_alpha_str={"0.2":"zero_two","0.1":"zero_one","0.05":"zero_zero_five"}
         for j in ship_indices_data:
             try:
                 print(j)
@@ -1270,7 +1278,7 @@ class MainDB():
                         mewma_limit_list=[]
                         h_val=2*(mean_val**2)/(var_sped)
                         g_val=(var_sped)/(2*(mean_val))
-                        spe_y_limit_array=[]
+                        spe_y_limit_array={}
                         for alphas in alpha:
                             mewma_obj=EWMA()
                             mewma_obj.fit(spe_data['spe'],0.2,mean_val)
@@ -1282,7 +1290,7 @@ class MainDB():
                             mewma_limit_list.append(round(mewma_ucl_cal[-1],2))
                             chi_val=st.chi2.ppf(1-alphas, h_val)
                             spe_limit_g_val=g_val*chi_val
-                            spe_y_limit_array.append(spe_limit_g_val)
+                            spe_y_limit_array[t2_alpha_str[str(alphas)]]=spe_limit_g_val
                         mewma_limits[month]=mewma_limit_list 
                         spe_limits[month]=spe_y_limit_array
                     except:
@@ -1413,8 +1421,8 @@ class MainDB():
 
 
 # obj=MainDB(9591301)
-import time
-start_time = time.time()
+# import time
+# start_time = time.time()
 # obj.get_ship_configs()
 # # obj.get_daily_data()
 # # obj.process_daily_data()
@@ -1450,7 +1458,7 @@ obj=MainDB(9591301)
 obj.get_ship_configs()
 # obj.ad_all()
 #initial population done (remove date condition on find  before uploading in aws)
-# obj.update_maindb_alldoc()
+obj.update_maindb_alldoc()
 #outlier (both outlier 1 and 2 inside this) and (remove date condition on find  before uploading in aws)
 # obj.update_good_voyage()
 #good voyage tag created here essential for predictions process 
@@ -1471,5 +1479,5 @@ obj.get_ship_configs()
 # obj.universal_indices_limits()
 obj.ewma_limits()
 obj.indice_ewma_limit()
-end_time=time.time()
-print(end_time-start_time)
+# end_time=time.time()
+# print(end_time-start_time)
