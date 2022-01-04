@@ -13,6 +13,8 @@ import numpy as np
 from mongoengine import *
 from pymongo import MongoClient
 import os
+from dotenv import load_dotenv
+load_dotenv()
 
 log = CommonLogger(__name__,debug=True).setup_logger()
 # client = MongoClient("mongodb://localhost:27017/aranti")
@@ -57,7 +59,7 @@ class ConfigExtractor():
     @check_status
     def connect(self):
         # self.db = connect_db()
-        self.db = MongoClient("mongodb+srv://iamuser:iamuser@democluster.lw5i0.mongodb.net/test?ssl=true&ssl_cert_reqs=CERT_NONE")
+        self.db = MongoClient(os.getenv("MONGODB_ATLAS"))
 
     
     @check_status
