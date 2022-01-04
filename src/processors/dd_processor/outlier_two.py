@@ -34,10 +34,9 @@ from datetime import date, timedelta
 import string
 from dateutil.relativedelta import relativedelta
 from src.processors.config_extractor.outlier import CheckOutlier
+from src.db.setup_mongo import connect_db
 
-client = MongoClient("mongodb://localhost:27017/aranti")
-db=client.get_database("aranti")
-database = db
+
 
 
 np.seterr(divide='ignore', invalid='ignore')
@@ -49,13 +48,16 @@ class OutlierTwo():
         self.ship_configs = configs
         self.main_data= md
         self.ship_imo=imo
-       
+    
+    def connect(self):
+        self.db = connect_db()
+        self.database=self.db.get_database("aranti")
 
     def time_dataframe_generator(self,identifier,main_data_dict,no_months,last_year_months,list_date):
         list=[]
         list.append(identifier)
         list.append("rep_dt")
-        maindb = database.get_collection("Main_db")
+        maindb = self.database.get_collection("Main_db")
         temp_list=[]
         for i in list:
             self.main =maindb.find({"processed_daily_data.rep_dt.processed": {"$lte":list_date[-1], "$gte": list_date[0]},"ship_imo":self.ship_imo},{"processed_daily_data."+i+".processed":1,"_id":0})
@@ -74,7 +76,6 @@ class OutlierTwo():
             
             temp_dict[list[i]]=temp_list_2    
         dataframe=pd.DataFrame(temp_dict)
-        
         return dataframe
 
     def dataframe_generator(self,identifier,main_data_dict,processed_daily_data,no_months,last_year_months):
@@ -95,7 +96,8 @@ class OutlierTwo():
                 list_date_2=pd.date_range(current_date,current_date+relativedelta(days=1),freq='d')
                 dataframe_2=self.time_dataframe_generator(identifier,main_data_dict,no_months,last_year_months,list_date_2)
                 dataframe_final=dataframe_2.append(dataframe)
-        return dataframe_final
+            return dataframe_final
+       
 
 
     def outlier_processor(self,identifier,dataframe,main_data_dict,processed_daily_data):
