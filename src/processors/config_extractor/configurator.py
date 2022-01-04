@@ -1,5 +1,7 @@
 from math import isfinite, isnan
 import sys
+import os
+from dotenv import load_dotenv
 import re
 from numpy.core.numeric import NaN
 import pandas as pd
@@ -17,10 +19,11 @@ from src.processors.config_extractor.prediction_interval import LRPI
 from pymongo import ASCENDING, DESCENDING
 import math
 
+load_dotenv()
 
-# client = MongoClient("mongodb://localhost:27017")
+# client = MongoClient("mongodb://localhost:27017/")
 # db=client.get_database("aranti")
-client = MongoClient("mongodb+srv://iamuser:iamuser@democluster.lw5i0.mongodb.net/test?ssl=true&ssl_cert_reqs=CERT_NONE")
+client = MongoClient(os.getenv('MONGODB_ATLAS'))
 # client = MongoClient("mongodb://iamuser:iamuser@democluster.lw5i0.mongodb.net/myFirstDatabase?retryWrites=true&w=majority")
 db=client.get_database("aranti")
 database = db
