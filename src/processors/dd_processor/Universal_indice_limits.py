@@ -1,3 +1,5 @@
+import os
+from dotenv import load_dotenv
 from numpy.core.defchararray import index
 from pymongo import MongoClient
 from src.processors.dd_processor.indices_procesor import Indice_Processing
@@ -10,7 +12,10 @@ from sklearn.cross_decomposition import PLSRegression
 import functools
 import numpy as np
 
-client = MongoClient("mongodb://localhost:27017/aranti")
+load_dotenv()
+
+# client = MongoClient("mongodb://localhost:27017/aranti")
+client = MongoClient(os.getenv('MONGODB_ATLAS'))
 db=client.get_database("aranti")
 database = db
 
