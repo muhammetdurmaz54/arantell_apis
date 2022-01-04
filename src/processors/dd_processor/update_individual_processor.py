@@ -17,11 +17,11 @@ from pandas.core.frame import DataFrame
 from pandas.core.indexes.datetimes import date_range
 from bson import json_util
 from pandas.core.dtypes.missing import isnull 
-sys.path.insert(1,"F:\\Afzal_cs\\Internship\\arantell_apis-main")
+sys.path.insert(1,"D:\\Internship\\Repository\\Aranti\\arantell_apis")
 #from mongoengine import *
 from src.db.schema.ship import Ship 
 from src.processors.config_extractor.outlier import CheckOutlier
-from src.processors.dd_processor.regress import regress
+# from src.processors.dd_processor.regress import regress
 #from src.processors.dd_processor.regress import regress
 import numpy as np
 import pandas as pd
@@ -29,15 +29,18 @@ import math
 from pymongo import MongoClient
 from dotenv import load_dotenv
 import os
+from dotenv import load_dotenv
+load_dotenv()
 import datetime
 from datetime import date, timedelta
 #from pysimplelog import Logger
 import string
 from dateutil.relativedelta import relativedelta
-from plotly.subplots import make_subplots
+# from plotly.subplots import make_subplots
 import scipy.stats as st
-import plotly.graph_objects as go
-client = MongoClient("mongodb://localhost:27017/aranti")
+# import plotly.graph_objects as go
+# client = MongoClient("mongodb://localhost:27017/aranti")
+client = MongoClient(os.getenv("MONGODB_ATLAS"))
 db=client.get_database("aranti")
 database = db
 from sklearn.linear_model import LinearRegression
@@ -51,20 +54,20 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn.preprocessing import Normalizer
 from sklearn.preprocessing import Binarizer
 from sklearn.preprocessing import scale
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 from sklearn.metrics import accuracy_score
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import Lasso
-from plotly.offline import download_plotlyjs, init_notebook_mode, plot, iplot
+# from plotly.offline import download_plotlyjs, init_notebook_mode, plot, iplot
 from sklearn.cross_decomposition import PLSRegression
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.linear_model import Ridge
-from mpl_toolkits import mplot3d
-import seaborn as sns
+# from mpl_toolkits import mplot3d
+# import seaborn as sns
 from sklearn.metrics import r2_score
-import matplotlib.pyplot as mp
-import seaborn as sb
+# import matplotlib.pyplot as mp
+# import seaborn as sb
 import functools
 from sklearn.cross_decomposition import PLSRegression
 from pymongo import ASCENDING,DESCENDING
@@ -695,7 +698,7 @@ class UpdateIndividualProcessors():
         # spe_y_limit_array['ly_m3']=spe_y_limit_array_ly_m3
         # t2_anamoly['ly_m3']=t2_anamoly_ly_m3
         length_dataframe['ly_m3']=length_dataframe_ly_m3
-        ewma['y_m3']=ewma_ly_m3
+        ewma['ly_m3']=ewma_ly_m3
         cumsum['ly_m3']=cumsum_ly_m3
         # ewma_ucl['ly_m3']=ewma_ucl_ly_m3
 
@@ -713,7 +716,7 @@ class UpdateIndividualProcessors():
         # spe_y_limit_array['ly_m6']=spe_y_limit_array_ly_m6
         # t2_anamoly['ly_m6']=t2_anamoly_ly_m6
         length_dataframe['ly_m6']=length_dataframe_ly_m6
-        ewma['y_m6']=ewma_ly_m6
+        ewma['ly_m6']=ewma_ly_m6
         cumsum['ly_m6']=cumsum_ly_m6
         # ewma_ucl['ly_m6']=ewma_ucl_ly_m6
 
@@ -730,7 +733,7 @@ class UpdateIndividualProcessors():
         # spe_y_limit_array['ly_m12']=spe_y_limit_array_ly_m12
         # t2_anamoly['ly_m12']=t2_anamoly_ly_m12
         length_dataframe['ly_m12']=length_dataframe_ly_m12
-        ewma['y_m12']=ewma_ly_m12
+        ewma['ly_m12']=ewma_ly_m12
         cumsum['ly_m12']=cumsum_ly_m12
         # ewma_ucl['ly_m12']=ewma_ucl_ly_m12
 
