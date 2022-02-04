@@ -85,7 +85,7 @@ class UpdateIndividualProcessors():
         self.ship_configs = configs
         self.main_data= md
         self.ship_imo=imo
-        pass
+        
 
     def time_dataframe_generator(self,identifier,main_data_dict,dependent_variables,no_months,last_year_months,list_date,vsl_load,processed_daily_data):
         dependent_variables.append(identifier)
@@ -104,13 +104,15 @@ class UpdateIndividualProcessors():
             for j in range(0,len(temp_list[i])):    
                 try:
                     temp_list_2.append(temp_list[i][j]['processed_daily_data'][dependent_variables[i]]['processed'])
-                except KeyError:
-                    temp_list_2.append(None)
+                except:
+                    try:
+                        temp_list_2.append(temp_list[i][j]['independent_indices'][dependent_variables[i]]['processed'])
+                    except:
+                        temp_list_2.append(None)
             
             temp_dict[dependent_variables[i]]=temp_list_2    
         dataframe=pd.DataFrame(temp_dict)
         dependent_variables.remove(identifier)
-
         return dataframe
 
     def dataframe_generator(self,identifier,main_data_dict,dependent_variables,processed_daily_data,no_months,last_year_months):
@@ -168,6 +170,7 @@ class UpdateIndividualProcessors():
     def prediction(self,identifier,dataframe,processed_daily_data,dependent_variables,static_length):
         length_dataframe=len(dataframe)
         # return length_dataframe
+        # print(dataframe)
         if length_dataframe>25:
             if 'rep_dt' in dataframe.columns:
                 dataframe=dataframe.drop(columns='rep_dt')
@@ -202,7 +205,7 @@ class UpdateIndividualProcessors():
 
             dataframe=dataframe.dropna()
             
-            if len(dataframe)>=5 and len(dataframe.columns)>2 and identifier in dataframe.columns and (dataframe[identifier] == 0).all()==False:
+            if len(dataframe)>=5 and len(dataframe.columns)>=2 and identifier in dataframe.columns and (dataframe[identifier] == 0).all()==False:
                 x=[]
                 y=identifier
                 for col in dataframe.columns:
@@ -237,7 +240,7 @@ class UpdateIndividualProcessors():
             
                     temp_dict_2={}
                     tempdataframe=pd.DataFrame(temp_dict_2,columns=tempdict.keys())
-                    # print(tempdataframe)
+                    
                     tempdataframe=tempdataframe.append(tempdict,ignore_index=True)
                     new_data=dataframe
                     new_data=new_data.append(tempdataframe)
@@ -460,7 +463,7 @@ class UpdateIndividualProcessors():
                     # crit_val_dynamic=None
                     # t2_final=None
                     # spe_limit_array=None
-                    print(spe,t2_initial)
+                    # print(spe,t2_initial)
                     # return  pred_list,spe,crit_data,crit_val_dynamic,t2_initial,t2_final,spe_limit_array,spe_anamoly,spe_y_limit_array,t2_anamoly,length_dataframe,ewma,cumsum_val,ewma_ucl
                     return pred_list,spe,t2_initial,length_dataframe,ewma,cumsum_val
 
