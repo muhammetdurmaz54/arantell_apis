@@ -1,16 +1,17 @@
 from datetime import date
 import sys
+from numpy.core.numeric import identity
 import pandas
 from pandas.core import base
 from pandas.core.dtypes.missing import isnull 
-sys.path.insert(1,"F:\\Afzal_cs\\Internship\\arantell_apis-main")
+sys.path.insert(1,"D:\\Internship\\Repository\\Aranti\\arantell_apis")
 import numpy as np
 import math
 from pymongo import MongoClient
 from dotenv import load_dotenv
 import os
 import re
-from tqdm import tqdm
+# from tqdm import tqdm
 #from pysimplelog import Logger
 from fuzzywuzzy import fuzz
 from fuzzywuzzy import process
@@ -121,6 +122,7 @@ class IndividualProcessors():
         "returns the variable(identifiers) in the formula"
         txt = string
         txt_search=[i for i in re.findall("[a-zA-Z0-9_]+",txt) if not i.isdigit()]
+        
         return txt_search
 
     def base_formula_daily_data(self,formula_string):
@@ -135,7 +137,7 @@ class IndividualProcessors():
             elif i in daily_data and pandas.isnull(daily_data[i])==False:
                 temp_dict[i]=daily_data[i]
             else:
-                temp_dict[i]=None        
+                temp_dict[i]=None      
         return eval(self.eval_val_replacer(temp_dict, formula_string))
         
     def eval_val_replacer(self,temp_dict, string):
@@ -151,6 +153,13 @@ class IndividualProcessors():
         derived=self.ship_configs['data'][identifier]['Derived']
         source_identifier=self.ship_configs['data'][identifier]['source_idetifier']
         static_data=self.ship_configs['data'][identifier]['static_data']
+        if identifier.endswith("_cp"):
+            base_dict['reported']=static_data
+            base_dict['processed']=static_data
+            base_dict['is_read']=True
+            base_dict['is_processed']=False
+            return base_dict
+
         if derived==False or pandas.isnull(derived):
             if pandas.isnull(source_identifier)==False:
                 if identifier in self.daily_data['data']:
@@ -195,7 +204,24 @@ class IndividualProcessors():
                     base_dict['processed'] = base_dict['reported']
                 elif identifier not in self.daily_data['data']:
                     base_dict['is_read']=False
-                    base_dict['is_processed']=False              
+                    base_dict['is_processed']=False     
+
+
+        if pandas.isnull(base_dict['processed']) and pandas.isnull(self.ship_configs['data'][identifier]['Equipment_block'])==False:
+            connected_equipment=self.ship_configs['data'][identifier]['Equipment_block']
+            if connected_equipment in self.ship_configs['data']:
+                if pandas.isnull(self.ship_configs['data'][connected_equipment]['source_idetifier'])==False and self.ship_configs['data'][connected_equipment]['source_idetifier']=="available":
+                    base_dict['processed']=1
+                    base_dict['reported']=None
+                    base_dict['is_read']=False
+                    base_dict['is_processed']=True
+                    return base_dict
+                else:
+                    base_dict['processed']=0
+                    base_dict['reported']=None
+                    base_dict['is_read']=False
+                    base_dict['is_processed']=True
+                    return base_dict         
         return base_dict        
 
     def base_avg_minmax_evaluator(self,string):
@@ -674,6 +700,7 @@ class IndividualProcessors():
         return base_dict
 
     def speed_stw_calc_processor(self,base_dict):
+        # self.speed_stw=None
         try:
             base_dict=base_dict  
             speed_sog=None    
@@ -686,7 +713,7 @@ class IndividualProcessors():
             curknots=self.daily_data['data']['curknots']
             if report==None:
                 base_dict['processed']=speed_sog
-            elif report=="F" or report=="f" or report=="+":
+            elif report=="F" or report=="f" or report=="+" or report=="" or report==" " or report=="  " or report=="   ":
                 current_dir_rel=0
                 base_dict['processed']=speed_sog-round(curknots*(math.cos(current_dir_rel/57.3)),3)
             elif report=="A" or report=="a" or report=="-":
@@ -699,6 +726,7 @@ class IndividualProcessors():
             base_dict['is_processed']=True
         except:
             base_dict['processed']=None
+        # self.speed_stw=base_dict['processed']
         return base_dict
 
     def speed_stw_i_processor(self,base_dict):
@@ -713,7 +741,14 @@ class IndividualProcessors():
     #     return self.base_individual_processor('real_slip',base_dict)
     
     # def real_slip_calc_processor(self,base_dict):
-    #     return self.base_individual_processor('real_slip_calc',base_dict)
+    #     base_dict=base_dict
+    #     if "edist" in self.daily_data['data'] and pandas.isnull(self.daily_data['data']['edist'])==False and pandas.isnull(self.daily_data['data']['stm_hrs'])==False:
+    #         if pandas.isnull(self.speed_stw)==False:
+    #             val=(self.daily_data['data']['edist'] - self.speed_stw * self.daily_data['data']['stm_hrs'])/self.daily_data['data']['edist']
+    #             base_dict['processed']=val
+    #             base_dict['is_read']=True
+    #             base_dict['is_processed']=False
+    #     return base_dict
 
     def real_slip_i_processor(self,base_dict):
         base_dict=base_dict
