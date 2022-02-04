@@ -503,15 +503,17 @@ class CheckOutlier:
             return None,None
 
 
-    def final_outlier(self,outlier_min,outlier_max):
+    def final_outlier(self,outlier_min,outlier_max,out):
         if pd.isnull(outlier_min)==False and pd.isnull(outlier_max)==False:
             if outlier_max==True and outlier_min==True:
-                return True
-            
+                return True,None
             else:
-                return False
+                if out=="out":
+                    return False,self.ship_configs['outlier_anamoly']['OutlierLimit']['message']
+                elif out=="op":
+                    return False,self.ship_configs['outlier_anamoly']['OperationalLimit']['message']
         else:
-            return None
+            return None,None
         
 
     def operational_min(self,identifier,identifier_val,opmin,limit_val,zscore,data_availabe):
