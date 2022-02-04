@@ -129,13 +129,13 @@ class OutlierTwo():
 
     def outlier_operational_z_score(self,z_score,z_score_limit):
         outlier_z_score={}
-        if pd.isnull(z_score['m3']):
-            outlier_z_score['m3']=None
-        else:
-            if z_score['m3']>=-z_score_limit and z_score['m3']<=z_score_limit:
-                outlier_z_score['m3']=True
-            else:
-                outlier_z_score['m3']=False
+        # if pd.isnull(z_score['m3']):
+        #     outlier_z_score['m3']=None
+        # else:
+        #     if z_score['m3']>=-z_score_limit and z_score['m3']<=z_score_limit:
+        #         outlier_z_score['m3']=True
+        #     else:
+        #         outlier_z_score['m3']=False
 
         if pd.isnull(z_score['m6']):
             outlier_z_score['m6']=None
@@ -153,29 +153,29 @@ class OutlierTwo():
             else:
                 outlier_z_score['m12']=False
 
-        if pd.isnull(z_score['ly_m3']):
-            outlier_z_score['ly_m3']=None
-        else:
-            if z_score['ly_m3']>=-z_score_limit and z_score['ly_m3']<=z_score_limit:
-                outlier_z_score['ly_m3']=True
-            else:
-                outlier_z_score['ly_m3']=False
+        # if pd.isnull(z_score['ly_m3']):
+        #     outlier_z_score['ly_m3']=None
+        # else:
+        #     if z_score['ly_m3']>=-z_score_limit and z_score['ly_m3']<=z_score_limit:
+        #         outlier_z_score['ly_m3']=True
+        #     else:
+        #         outlier_z_score['ly_m3']=False
 
-        if pd.isnull(z_score['ly_m6']):
-            outlier_z_score['ly_m6']=None
-        else:
-            if z_score['ly_m6']>=-z_score_limit and z_score['ly_m6']<=z_score_limit:
-                outlier_z_score['ly_m6']=True
-            else:
-                outlier_z_score['ly_m6']=False
+        # if pd.isnull(z_score['ly_m6']):
+        #     outlier_z_score['ly_m6']=None
+        # else:
+        #     if z_score['ly_m6']>=-z_score_limit and z_score['ly_m6']<=z_score_limit:
+        #         outlier_z_score['ly_m6']=True
+        #     else:
+        #         outlier_z_score['ly_m6']=False
 
-        if pd.isnull(z_score['ly_m12']):
-            outlier_z_score['ly_m12']=None
-        else:
-            if z_score['ly_m12']>=-z_score_limit and z_score['ly_m12']<=z_score_limit:
-                outlier_z_score['ly_m12']=True
-            else:
-                outlier_z_score['ly_m12']=False
+        # if pd.isnull(z_score['ly_m12']):
+        #     outlier_z_score['ly_m12']=None
+        # else:
+        #     if z_score['ly_m12']>=-z_score_limit and z_score['ly_m12']<=z_score_limit:
+        #         outlier_z_score['ly_m12']=True
+        #     else:
+        #         outlier_z_score['ly_m12']=False
         return outlier_z_score
 
     
@@ -296,10 +296,10 @@ class OutlierTwo():
         main_data_dict=main_data_dict
         data_availabe={}
         z_score={}
-        m3_dataframe=self.dataframe_generator(identifier,main_data_dict,processed_daily_data,3,0)
-        z_score_m3,data_availabe_m3=self.outlier_processor(identifier,m3_dataframe,main_data_dict,processed_daily_data)
-        z_score['m3']=z_score_m3
-        data_availabe['m3']=data_availabe_m3
+        # m3_dataframe=self.dataframe_generator(identifier,main_data_dict,processed_daily_data,3,0)
+        # z_score_m3,data_availabe_m3=self.outlier_processor(identifier,m3_dataframe,main_data_dict,processed_daily_data)
+        # z_score['m3']=z_score_m3
+        # data_availabe['m3']=data_availabe_m3
         
         m6_dataframe=self.dataframe_generator(identifier,main_data_dict,processed_daily_data,6,0)
         z_score_m6,data_availabe_m6=self.outlier_processor(identifier,m6_dataframe,main_data_dict,processed_daily_data)
@@ -312,19 +312,19 @@ class OutlierTwo():
         z_score['m12']=z_score_m12
         data_availabe['m12']=data_availabe_m12
           
-        ly_m3_dataframe=self.dataframe_generator(identifier,main_data_dict,processed_daily_data,0,3)
-        z_score_ly_m3,data_availabe_ly_m3=self.outlier_processor(identifier,ly_m3_dataframe,main_data_dict,processed_daily_data)
-        z_score['ly_m3']=z_score_ly_m3
-        data_availabe['ly_m3']=data_availabe_ly_m3
+        # ly_m3_dataframe=self.dataframe_generator(identifier,main_data_dict,processed_daily_data,0,3)
+        # z_score_ly_m3,data_availabe_ly_m3=self.outlier_processor(identifier,ly_m3_dataframe,main_data_dict,processed_daily_data)
+        # z_score['ly_m3']=z_score_ly_m3
+        # data_availabe['ly_m3']=data_availabe_ly_m3
         
-        ly_m6_dataframe=self.dataframe_generator(identifier,main_data_dict,processed_daily_data,0,6)
-        z_score_ly_m6,data_availabe_ly_m6=self.outlier_processor(identifier,ly_m6_dataframe,main_data_dict,processed_daily_data)
-        z_score['ly_m6']=z_score_ly_m6
-        data_availabe['ly_m6']=data_availabe_ly_m6
+        # ly_m6_dataframe=self.dataframe_generator(identifier,main_data_dict,processed_daily_data,0,6)
+        # z_score_ly_m6,data_availabe_ly_m6=self.outlier_processor(identifier,ly_m6_dataframe,main_data_dict,processed_daily_data)
+        # z_score['ly_m6']=z_score_ly_m6
+        # data_availabe['ly_m6']=data_availabe_ly_m6
         
-        ly_m12_dataframe=self.dataframe_generator(identifier,main_data_dict,processed_daily_data,0,12)
-        z_score_ly_m12,data_availabe_ly_m12=self.outlier_processor(identifier,ly_m12_dataframe,main_data_dict,processed_daily_data)        
-        z_score['ly_m12']=z_score_ly_m12
-        data_availabe['ly_m12']=data_availabe_ly_m12
+        # ly_m12_dataframe=self.dataframe_generator(identifier,main_data_dict,processed_daily_data,0,12)
+        # z_score_ly_m12,data_availabe_ly_m12=self.outlier_processor(identifier,ly_m12_dataframe,main_data_dict,processed_daily_data)        
+        # z_score['ly_m12']=z_score_ly_m12
+        # data_availabe['ly_m12']=data_availabe_ly_m12
 
         return z_score,data_availabe
