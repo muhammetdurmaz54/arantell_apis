@@ -82,7 +82,7 @@ class ConfigExtractor():
         for i,row in self.df_variables.iterrows():
             
             for k in s:
-                if row['Identifer NEW']==k:
+                if row['Identifier NEW']==k:
                     self.dest_2={}
                     self.dest_2['name']=row['Short Names']
                     self.dest_2['value']=row['Static Data']
@@ -110,7 +110,7 @@ class ConfigExtractor():
         groupsData=[]
         # List of the variables in identifier new other than the ones with data type static
         # Added for convenience
-        id_new_1=[self.df_variables['Identifer NEW'][i] for i in range(0, len(self.df_variables['Identifer NEW'])) if self.df_variables['Data Type'][i] != 'static']
+        id_new_1=[self.df_variables['Identifier NEW'][i] for i in range(0, len(self.df_variables['Identifier NEW'])) if self.df_variables['Data Type'][i] != 'static']
         id_new=[]
         for i in id_new_1:
             if pd.isnull(i)==False:
@@ -210,11 +210,11 @@ class ConfigExtractor():
 
     def create_indices(self):
         indices={}
-        for i in range(0, len(self.df_variables['Identifer NEW'])):   #Fetches column Identifier_NEW from
-            if pd.isnull(self.df_variables['Param or Eqpt'][i])==False and type(self.df_variables['Param or Eqpt'][i])==str and pd.isnull(self.df_variables['Identifer NEW'][i])==False:
+        for i in range(0, len(self.df_variables['Identifier NEW'])):   #Fetches column Identifier_NEW from
+            if pd.isnull(self.df_variables['Param or Eqpt'][i])==False and type(self.df_variables['Param or Eqpt'][i])==str and pd.isnull(self.df_variables['Identifier NEW'][i])==False:
                 if self.df_variables['Param or Eqpt'][i].strip() == 'T2&SPE' or self.df_variables['Param or Eqpt'][i].strip() == 'INDX':
-                    indices[self.df_variables['Identifer NEW'][i]]={
-                        'name':self.df_variables['Identifer NEW'][i],
+                    indices[self.df_variables['Identifier NEW'][i]]={
+                        'name':self.df_variables['Identifier NEW'][i],
                         'unit':self.df_variables['Units'][i],
                         'category':self.category(self.df_variables['Category'][i]),
                         'subcategory':self.df_variables['SubCategory'][i],
@@ -256,22 +256,22 @@ class ConfigExtractor():
         self.similar_vessel_list=self.sister_list(self.df_configurations['Value'][4])
         
     
-        self.data_available_nav = list(self.df_variables[self.df_variables['Data Type']=='N']['Identifer NEW'].str.strip())
-        self.data_available_nav=self.data_available_nav.__add__(list(self.df_variables[self.df_variables['Data Type']=='N+E']['Identifer NEW']))
+        self.data_available_nav = list(self.df_variables[self.df_variables['Data Type']=='N']['Identifier NEW'].str.strip())
+        self.data_available_nav=self.data_available_nav.__add__(list(self.df_variables[self.df_variables['Data Type']=='N+E']['Identifier NEW']))
 
-        self.data_available_engine = list(self.df_variables[self.df_variables['Data Type']=='E']['Identifer NEW'].str.strip())
-        self.data_available_engine=self.data_available_engine.__add__(list(self.df_variables[self.df_variables['Data Type']=='N+E']['Identifer NEW']))
+        self.data_available_engine = list(self.df_variables[self.df_variables['Data Type']=='E']['Identifier NEW'].str.strip())
+        self.data_available_engine=self.data_available_engine.__add__(list(self.df_variables[self.df_variables['Data Type']=='N+E']['Identifier NEW']))
 
-        self.nulli=self.df_variables[self.df_variables['Identifer NEW'] != np.NaN]
-        #identifier_mapping = dict(zip(variables_file['Source Identifier'],variables_file['Identifer NEW']))
-        self.identifier_mapping = dict(zip(self.nulli['Identifer NEW'],self.nulli['Source Identifier']))
+        self.nulli=self.df_variables[self.df_variables['Identifier NEW'] != np.NaN]
+        #identifier_mapping = dict(zip(variables_file['Source Identifier'],variables_file['Identifier NEW']))
+        self.identifier_mapping = dict(zip(self.nulli['Identifier NEW'],self.nulli['Source Identifier']))
         #identifier_mapping = dict((k,v) for k, v in identifier_mapping.items() if not (type(k) == float and np.isnan(k)))
-        self.static = list(self.df_variables[self.df_variables['Data Type']=='static']['Identifer NEW'])    
-        self.ais_api=list(self.df_variables[self.df_variables['Data Type']=='AIS/API']['Identifer NEW'])    
-        self.ais_api=self.ais_api.__add__(list(self.df_variables[self.df_variables['Data Type']=='API/AIS']['Identifer NEW']))
-        self.ais_api=self.ais_api.__add__(list(self.df_variables[self.df_variables['Data Type']=='API']['Identifer NEW']))
-        self.ais_api=self.ais_api.__add__(list(self.df_variables[self.df_variables['Data Type']=='AIS']['Identifer NEW']))
-        self.calculated=list(self.df_variables[self.df_variables['Derived'].str.strip()=='YES']['Identifer NEW']) 
+        self.static = list(self.df_variables[self.df_variables['Data Type']=='static']['Identifier NEW'])    
+        self.ais_api=list(self.df_variables[self.df_variables['Data Type']=='AIS/API']['Identifier NEW'])    
+        self.ais_api=self.ais_api.__add__(list(self.df_variables[self.df_variables['Data Type']=='API/AIS']['Identifier NEW']))
+        self.ais_api=self.ais_api.__add__(list(self.df_variables[self.df_variables['Data Type']=='API']['Identifier NEW']))
+        self.ais_api=self.ais_api.__add__(list(self.df_variables[self.df_variables['Data Type']=='AIS']['Identifier NEW']))
+        self.calculated=list(self.df_variables[self.df_variables['Derived'].str.strip()=='YES']['Identifier NEW']) 
         for k, v in self.identifier_mapping.items():
             if type(v) == float and np.isnan(v):
                 self.identifier_mapping[k]=str(k).strip()
@@ -280,20 +280,20 @@ class ConfigExtractor():
         self.identifier_mapping = { x.translate({32:None}) : y for x, y in self.identifier_mapping.items()}
         
 
-        for i in range(0, len(self.df_variables['Identifer NEW'])):   #Fetches column Identifier_NEW from
+        for i in range(0, len(self.df_variables['Identifier NEW'])):   #Fetches column Identifier_NEW from
             print("kooooooooooooooooooooooooooooooooooooooooo")
             if self.df_variables['Data Type'][i] != 'static':#variables_file checks if type is 'static'   #converts into dictionary
                 self.newList = []
                 # Only add specific groups
                 for elem in self.groupsData:
-                    if pd.isnull(self.df_variables['Identifer NEW'][i])==False:
-                        if elem['name'] == self.df_variables['Identifer NEW'][i].strip():
+                    if pd.isnull(self.df_variables['Identifier NEW'][i])==False:
+                        if elem['name'] == self.df_variables['Identifier NEW'][i].strip():
                             self.newList.append(elem)
                
-                self.data[self.df_variables['Identifer NEW'][i]] = {  
+                self.data[self.df_variables['Identifier NEW'][i]] = {  
                     
                     
-                    'name':self.df_variables['Identifer NEW'][i],
+                    'name':self.df_variables['Identifier NEW'][i],
                     'unit':self.df_variables['Units'][i],
                     'category':self.category(self.df_variables['Category'][i]),
                     'subcategory':self.df_variables['SubCategory'][i],
@@ -301,6 +301,7 @@ class ConfigExtractor():
                     'short_names':self.df_variables['Short Names'][i],
                     'source_idetifier':self.df_variables['Source Identifier'][i],
                     'static_data': self.df_variables['Static Data'][i],
+                    'Equipment_block':self.df_variables['EQUIPMENT BLOCK'][i],
                     'input':self.df_variables['Input'][i],
                     'output':self.df_variables['Output'][i],
                     'var_type':self.df_variables['Param or Eqpt'][i],    #p=parameter, E=equipment, E1=psuedo equipment or notional equipment
@@ -308,8 +309,12 @@ class ConfigExtractor():
                     'Derived':self.derived(self.df_variables['Derived'][i]),
                     'Daily Availability':self.derived(self.df_variables['Daily Availability'][i]),
                     'availabe_for_groups':self.availability(self.df_variables['AVAILABLE FOR GROUPS'][i]),
-                    'equipment_block':self.df_variables['EQUIPMENT BLOCK'][i],
                     'dependent':self.availability(self.df_variables['DEPENDENT?'][i]),
+                    'override':self.df_variables['Override'][i],
+                    'rule_based_message':self.df_variables['rule based messages'][i],
+                    'spe_rule_based_message':self.df_variables['SPE Messages'][i],
+                    'ewma_rule_based_message':self.df_variables['MEWMA Messages'][i],
+                    't2_rule_based_message':self.df_variables['T2 Messages'][i],
                     'group_selection':self.newList,        #create funtion to get groups if 1 it is single parameter,if 2 split and look for 20,if 3 split and look for 30 ....
                     'limits':{
                     'type': self.df_variables['Limit Type'][i],
@@ -404,15 +409,15 @@ class ConfigExtractor():
                 return ship_collection.insert_one(ship).inserted_id
 
 
-# obj=ConfigExtractor(9591301,'F:\Afzal_cs\Internship\ConfiguratorRev_9591301.xlsx',True)
+obj=ConfigExtractor(9591301,'F:\Afzal_cs\Internship\ConfiguratorRev_9591301_new.xlsx',True)
 # obj.connect()
 # obj.read_files()
 # obj.anamoly()
 # obj.process_file()
 # obj.write_configs()
-# import time
-# start_time = time.time()
+import time
+start_time = time.time()
 
-# obj.do_steps()
-# end_time=time.time()
-# print(end_time-start_time)
+obj.do_steps()
+end_time=time.time()
+print(end_time-start_time)
