@@ -1,5 +1,7 @@
 from __future__ import division
-
+import os
+from dotenv import load_dotenv
+load_dotenv()
 from numpy.core.fromnumeric import reshape, var
 from numpy.core.function_base import linspace
 from numpy.lib.function_base import diff
@@ -16,7 +18,7 @@ from pandas.core.frame import DataFrame
 from pandas.core.indexes.datetimes import date_range
 from bson import json_util
 from pandas.core.dtypes.missing import isnull 
-sys.path.insert(1,"F:\\Afzal_cs\\Internship\\arantell_apis-main")
+sys.path.insert(1,"D:\\Internship\\Repository\\Aranti\\arantell_apis")
 #from mongoengine import *
 
 #from src.processors.dd_processor.regress import regress
@@ -31,10 +33,10 @@ from datetime import date, timedelta
 #from pysimplelog import Logger
 import string
 from dateutil.relativedelta import relativedelta
-from plotly.subplots import make_subplots
+# from plotly.subplots import make_subplots
 import scipy.stats as st
-import plotly.graph_objects as go
-client = MongoClient("mongodb://localhost:27017/aranti")
+# import plotly.graph_objects as go
+client = MongoClient(os.getenv("MONGODB_ATLAS"))
 db=client.get_database("aranti")
 database = db
 from sklearn.linear_model import LinearRegression
@@ -48,20 +50,20 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn.preprocessing import Normalizer
 from sklearn.preprocessing import Binarizer
 from sklearn.preprocessing import scale
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 from sklearn.metrics import accuracy_score
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import Lasso
-from plotly.offline import download_plotlyjs, init_notebook_mode, plot, iplot
+# from plotly.offline import download_plotlyjs, init_notebook_mode, plot, iplot
 from sklearn.cross_decomposition import PLSRegression
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.linear_model import Ridge
-from mpl_toolkits import mplot3d
-import seaborn as sns
+# from mpl_toolkits import mplot3d
+# import seaborn as sns
 from sklearn.metrics import r2_score
-import matplotlib.pyplot as mp
-import seaborn as sb
+# import matplotlib.pyplot as mp
+# import seaborn as sb
 import functools
 from sklearn.cross_decomposition import PLSRegression
 
@@ -85,7 +87,10 @@ class Indice_Processing():
         maindb = database.get_collection("Main_db")
         temp_list=[]
         for i in dependent_variables:
+            # try:
             self.main =maindb.find({"processed_daily_data.rep_dt.processed": {"$lte":list_date[-1], "$gte": list_date[0]},"ship_imo":self.ship_imo,"within_good_voyage_limit":True,'processed_daily_data.vsl_load_bal.processed':vsl_load},{"processed_daily_data."+i+".processed":1,"_id":0})
+            # except:
+            #     self.main =maindb.find({"processed_daily_data.rep_dt.processed": {"$lte":list_date[-1], "$gte": list_date[0]},"ship_imo":self.ship_imo,"within_good_voyage_limit":True,'processed_daily_data.vsl_load_bal.processed':vsl_load},{"independent_indices."+i+".processed":1,"_id":0})
             # self.main =maindb.find({"processed_daily_data.rep_dt.processed": {"$lte":list_date[-1], "$gte": list_date[0]},"ship_imo":self.ship_imo},{"processed_daily_data."+i+".processed":1,"_id":0})
             mainobject=json_util.dumps(self.main)
             load=json_util.loads(mainobject)
@@ -110,17 +115,6 @@ class Indice_Processing():
         # if type(main_data_dict['processed'])!=str:
         current_date=processed_daily_data['rep_dt']['processed'].date()
         vsl_load=processed_daily_data['vsl_load_bal']['processed']
-        # print(current_date)
-        # current_date=datetime.datetime(2016, 7, 16)#to be changed later only temporary use
-        # if no_months!=0:
-        #     old_month=current_date-relativedelta(months=no_months)
-        #     list_date=pd.date_range(old_month,current_date,freq='d')
-        #     dataframe=self.time_dataframe_generator(identifier,dependent_variables,no_months,last_year_months,list_date,vsl_load)
-        # elif last_year_months!=0:
-        #     last_year_current_month=current_date-relativedelta(months=12)
-        #     last_year_prev_months=last_year_current_month-relativedelta(months=last_year_months)
-        #     list_date=pd.date_range(last_year_prev_months,last_year_current_month,freq='d')
-        #     dataframe=self.time_dataframe_generator(identifier,dependent_variables,no_months,last_year_months,list_date,vsl_load)
 
         if no_months!=0:
             old_month=current_date-relativedelta(months=no_months)
@@ -317,27 +311,6 @@ class Indice_Processing():
                     # print(spe_matrix)
                     mewma_obj=mewma(lambd=0.2)
                     mewma_val,mewma_ucl=mewma_obj.plot(spe_matrix)
-                    # print(mewma_val,mewma_ucl)
-                    # var_sped=np.var(spe_sum)
-                    # mean_var=np.mean(spe_sum)
-                    # # h_val=(2*(mean_var**2))/(var_sped)
-                    # # g_val=(var_sped)/(2*(mean_var))
-                    
-                    # param_alpha=[]
-                    # param_alpha.append(self.ship_configs['parameter_anamoly']['SPE_alpha1']['alpha'])
-                    # param_alpha.append(self.ship_configs['parameter_anamoly']['SPE_alpha2']['alpha'])
-                    # param_alpha.append(self.ship_configs['parameter_anamoly']['SPE_alpha3']['alpha'])
-
-                    # spe_y_limit_array=[]
-                    # spe_anamoly=[]
-                    # for i in param_alpha:
-                    #     chi_val=st.chi2.ppf(1-i, h_val)
-                    #     spe_limit_g_val=g_val*chi_val
-                    #     spe_y_limit_array.append(spe_limit_g_val)
-                    #     if spe_limit_g_val<spe:
-                    #         spe_anamoly.append(False)
-                    #     else:
-                    #         spe_anamoly.append(True)
                     
                 
                     pls_reg_2=PLSRegression(n_components=len(x))
@@ -355,34 +328,7 @@ class Indice_Processing():
                     for i in identifier:
                         pls_dataframe[i]=pls_y_dataframe[i]
                     dis_listnew=[]
-
-                    # if len(x)>4:
-                    #     var_list=[]
-                    #     for i in range(4,len(pls_col)):
-                    #         var_list.append(np.var(pls_dataframe[pls_col[i]]))
-                    #     cube_list=[]
-                    #     for i in var_list:
-                    #         cube_list.append(i**3)
-                    #     theta_1=round(sum(var_list),3)
-                    #     theta_2 = round(functools.reduce(lambda i, j: i + j * j, [var_list[:1][0]**2]+var_list[1:]),3)
-                    #     g_val=theta_2/theta_1
-                    #     h_val=(theta_1**2)/theta_2
-                    #     for i in param_alpha:
-                    #         chi_val=st.chi2.ppf(1-i, h_val)
-                    #         spe_limit_g_val=g_val*chi_val
-                    #         spe_y_limit_array.append(spe_limit_g_val)
-                    #         if spe_limit_g_val < spe:
-                    #             spe_anamoly.append(False)
-                    #         elif spe_limit_g_val > spe:
-                    #             spe_anamoly.append(True)
-                    # else:
-                    #     spe_anamoly=None
-                    #     spe_y_limit_array=None
-
-
-
-                    
-                    
+   
                     for i in range(0,len(pls_dataframe[pls_t2_list])):
                         data=np.array(pls_dataframe[pls_t2_list])
                         X_feat=np.array(pls_dataframe[pls_t2_list].iloc[[i]])
@@ -407,113 +353,10 @@ class Indice_Processing():
                     numerator=p*(m -1)
                     denominator=m-p
                     multiplier=numerator/denominator
-                    # lcl=cl*(st.beta.ppf(0.01, p/2, (m - p - 1) / 2))
-                    # center=cl*(st.beta.ppf(0.5,p/2,(m-p-1)/2))
-                    # ucl=cl*(st.beta.ppf(0.75,p/2,(m-p-1)/2))
-                    # t_2limit=st.f.ppf(1-0.1,p,m-p)*multiplier
-                    # t_2limit=ucl-center
-                    # crit_data=t_2limit
-                    # if t2_initial>crit_data:
-                    #     t2_anamoly=False
-                    # else:
-                    #     t2_anamoly=True
-                    
-                    # crit_val_dynamic=None
-                    # t2_final=None
                     
                     print("donweeeeeeeeeeeeeeeeeee")
                     return spe_value,t2_initial,length_dataframe,mewma_val,mewma_ucl
-                    # pls_dataframe=pls_dataframe.drop(index=pls_dataframe[pls_dataframe['t_2'] > t_2limit].index)
-                    # if len(pls_dataframe)>=2:
-                    #     if dataframe.index[-1]==pls_dataframe.index[-1]:
-                    #         pls_dataframe=pls_dataframe.reset_index(drop=True)
-                    #         del pls_dataframe['t_2']
-                    #         dis_listnew=[]
-                            
-                    #         for i in range(0,len(pls_dataframe[pls_t2_list])):
-                    #             data=np.array(pls_dataframe[pls_t2_list])
-                    #             X_feat=np.array(pls_dataframe[pls_t2_list].iloc[[i]])
-                    #             mean=np.mean(data,axis=0)
-                    #             X_feat_mean=X_feat-mean
-                    #             data=np.transpose(data)
-                    #             data=data.astype(float)
-                    #             cov=np.cov(data,bias=False)
-                    #             inv_cov=np.linalg.pinv(cov)
-                    #             tem1=np.dot(X_feat_mean,inv_cov)
-                    #             temp2=np.dot(tem1,np.transpose(X_feat_mean))
-                    #             m_dis=np.sqrt(temp2[0][0])
-                    #             dis_listnew.append(m_dis)
-
-                    #         pls_dataframe['t_2']=dis_listnew
-                    #         t2_final=pls_dataframe['t_2'].iloc[-1].round(3)
-                    #         m=len(pls_dataframe)
-                    #         p=2
-                    #         if m>p:
-                    #             dfn=m-p-1
-                    #             dfd=p*(m-2)
-                    #             cl=(p*(m-1))/(m-p)
-                    #             f_val_left=st.f.ppf(0.10,dfn,dfd)*cl
-                    #             f_val_right=st.f.ppf(1-0.10,dfn,dfd)*cl
-                    #             f_val_two=st.f.ppf((1-0.10)/2,dfn,dfd)*cl
-                    #             crit_val_dynamic=f_val_right
-                            
-                    #         else:
-                    #             crit_val_dynamic=None
-                    #         # print(pred_list,spe,crit_data,crit_val_dynamic,t2_initial,t2_final,spe_limit_array)
-                    #         return spe_value,spe_y_limit_array,crit_data,crit_val_dynamic,t2_initial,t2_final
-                            
-                    #     else:
-                    #         new_dataframe=pd.DataFrame(columns=dataframe.columns)
-                    #         for i in pls_dataframe.index:
-                    #             new_dataframe=new_dataframe.append(dataframe.iloc[i])
-                    #         new_dataframe=new_dataframe.append(tempdataframe)
-                    #         new_dataframe=new_dataframe.reset_index(drop=True)
-                    #         pls_reg_new=PLSRegression(n_components=len(x))
-                    #         pls_reg_new.fit(new_dataframe[x],new_dataframe[y])
-                    #         pls_col_list=[]
-                            
-                    #         for i in range(1,len(x)+1):
-                    #             pls_col_list.append("plsscore"+str(i))
-                    #         new_pls_dataframe=pd.DataFrame(data=pls_reg_new.x_scores_,columns=pls_col_list)
-                    #         new_pls_dataframe[y]=new_dataframe[y]
-                    #         dis_listnew=[]
-                    #         for i in range(0,len(new_pls_dataframe[pls_t2_list])):
-                    #             data=np.array(new_pls_dataframe[pls_t2_list])
-                    #             X_feat=np.array(new_pls_dataframe[pls_t2_list].iloc[[i]])
-                    #             mean=np.mean(data,axis=0)
-                    #             X_feat_mean=X_feat-mean
-                    #             data=np.transpose(data)
-                    #             data=data.astype(float)
-                    #             cov=np.cov(data,bias=False)
-                    #             inv_cov=np.linalg.pinv(cov)
-                    #             tem1=np.dot(X_feat_mean,inv_cov)
-                    #             temp2=np.dot(tem1,np.transpose(X_feat_mean))
-                    #             m_dis=np.sqrt(temp2[0][0])
-                    #             dis_listnew.append(m_dis)
-
-                    #         new_pls_dataframe['t_2']=dis_listnew
-
-
-                    #         m=len(new_pls_dataframe)
-                    #         p=2
-                    #         if m>p:
-                    #             dfn=m-p-1
-                    #             dfd=p*(m-2)
-                    #             cl=(p*(m-1))/(m-p)
-                    #             f_val_left=st.f.ppf(0.10,dfn,dfd)*cl
-                    #             f_val_right=st.f.ppf(1-0.10,dfn,dfd)*cl
-                    #             f_val_two=st.f.ppf((1-0.10)/2,dfn,dfd)*cl
-                    #             crit_val_dynamic=f_val_right
-                    #         else:
-                    #             crit_val_dynamic=None
-                    #         t2_final=new_pls_dataframe['t_2'].iloc[-1].round(3)
-                    #     # print(pred_list,spe,crit_data,crit_val_dynamic,t2_initial,t2_final,spe_limit_array)
-                    #     return spe_value,spe_y_limit_array,crit_data,crit_val_dynamic,t2_initial,t2_final
-                    # else:
-                    #     crit_val_dynamic=None
-                    #     t2_final=None
-                    #     # print(pred_list,spe,crit_data,crit_val_dynamic,t2_initial,t2_final,spe_limit_array)
-                    #     return spe_value,spe_y_limit_array,crit_data,crit_val_dynamic,t2_initial,t2_final
+                    
                 except:
                     spe_value=None
                     t2_initial=None
