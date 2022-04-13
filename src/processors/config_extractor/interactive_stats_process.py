@@ -32,14 +32,14 @@ class InteractiveStatsExtractor():
         # stats = self.configuration.get_ship_stats(actual_maindb, *variables)
         stats = self.configuration.get_ship_stats_2(close_by_date, *self.variables)
         print(stats)
-        for i in self.variables:
-            try:
-                step = stats[i]['Max'] - stats[i]['Min']
-                if int(step) > 10:
-                    step = 6
-                if int(step) < 5:
-                    step = 5
-                stats[i]['Step'] = step
+        # for i in self.variables:
+        #     try:
+                # step = stats[i]['Max'] - stats[i]['Min']
+                # if int(step) > 10:
+                #     step = 6
+                # if int(step) < 5:
+                #     step = 5
+                # stats[i]['Step'] = 5
                 # if i == 'trim' or i == 'Trim':
                 #     step = 0.5
                 #     stats[i]['Step'] = step
@@ -55,8 +55,8 @@ class InteractiveStatsExtractor():
                 #         step = step / 4
                 #         new_step = self.configuration.makeDecimal(step, True)
                 #         stats[i]['Step'] = new_step
-            except KeyError:
-                continue
+            # except KeyError:
+            #     continue
         print("END CREATE STEPS")
         
         new_stats_dict = self.create_marks_based_on_steps(stats)
@@ -65,14 +65,33 @@ class InteractiveStatsExtractor():
         return new_stats_dict
     
     def create_marks_based_on_steps(self, stats_dict):
+        tempResult = {}
         for key in stats_dict.keys():
+            # tempList=np.linspace(stats_dict[key]['Min'], stats_dict[key]['Max'], stats_dict[key]['Max']-stats_dict[key]['Min'])
+            tempList=np.linspace(stats_dict[key]['Min'], stats_dict[key]['Max'], 6)
+            tempResult[key] = tempList
+            print(tempList)
+            if key == 'trim':
+                stats_dict[key]['Step'] = 0.1
+            else:
+                stats_dict[key]['Step'] = len(tempList) / 2
+
+        for key in tempResult.keys():
             tempDict={}
-            for i in np.linspace(stats_dict[key]['Min'], stats_dict[key]['Max'], stats_dict[key]['Step']):
-                # if i<= math.floor(stats_dict[key]['Max']):
-                #     a = i + stats_dict[key]['Step']
-                #     new_a = self.configuration.makeDecimal(a,True)
-                #     tempDict.update({str(int(new_a)): str(int(new_a))})
-                tempDict.update({str(int(i)): str(int(i))})
-            stats_dict[key]['Marks'] = tempDict
+            if key == 'trim':
+                for i in tempResult[key]:
+                    tempDict.update({str(round(i, 2)): str(round(i, 2))})
+                stats_dict[key]["Marks"] = tempDict
+            else:
+                for i in tempResult[key]:
+                    tempDict.update({str(int(i)): str(int(i))})
+                stats_dict[key]["Marks"] = tempDict
+            # for i in np.linspace(stats_dict[key]['Min'], stats_dict[key]['Max'], stats_dict[key]['Step']):
+            #     # if i<= math.floor(stats_dict[key]['Max']):
+            #     #     a = i + stats_dict[key]['Step']
+            #     #     new_a = self.configuration.makeDecimal(a,True)
+            #     #     tempDict.update({str(int(new_a)): str(int(new_a))})
+            #     tempDict.update({str(int(i)): str(int(i))})
+            # stats_dict[key]['Marks'] = tempDict
         
         return stats_dict
