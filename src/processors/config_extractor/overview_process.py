@@ -27,7 +27,7 @@ class OverviewExtractor():
 
         daily_data_received = str(int((actual_active_ships * 100) / total_ships)) + "%"
 
-        total_issues, issuesCount = self.configuration.create_dict_of_issues()
+        total_issues, issuesCount = self.configuration.create_dict_of_issues('')
         cp_compliance_dict = self.configuration.create_cp_compliance_dict()
         print("COMPLIANCE", cp_compliance_dict)
         print("ISSUES COUNT", issuesCount)
