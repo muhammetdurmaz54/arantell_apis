@@ -40,13 +40,23 @@ class DailyInsert:
 
     def dailydata_insert(self):
         if self.fuel!=None and self.eng!=None:
-            fuel = pd.read_excel(self.fuel).fillna("  ")
-            eng = pd.read_excel(self.eng).fillna("  ")
+            fuel = pd.read_excel(self.fuel,engine='openpyxl').fillna("  ")
+            eng = pd.read_excel(self.eng,engine='openpyxl').fillna("  ")
             
             database=self.db.get_database("aranti")
             ship_configs_collection=database.get_collection("ship")
             self.ship_configs = ship_configs_collection.find({"ship_imo": self.imo})[0]
             daily_data_collection =database.get_collection("daily_data")
+            maindb = database.get_collection("Main_db")
+            ship_stats=database.get_collection("Ship_stats")
+            try:
+                maindb.delete_many({"ship_imo":self.imo})
+                ship_stats.delete_one({"ship_imo": self.imo})
+                print("deleted maindb")
+            except:
+                print("no value for maindb yet")
+            shipstats={"ship_imo":int(self.imo),"updated":0,"stage":"to be started"}
+            ship_stats.insert_one(shipstats).inserted_id
             try :
                 ship_imo=self.ship_configs['ship_imo']
                 if ship_imo==self.imo:
@@ -356,6 +366,16 @@ class DailyInsert:
 
             except:
                 return "no data in ship config"
+        
+        daily_data_collection =database.get_collection("daily_data")
+        daily_data=daily_data_collection.find({"ship_imo": self.imo})
+        dates_unique=daily_data.distinct("data.rep_dt")
+        for i in dates_unique:
+            if daily_data_collection.find({"ship_imo": self.imo,'data.rep_dt':i}).count()>1:
+                daily_data_collection.delete_one({"ship_imo": self.imo,'data.rep_dt':i})
+                print("deletedeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee")
+            
+
 
 
 
@@ -375,10 +395,10 @@ class DailyInsert:
         return dest
 
 
-# obj=DailyInsert('F:\Afzal_cs\Internship\Arvind data files\RTM FUEL.xlsx','F:\Afzal_cs\Internship\Arvind data files\RTM ENGINE.xlsx',9591301,True)
+obj=DailyInsert('F:\Afzal_cs\Internship\Arvind data files\RTM FUEL.xlsx','F:\Afzal_cs\Internship\Arvind data files\RTM ENGINE.xlsx',9591363,True)
 # # obj=DailyInsert('F:\Afzal_cs\Internship\Arvind data files\RTM FUEL.xlsx',None,9591301,True)
 # # obj=DailyInsert(None,'F:\Afzal_cs\Internship\Arvind data files\RTM ENGINE.xlsx',9591301,True)
-# obj.do_steps()
+obj.do_steps()
 
 
 # below code is for rtm cook which has only one data file combined
