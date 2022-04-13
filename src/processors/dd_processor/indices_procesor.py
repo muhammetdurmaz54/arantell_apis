@@ -165,206 +165,204 @@ class Indice_Processing():
             dataframe=self.time_dataframe_generator(identifier,dependent_variables,no_months,last_year_months,list_date)
         return dataframe
 
-    def prediction(self,identifier,dataframe,processed_daily_data,dependent_variables):
-        length_dataframe=len(dataframe)
-        
-        if length_dataframe>25:
-            if 'rep_dt' in dataframe.columns:
-                dataframe=dataframe.drop(columns='rep_dt')
+    def prediction(self,identifier,dataframe,currdate,processed_daily_data,dependent_variables,month,lastyear):
+        if dataframe is not None:
+            if month is not None:
+                new_date=currdate-relativedelta(months=month)
+                new_data=dataframe.loc[(dataframe['rep_dt'] >= new_date) & (dataframe['rep_dt'] < currdate)]
+                curr_data=dataframe.loc[(dataframe['rep_dt'] == currdate)]
+            if lastyear is not None:
+                newyeardate=currdate-relativedelta(months=12)
+                new_date=newyeardate-relativedelta(months=lastyear)
+                new_data=dataframe.loc[(dataframe['rep_dt'] >= new_date) & (dataframe['rep_dt'] < newyeardate)]
+                curr_data=dataframe.loc[(dataframe['rep_dt'] == currdate)]
+            new_data=new_data.reset_index(drop=True)
+            length_dataframe=len(new_data)
+            if length_dataframe>25:
+                if 'rep_dt' in new_data.columns:
+                    new_data=new_data.drop(columns='rep_dt')
+                if 'rep_dt' in dependent_variables:
+                    dependent_variables.remove('rep_dt')
+                for column in new_data:
+                    new_data=new_data[new_data[column]!='']
+                    new_data=new_data[new_data[column]!=' ']
+                    new_data=new_data[new_data[column]!='  ']
+                    new_data=new_data[new_data[column]!='r[a-zA-Z]']
+                new_data=new_data.reset_index(drop=True)
                 
-            if 'rep_dt' in dependent_variables:
-                dependent_variables.remove('rep_dt')
-            for column in dataframe:
-                dataframe=dataframe[dataframe[column]!='']
-                dataframe=dataframe[dataframe[column]!=' ']
-                dataframe=dataframe[dataframe[column]!='  ']
-                dataframe=dataframe[dataframe[column]!='r[a-zA-Z]']
-            # dataframe=dataframe.drop(columns='current_dir_rel')
-            dataframe=dataframe.reset_index(drop=True)
-            dataframe=dataframe.dropna()
-            dataframe=dataframe.reset_index(drop=True)
+                for col in new_data.columns:
+                    for i in range(0,len(new_data)):
+                        if i in new_data.index and type(new_data[col][i])==str:
+                            
+                            new_data=new_data[new_data[col]!=new_data[col][i]]
+                        
+                        if i in new_data.index and type(new_data[col][i])==datetime:
+                            
+                            new_data=new_data[new_data[col]!=new_data[col][i]]
+                            
+                            
 
-            
-            for col in dataframe.columns:
-                for i in range(0,len(dataframe)):
-                    if i in dataframe.index and type(dataframe[col][i])==str:
-                        
-                        dataframe=dataframe[dataframe[col]!=dataframe[col][i]]
-                    
-                    if i in dataframe.index and type(dataframe[col][i])==datetime.datetime:
-                        
-                        dataframe=dataframe[dataframe[col]!=dataframe[col][i]]
-                        
-                # dataframe = dataframe[~dataframe[col].contains("[a-zA-Z]").fillna(False)]
+                    if pandas.isnull(new_data[col]).all():
+                        new_data=new_data.drop(columns=col)
 
-                if pd.isnull(dataframe[col]).all():
-                    dataframe=dataframe.drop(columns=col)
-                
-            
-            dataframe=dataframe.dropna()
-                    
-            dataframe=dataframe.reset_index(drop=True)
-            
-            if len(dataframe)>=5 and len(dataframe.columns)>2:
-                x=[]
-                y=identifier
-                for col in dataframe.columns:
-                    if col not in identifier:
-                        x.append(col)
+                new_data=new_data.dropna()
+                new_data=new_data.reset_index(drop=True)
 
-                for i in identifier:
-                    z_score=st.zscore(dataframe[i])
-                    dataframe['z_score']=z_score
-                    dataframe= dataframe.drop(index=dataframe[dataframe['z_score'] > 2].index)
-                    dataframe= dataframe.drop(index=dataframe[dataframe['z_score'] < -2].index)
-                    dataframe=dataframe.reset_index(drop=True)
-                    dataframe=dataframe.drop(columns='z_score')
+                if len(new_data)>=5 and len(new_data.columns)>2:
+                    x=[]
+                    y=[]
+                    col_list=list(new_data.columns)
+                    for col in col_list:
+                        if col in dependent_variables:
+                            x.append(col)
+                        if col in identifier:
+                            y.append(col)
 
-                
-                try:
-                    tempdict={}
-                    col_list=x
-                    for i in y:
-                        col_list.append(i)
-                    for i in col_list:
-                        if i in processed_daily_data :
-                            # if pd.isnull(processed_daily_data[i]['processed'])==True or type(processed_daily_data[i]['processed'])==str or type(processed_daily_data[i]['processed'])==datetime.datetime:
-                            #     tempdict[i]=np.mean(dataframe[i])
-                            # else:
-                            tempdict[i]=processed_daily_data[i]['processed']
-                        else:
-                            tempdict[i]=None
-                    for i in y:
-                        col_list.remove(i)
-                    # print(tempdict)
-                    temp_dict_2={}
-                    tempdataframe=pd.DataFrame(temp_dict_2,columns=tempdict.keys())
-                    # print(tempdataframe)
-                    tempdataframe=tempdataframe.append(tempdict,ignore_index=True)
-                    new_data=dataframe
-                    new_data=new_data.append(tempdataframe)
-                    new_data=new_data.reset_index(drop=True)
-                    # print(tempdataframe)
-                    # dataframe=dataframe.append(tempdataframe)
-                    # dataframe=dataframe.reset_index(drop=True)
-                    
-
-                    X_train=dataframe[x]
-                    training_dict={}
-                    testing_dict={}
-                    training_dataframe=pd.DataFrame(training_dict)
-                    testing_dataframe=pd.DataFrame(testing_dict)
-                    sc=StandardScaler()
-                    X_train=sc.fit_transform(dataframe[x])
-                    X_test=sc.fit_transform(new_data[x])
-                    # Y_train=sc.fit_transform(dataframe["pwr"])
-                    # print(Y_train)
-                    pred_list_upper=[]
-                    spe_list_upper=[]
-                    spe_dataframe=pd.DataFrame()
-                    
-                    for id in identifier:
-                        std_y=np.std(dataframe[id])
-                        mean_y=np.mean(dataframe[id])
-                        y_list=[]
-                        test_y_list=[]
-                        for i in dataframe[id]:
-                            val=(i-mean_y)/std_y
-                            y_list.append(val)
-                        for i in new_data[id]:
-                            val=(i-mean_y)/std_y
-                            test_y_list.append(val)
-                        training_dataframe[id]=y_list
-                        Y_train=training_dataframe[id]
-                        testing_dataframe[id]=test_y_list
-                        Y_test=testing_dataframe    
-                        
-                    #     # pls_reg=PLSRegression(n_components=2)
-                    #     # pls_reg.fit(X_train, dataframe[y])
-                        if len(x)>5:
-                            pls_reg=LRPI()
-                            pls_reg.fit(X_train,Y_train)
-                            pls_t2_list=['plsscore1','plsscore2','plsscore3','plsscore4']
-                        else:
-                            pls_reg=LRPI_low_x()
-                            pls_reg.fit(X_train,Y_train)
-                            pls_t2_list=['plsscore1','plsscore2']
-                        
-                        pred=pls_reg.predict(X_test)
-                        
-                        spe_dataframe[id+'_spe']=(pred['Pred']-Y_test[id])**2
-                        pred_list=[]
-                        predcol=["lower","Pred","upper"]
-                        
-                        for col in predcol:
-                            val=(pred[col].iloc[-1]*std_y)+mean_y
-                            pred_list.append(round(val,2))
-                        pred_list_upper.append(pred_list[1])
-                        spe=round((pred['Pred'].iloc[-1]-Y_test[id].iloc[-1])**2,4)
-                        spe_list_upper.append(spe)
-                    
-                    spe_value=sum(spe_list_upper)
-                    
-                    spe_sum=spe_dataframe.sum(axis=1)
-                    # print(spe_dataframe)
-                    spe_matrix=spe_dataframe.values
-                    # print(spe_matrix)
-                    mewma_obj=mewma(lambd=0.2)
-                    mewma_val,mewma_ucl=mewma_obj.plot(spe_matrix)
-                    
-                
-                    pls_reg_2=PLSRegression(n_components=len(x))
-                    pls_reg_2.fit(X_test,Y_test)
-                    pls_reg_3=PLSRegression(n_components=len(identifier))
-                    pls_reg_3.fit(X_test,Y_test)
-                    pls_col=[]
-
-                    for i in range(1,len(x)+1):
-                        pls_col.append("plsscore"+str(i))
-                    
-                    pls_dataframe = pd.DataFrame(data = pls_reg_2.x_scores_, columns = pls_col)
-                    pls_y_dataframe = pd.DataFrame(data = pls_reg_3.y_scores_, columns = identifier)
-                    # pls_dataframe['pwr']=Y_train
                     for i in identifier:
-                        pls_dataframe[i]=pls_y_dataframe[i]
-                    dis_listnew=[]
-   
-                    for i in range(0,len(pls_dataframe[pls_t2_list])):
-                        data=np.array(pls_dataframe[pls_t2_list])
-                        X_feat=np.array(pls_dataframe[pls_t2_list].iloc[[i]])
-                        mean=np.mean(data,axis=0)
-                        X_feat_mean=X_feat-mean
-                        data=np.transpose(data)
-                        data=data.astype(float)
-                        cov=np.cov(data,bias=False)
-                        inv_cov=np.linalg.pinv(cov)
-                        tem1=np.dot(X_feat_mean,inv_cov)
-                        temp2=np.dot(tem1,np.transpose(X_feat_mean))
-                        m_dis=np.sqrt(temp2[0][0])
-                        dis_listnew.append(m_dis)
+                        z_score=st.zscore(new_data[i])
+                        new_data['z_score']=z_score
+                        new_data= new_data.drop(index=new_data[new_data['z_score'] > 2].index)
+                        new_data= new_data.drop(index=new_data[new_data['z_score'] < -2].index)
+                        new_data=new_data.reset_index(drop=True)
+                        new_data=new_data.drop(columns='z_score')
+                        new_data=new_data.reset_index(drop=True)
 
-                    pls_dataframe['t_2']=dis_listnew
-                    t2_initial=pls_dataframe['t_2'].iloc[-1].round(3)
+                    data_today=new_data
+                    if len(curr_data) == 1:
+                        data_today=data_today.append(curr_data[new_data.columns])
+                        data_today=data_today.reset_index(drop=True)
+                    else:
+                        tempdict={}
+                        for i in new_data.columns:
+                            if i in processed_daily_data :
+                                tempdict[i]=[processed_daily_data[i]['processed']]
+                            else:
+                                tempdict[i]=[None]
+                        data_today=data_today.append(pandas.DataFrame(tempdict))
+                        data_today=data_today.reset_index(drop=True)
+                    try:
 
+                        X_train=new_data[x]
+                        training_dict={}
+                        testing_dict={}
+                        training_dataframe=pd.DataFrame(training_dict)
+                        testing_dataframe=pd.DataFrame(testing_dict)
+                        sc=StandardScaler()
+                        X_train=sc.fit_transform(new_data[x])
+                        X_test=sc.fit_transform(data_today[x])
+                        # Y_train=sc.fit_transform(dataframe["pwr"])
+                        # print(Y_train)
+                        pred_list_upper=[]
+                        spe_list_upper=[]
+                        spe_dataframe=pd.DataFrame()
+                        
+                        for id in identifier:
+                            std_y=np.std(new_data[id])
+                            mean_y=np.mean(new_data[id])
+                            y_list=[]
+                            test_y_list=[]
+                            for i in new_data[id]:
+                                val=(i-mean_y)/std_y
+                                y_list.append(val)
+                            for i in data_today[id]:
+                                val=(i-mean_y)/std_y
+                                test_y_list.append(val)
+                            training_dataframe[id]=y_list
+                            Y_train=training_dataframe[id]
+                            testing_dataframe[id]=test_y_list
+                            Y_test=testing_dataframe    
+                            
+                        #     # pls_reg=PLSRegression(n_components=2)
+                        #     # pls_reg.fit(X_train, dataframe[y])
+                            if len(x)>5:
+                                pls_reg=LRPI()
+                                pls_reg.fit(X_train,Y_train)
+                                pls_t2_list=['plsscore1','plsscore2','plsscore3','plsscore4']
+                            else:
+                                pls_reg=LRPI_low_x()
+                                pls_reg.fit(X_train,Y_train)
+                                pls_t2_list=['plsscore1','plsscore2']
+                            
+                            pred=pls_reg.predict(X_test)
+                            
+                            spe_dataframe[id+'_spe']=(pred['Pred']-Y_test[id])**2
+                            pred_list=[]
+                            predcol=["lower","Pred","upper"]
+                            
+                            for col in predcol:
+                                val=(pred[col].iloc[-1]*std_y)+mean_y
+                                pred_list.append(round(val,2))
+                            pred_list_upper.append(pred_list[1])
+                            spe=round((pred['Pred'].iloc[-1]-Y_test[id].iloc[-1])**2,4)
+                            spe_list_upper.append(spe)
+                        
+                        spe_value=sum(spe_list_upper)
+                        
+                        spe_sum=spe_dataframe.sum(axis=1)
+                        # print(spe_dataframe)
+                        spe_matrix=spe_dataframe.values
+                        # print(spe_matrix)
+                        mewma_obj=mewma(lambd=0.2)
+                        mewma_val,mewma_ucl=mewma_obj.plot(spe_matrix)
+                        
                     
-                    m=length_dataframe
-                    p=4
-                    cl=((m-1)**2)/m
-                    numerator=p*(m -1)
-                    denominator=m-p
-                    multiplier=numerator/denominator
-                    
-                    print("donweeeeeeeeeeeeeeeeeee")
-                    return spe_value,t2_initial,length_dataframe,mewma_val,mewma_ucl
-                    
-                except:
+                        pls_reg_2=PLSRegression(n_components=len(x))
+                        pls_reg_2.fit(X_test,Y_test)
+                        pls_reg_3=PLSRegression(n_components=len(identifier))
+                        pls_reg_3.fit(X_test,Y_test)
+                        pls_col=[]
+
+                        for i in range(1,len(x)+1):
+                            pls_col.append("plsscore"+str(i))
+                        
+                        pls_dataframe = pd.DataFrame(data = pls_reg_2.x_scores_, columns = pls_col)
+                        pls_y_dataframe = pd.DataFrame(data = pls_reg_3.y_scores_, columns = identifier)
+                        # pls_dataframe['pwr']=Y_train
+                        for i in identifier:
+                            pls_dataframe[i]=pls_y_dataframe[i]
+                        dis_listnew=[]
+    
+                        for i in range(0,len(pls_dataframe[pls_t2_list])):
+                            data=np.array(pls_dataframe[pls_t2_list])
+                            X_feat=np.array(pls_dataframe[pls_t2_list].iloc[[i]])
+                            mean=np.mean(data,axis=0)
+                            X_feat_mean=X_feat-mean
+                            data=np.transpose(data)
+                            data=data.astype(float)
+                            cov=np.cov(data,bias=False)
+                            inv_cov=np.linalg.pinv(cov)
+                            tem1=np.dot(X_feat_mean,inv_cov)
+                            temp2=np.dot(tem1,np.transpose(X_feat_mean))
+                            m_dis=np.sqrt(temp2[0][0])
+                            dis_listnew.append(m_dis)
+
+                        pls_dataframe['t_2']=dis_listnew
+                        t2_initial=pls_dataframe['t_2'].iloc[-1].round(3)
+
+                        
+                        m=length_dataframe
+                        p=4
+                        cl=((m-1)**2)/m
+                        numerator=p*(m -1)
+                        denominator=m-p
+                        multiplier=numerator/denominator
+                        return spe_value,t2_initial,length_dataframe,mewma_val,mewma_ucl
+                        
+                    except:
+                        spe_value=None
+                        t2_initial=None
+                        mewma_val=None
+                        mewma_ucl=None
+                        # print(pred_list,spe,crit_data,crit_val_dynamic,t2_initial,t2_final,spe_limit_array)
+                        return spe_value,t2_initial,length_dataframe,mewma_val,mewma_ucl
+
+                else:
                     spe_value=None
                     t2_initial=None
                     mewma_val=None
                     mewma_ucl=None
                     # print(pred_list,spe,crit_data,crit_val_dynamic,t2_initial,t2_final,spe_limit_array)
                     return spe_value,t2_initial,length_dataframe,mewma_val,mewma_ucl
-
             else:
                 spe_value=None
                 t2_initial=None
@@ -377,12 +375,13 @@ class Indice_Processing():
             t2_initial=None
             mewma_val=None
             mewma_ucl=None
+            length_dataframe=None
             # print(pred_list,spe,crit_data,crit_val_dynamic,t2_initial,t2_final,spe_limit_array)
             return spe_value,t2_initial,length_dataframe,mewma_val,mewma_ucl
             
 
 
-    def base_prediction_processor(self,identifier,dependent_variables,processed_daily_data):
+    def base_prediction_processor(self,identifier,dependent_variables,dataframe,curr_date,processed_daily_data):
         spe={}
         spe_chi_square={}
         crit_data={}
@@ -394,9 +393,7 @@ class Indice_Processing():
         t2_anamoly={}
         mewma_val={}
         mewma_ucl={}
-
-        m3_dataframe=self.dataframe_generator(identifier,dependent_variables,processed_daily_data,3,0)
-        m3_spe,t2_initial_m3,ld_m3,mewma_val_m3,mewma_ucl_m3=self.prediction(identifier,m3_dataframe,processed_daily_data,dependent_variables)
+        m3_spe,t2_initial_m3,ld_m3,mewma_val_m3,mewma_ucl_m3=self.prediction(identifier,dataframe,curr_date,processed_daily_data,dependent_variables,3,None)
         spe['m3']=m3_spe
         # spe_chi_square['m3']=m3_spe_chisquare
         # crit_data['m3']=crit_data_m3
@@ -409,9 +406,7 @@ class Indice_Processing():
         mewma_val['m3']=mewma_val_m3
         mewma_ucl['m3']=mewma_ucl_m3
 
-        # exit()
-        m6_dataframe=self.dataframe_generator(identifier,dependent_variables,processed_daily_data,6,0)
-        m6_spe,t2_initial_m6,ld_m6,mewma_val_m6,mewma_ucl_m6=self.prediction(identifier,m6_dataframe,processed_daily_data,dependent_variables)
+        m6_spe,t2_initial_m6,ld_m6,mewma_val_m6,mewma_ucl_m6=self.prediction(identifier,dataframe,curr_date,processed_daily_data,dependent_variables,6,None)
         spe['m6']=m6_spe
         # spe_chi_square['m6']=m6_spe_chisquare
         # crit_data['m6']=crit_data_m6
@@ -424,8 +419,7 @@ class Indice_Processing():
         mewma_val['m6']=mewma_val_m6
         mewma_ucl['m6']=mewma_ucl_m6
 
-        m12_dataframe=self.dataframe_generator(identifier,dependent_variables,processed_daily_data,12,0)
-        m12_spe,t2_initial_m12,ld_m12,mewma_val_m12,mewma_ucl_m12=self.prediction(identifier,m12_dataframe,processed_daily_data,dependent_variables)
+        m12_spe,t2_initial_m12,ld_m12,mewma_val_m12,mewma_ucl_m12=self.prediction(identifier,dataframe,curr_date,processed_daily_data,dependent_variables,12,None)
         spe['m12']=m12_spe
         # spe_chi_square['m12']=m12_spe_chisquare
         # crit_data['m12']=crit_data_m12
@@ -438,8 +432,7 @@ class Indice_Processing():
         mewma_val['m12']=mewma_val_m12
         mewma_ucl['m12']=mewma_ucl_m12
         
-        ly_m3_dataframe=self.dataframe_generator(identifier,dependent_variables,processed_daily_data,0,3)
-        ly_m3_spe,t2_initial_ly_m3,ld_ly_m3,mewma_val_ly_m3,mewma_ucl_ly_m3=self.prediction(identifier,ly_m3_dataframe,processed_daily_data,dependent_variables)
+        ly_m3_spe,t2_initial_ly_m3,ld_ly_m3,mewma_val_ly_m3,mewma_ucl_ly_m3=self.prediction(identifier,dataframe,curr_date,processed_daily_data,dependent_variables,None,3)
         spe['ly_m3']=ly_m3_spe
         # spe_chi_square['ly_m3']=ly_m3_spe_chisquare
         # crit_data['ly_m3']=crit_data_ly_m3
@@ -452,8 +445,7 @@ class Indice_Processing():
         mewma_val['ly_m3']=mewma_val_ly_m3
         mewma_ucl['ly_m3']=mewma_ucl_ly_m3
 
-        ly_m6_dataframe=self.dataframe_generator(identifier,dependent_variables,processed_daily_data,0,6)
-        ly_m6_spe,t2_initial_ly_m6,ld_ly_m6,mewma_val_ly_m6,mewma_ucl_ly_m6=self.prediction(identifier,ly_m6_dataframe,processed_daily_data,dependent_variables)
+        ly_m6_spe,t2_initial_ly_m6,ld_ly_m6,mewma_val_ly_m6,mewma_ucl_ly_m6=self.prediction(identifier,dataframe,curr_date,processed_daily_data,dependent_variables,None,6)
         spe['ly_m6']=ly_m6_spe
         # spe_chi_square['ly_m6']=ly_m6_spe_chisquare
         # crit_data['ly_m6']=crit_data_ly_m6
@@ -466,8 +458,7 @@ class Indice_Processing():
         mewma_val['ly_m6']=mewma_val_ly_m6
         mewma_ucl['ly_m6']=mewma_ucl_ly_m6
 
-        ly_m12_dataframe=self.dataframe_generator(identifier,dependent_variables,processed_daily_data,0,12)
-        ly_m12_spe,t2_initial_ly_m12,ld_ly_m12,mewma_val_ly_m12,mewma_ucl_ly_m12=self.prediction(identifier,ly_m12_dataframe,processed_daily_data,dependent_variables)
+        ly_m12_spe,t2_initial_ly_m12,ld_ly_m12,mewma_val_ly_m12,mewma_ucl_ly_m12=self.prediction(identifier,dataframe,curr_date,processed_daily_data,dependent_variables,None,12)
         spe['ly_m12']=ly_m12_spe
         # spe_chi_square['ly_m12']=ly_m12_spe_chisquare
         # crit_data['ly_m12']=crit_data_ly_m12
@@ -517,7 +508,7 @@ class LRPI:
         SE = [np.dot(np.transpose(self.X_test.values[i]) , np.dot(self.XTX_inv, self.X_test.values[i]) ) for i in range(len(self.X_test)) ]
         quant=np.quantile(SE,0.9)
         if SE[-1]>quant:
-            print("greaaaaaaaaaaaaat")
+            # print("greaaaaaaaaaaaaat")
             SE=[0.3]*len(self.X_test)
         results = pd.DataFrame(self.pred , columns=['Pred'])
         # print(self.MSE.values + np.multiply(SE,self.MSE.values))
@@ -548,7 +539,7 @@ class LRPI_low_x:
         SE = [np.dot(np.transpose(self.X_test.values[i]) , np.dot(self.XTX_inv, self.X_test.values[i]) ) for i in range(len(self.X_test)) ]
         quant=np.quantile(SE,0.9)
         if SE[-1]>quant:
-            print("greaaaaaaaaaaaaat")
+            # print("greaaaaaaaaaaaaat")
             SE=[0.3]*len(self.X_test)
         results = pd.DataFrame(self.pred , columns=['Pred'])
         results.loc[:,"lower"] = results['Pred'].subtract((self.t_value)* (np.sqrt(self.MSE.values + np.multiply(SE,self.MSE.values) )),  axis=0)
