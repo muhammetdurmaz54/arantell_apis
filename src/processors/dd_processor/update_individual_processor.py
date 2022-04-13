@@ -54,7 +54,6 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn.preprocessing import Normalizer
 from sklearn.preprocessing import Binarizer
 from sklearn.preprocessing import scale
-# import matplotlib.pyplot as plt
 from sklearn.metrics import accuracy_score
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
@@ -66,7 +65,7 @@ from sklearn.linear_model import Ridge
 # from mpl_toolkits import mplot3d
 # import seaborn as sns
 from sklearn.metrics import r2_score
-# import matplotlib.pyplot as mp
+import matplotlib.pyplot as plt
 # import seaborn as sb
 import functools
 from sklearn.cross_decomposition import PLSRegression
@@ -81,9 +80,9 @@ from scipy.stats import f
 class UpdateIndividualProcessors():
 
 
-    def __init__(self,configs,md,imo):
+    def __init__(self,configs,imo):
         self.ship_configs = configs
-        self.main_data= md
+        # self.main_data= md
         self.ship_imo=imo
         
 
@@ -166,85 +165,93 @@ class UpdateIndividualProcessors():
        
 
 
+  
+    
 
-    def prediction(self,identifier,dataframe,processed_daily_data,dependent_variables,static_length):
-        length_dataframe=len(dataframe)
-        # return length_dataframe
-        # print(dataframe)
+
+
+
+
+    def prediction(self,dataframe,currdate,month,lastyear,identifier,main_data_dict):
+        if month is not None:
+            new_date=currdate-relativedelta(months=month)
+            new_data=dataframe.loc[(dataframe['rep_dt'] >= new_date) & (dataframe['rep_dt'] < currdate)]
+            curr_data=dataframe.loc[(dataframe['rep_dt'] == currdate)]
+        if lastyear is not None:
+            newyeardate=currdate-relativedelta(months=12)
+            new_date=newyeardate-relativedelta(months=lastyear)
+            new_data=dataframe.loc[(dataframe['rep_dt'] >= new_date) & (dataframe['rep_dt'] < newyeardate)]
+            curr_data=dataframe.loc[(dataframe['rep_dt'] == currdate)]
+        new_data=new_data.reset_index(drop=True)
+        length_dataframe=len(new_data)
         if length_dataframe>25:
-            if 'rep_dt' in dataframe.columns:
-                dataframe=dataframe.drop(columns='rep_dt')
-                
-            if 'rep_dt' in dependent_variables:
-                dependent_variables.remove('rep_dt')
-            for column in dataframe:
-                dataframe=dataframe[dataframe[column]!='']
-                dataframe=dataframe[dataframe[column]!=' ']
-                dataframe=dataframe[dataframe[column]!='  ']
-                dataframe=dataframe[dataframe[column]!='r[a-zA-Z]']
-            # dataframe=dataframe.drop(columns='current_dir_rel')
-            dataframe=dataframe.reset_index(drop=True)
+            if 'rep_dt' in new_data.columns:
+                new_data=new_data.drop(columns='rep_dt')
+            for column in new_data:
+                new_data=new_data[new_data[column]!='']
+                new_data=new_data[new_data[column]!=' ']
+                new_data=new_data[new_data[column]!='  ']
+                new_data=new_data[new_data[column]!='r[a-zA-Z]']
+            new_data=new_data.reset_index(drop=True)
             
-            for col in dataframe.columns:
-                # print(col)
-                for i in range(0,len(dataframe)):
-                    # print(dataframe[col][i])
-                    if i in dataframe.index and type(dataframe[col][i])==str:
+            for col in new_data.columns:
+                for i in range(0,len(new_data)):
+                    if i in new_data.index and type(new_data[col][i])==str:
                         
-                        dataframe=dataframe[dataframe[col]!=dataframe[col][i]]
+                        new_data=new_data[new_data[col]!=new_data[col][i]]
                     
-                    if i in dataframe.index and type(dataframe[col][i])==datetime.datetime:
+                    if i in new_data.index and type(new_data[col][i])==datetime:
                         
-                        dataframe=dataframe[dataframe[col]!=dataframe[col][i]]
+                        new_data=new_data[new_data[col]!=new_data[col][i]]
                         
-                # dataframe = dataframe[~dataframe[col].contains("[a-zA-Z]").fillna(False)]
 
-                if pd.isnull(dataframe[col]).all():
-                    dataframe=dataframe.drop(columns=col)
+                if pandas.isnull(new_data[col]).all():
+                    new_data=new_data.drop(columns=col)
                 
 
-            dataframe=dataframe.dropna()
-            
-            if len(dataframe)>=5 and len(dataframe.columns)>=2 and identifier in dataframe.columns and (dataframe[identifier] == 0).all()==False:
+            new_data=new_data.dropna()
+            new_data=new_data.reset_index(drop=True)
+
+            if len(new_data)>=5 and len(new_data.columns)>=2 and identifier in new_data.columns and (new_data[identifier] == 0).all()==False:
                 x=[]
                 y=identifier
-                for col in dataframe.columns:
+                for col in new_data.columns:
                     x.append(col)
                 x.remove(y)
-                
+                # print(new_data[identifier])
+                try:
+                    z_score=st.zscore(new_data[identifier])
+                    new_data['z_score']=z_score
+                    new_data= new_data.drop(index=new_data[new_data['z_score'] > 2].index)
+                    new_data= new_data.drop(index=new_data[new_data['z_score'] < -2].index)
+                    new_data=new_data.reset_index(drop=True)
+                    new_data=new_data.drop(columns='z_score')
+                    new_data=new_data.reset_index(drop=True)
+                except:
+                    pass
+                data_today=new_data
+                if len(curr_data) == 1:
+                    data_today=data_today.append(curr_data[new_data.columns])
+                    data_today=data_today.reset_index(drop=True)
+                else:
+                    tempdict={}
+                    for i in new_data.columns:
+                        if i in main_data_dict :
+                            tempdict[i]=[main_data_dict[i]['processed']]
+                        else:
+                            tempdict[i]=[None]
+                    data_today=data_today.append(pandas.DataFrame(tempdict))
+                    data_today=data_today.reset_index(drop=True)
+                # print(new_data)
+                # print(data_today)
 
-                z_score=st.zscore(dataframe[identifier])
-                dataframe['z_score']=z_score
-                dataframe= dataframe.drop(index=dataframe[dataframe['z_score'] > 2].index)
-                dataframe= dataframe.drop(index=dataframe[dataframe['z_score'] < -2].index)
-                dataframe=dataframe.reset_index(drop=True)
-                dataframe=dataframe.drop(columns='z_score')
-                # dataframe=dataframe.tail(static_length)
-                dataframe=dataframe.reset_index(drop=True)
+                # new_data=new_data.append(data_today)
+                # new_data=new_data.reset_index(drop=True)
+                
+            
                 # print(dataframe)
                 try:
-                    tempdict={}
-                    col_list=x
-                    col_list.append(y)
-                    for i in col_list:
-                        if i in processed_daily_data :
-                            # if pd.isnull(processed_daily_data[i]['processed'])==True or type(processed_daily_data[i]['processed'])==str or type(processed_daily_data[i]['processed'])==datetime.datetime:
-                            #     tempdict[i]=np.mean(dataframe[i])
-                            # else:
-                            tempdict[i]=processed_daily_data[i]['processed']
-                        else:
-                            tempdict[i]=None
                     
-                    col_list.remove(y)
-                    # print(tempdict)
-            
-                    temp_dict_2={}
-                    tempdataframe=pd.DataFrame(temp_dict_2,columns=tempdict.keys())
-                    
-                    tempdataframe=tempdataframe.append(tempdict,ignore_index=True)
-                    new_data=dataframe
-                    new_data=new_data.append(tempdataframe)
-                    new_data=new_data.reset_index(drop=True)
                     
                     # print(new_data)
                     # ewma_val=new_data[y].ewm(alpha=0.05,adjust=False).mean()
@@ -265,11 +272,9 @@ class UpdateIndividualProcessors():
                     # X_test=sc.fit_transform(new_data[x])
                     # Y_train=sc.fit_transform(dataframe["pwr"])
                     # print(Y_train)
-                    std_y=np.std(dataframe[y])
-                    mean_y=np.mean(dataframe[y])
+                    std_y=np.std(new_data[y])
+                    mean_y=np.mean(new_data[y])
 
-                    std_y_test=np.std(new_data[y])
-                    mean_y_test=np.mean(new_data[y])
                     y_list=[]
                     test_y_list=[]
                     X_train=pd.DataFrame({})
@@ -278,30 +283,36 @@ class UpdateIndividualProcessors():
                     for i in x:
                         train_x_list=[]
                         test_x_list=[]
-                        mean_x=np.mean(dataframe[i])
-                        std_x=np.std(dataframe[i])
-                        mean_x_test=np.mean(new_data[i])
-                        std_x_test=np.std(new_data[i])
+                        mean_x=np.mean(new_data[i])
+                        std_x=np.std(new_data[i])
+                        mean_x_test=np.mean(data_today[i])
+                        std_x_test=np.std(data_today[i])
                         try:
-                            for j in dataframe[i]:
+                            for j in new_data[i]:
                                 val=(j-mean_x)/std_x
-                                train_x_list.append(val)
+                                if pd.isnull(val)==False:
+                                    train_x_list.append(val)
+                                else:
+                                    train_x_list.append(j)
                             X_train[i]=train_x_list
                             
                         except:
-                            X_train[i]=dataframe[i]
+                            X_train[i]=new_data[i]
                         try:
-                            for j in new_data[i]:
+                            for j in data_today[i]:
                                 test_val=(j-mean_x_test)/std_x_test
-                                test_x_list.append(test_val)
+                                if pd.isnull(test_val)==False:
+                                    test_x_list.append(test_val)
+                                else:
+                                    test_x_list.append(j)
                             X_test[i]=test_x_list
                         except:
-                            X_test[i]=new_data[i]
+                            X_test[i]=data_today[i]
                     
-                    for i in dataframe[y]:
+                    for i in new_data[y]:
                         y_val=(i-mean_y)/std_y
                         y_list.append(y_val)
-                    for i in new_data[y]:
+                    for i in data_today[y]:
                         test_y_val=(i-mean_y)/std_y
                         test_y_list.append(test_y_val)
                     training_dataframe[y]=y_list
@@ -311,6 +322,27 @@ class UpdateIndividualProcessors():
                     
                 #     # pls_reg=PLSRegression(n_components=2)
                 #     # pls_reg.fit(X_train, dataframe[y])
+                    # linear=LinearRegression()
+                    # sample_weights=np.arange(1,len(X_test))
+                    # sample_df=pd.DataFrame({"weight":sample_weights})
+                    # # print(sample_df)
+                    # linear.fit(X_train,Y_train,sample_df['weight'])
+                    # pred_test=linear.predict(X_test)
+                    
+                    # print(pred_test)
+                    # rped=[]
+                    # for i in pred_test:
+                    #     val=(i*std_y)+mean_y
+                    #     rped.append(round(val,2))
+                    # show_dataframe=new_data
+                    
+                    # show_dataframe['weighted_pred']=rped
+                    # print(show_dataframe)
+
+                
+                    # exit()
+
+
                     if len(x)>5:
                         pls_reg=LRPI()
                         pls_reg.fit(X_train,Y_train)
@@ -327,11 +359,17 @@ class UpdateIndividualProcessors():
                     for col in predcol:
                         val=(pred[col].iloc[-1]*std_y)+mean_y
                         pred_list.append(round(val,2))
+                    
+                    pred_temp=[]
+                    for i in range(0,len(pred['Pred'])):
+                        pred_temp.append((pred['Pred'].iloc[i]*std_y)+mean_y)
                     # print(new_data)
                     # print(Y_test)
                     # print(pred)
                     # print(pred_list)
-                    
+                    # show_dataframe['current_pred']=pred_temp
+                    # show_dataframe.to_csv("pwr_pred.csv")
+                    # print(show_dataframe)
                     spe=round((pred['Pred'].iloc[-1]-Y_test[y].iloc[-1])**2,4)
                     
                     spe_dataframe=pd.DataFrame({})
@@ -449,7 +487,6 @@ class UpdateIndividualProcessors():
                     # center=cl*(st.beta.ppf(0.5,p/2,(m-p-1)/2))
                     # ucl=cl*(st.beta.ppf(0.75,p/2,(m-p-1)/2))
                     # t_2limit=st.f.ppf(1-0.2,p,m-p)*multiplier
-
 
                     # crit_data=t_2limit
                     # if t2_initial>crit_data:
@@ -592,7 +629,7 @@ class UpdateIndividualProcessors():
                 cumsum_val=None
                 # ewma_ucl=None
                 # print(pred_list,spe,crit_data,crit_val_dynamic,t2_initial,t2_final,spe_limit_array)
-                # return pred_list,spe,crit_data,crit_val_dynamic,t2_initial,t2_final,spe_limit_array,spe_anamoly,spe_y_limit_array,t2_anamoly,length_dataframe,ewma,cumsum_val,ewma_ucl
+                    # return pred_list,spe,crit_data,crit_val_dynamic,t2_initial,t2_final,spe_limit_array,spe_anamoly,spe_y_limit_array,t2_anamoly,length_dataframe,ewma,cumsum_val,ewma_ucl
                 return pred_list,spe,t2_initial,length_dataframe,ewma,cumsum_val
 
         else:
@@ -613,11 +650,7 @@ class UpdateIndividualProcessors():
             # return pred_list,spe,crit_data,crit_val_dynamic,t2_initial,t2_final,spe_limit_array,spe_anamoly,spe_y_limit_array,t2_anamoly,length_dataframe,ewma,cumsum_val,ewma_ucl
             return pred_list,spe,t2_initial,length_dataframe,ewma,cumsum_val
 
-    def base_prediction_processor(self,identifier,main_data_dict,dependent_variables,processed_daily_data):
-        if "current_dir_rel" in dependent_variables:
-            dependent_variables.remove('current_dir_rel')
-
-        main_data_dict=main_data_dict
+    def base_prediction_processor(self,dataframe,currdate,identifier,main_data_dict):
         pred={}
         spe={}
         crit_data={}
@@ -632,8 +665,8 @@ class UpdateIndividualProcessors():
         ewma={}
         cumsum={}
         ewma_ucl={}
-        m3_dataframe=self.dataframe_generator(identifier,main_data_dict,dependent_variables,processed_daily_data,3,0)
-        m3_pred,m3_spe,m3_t2_initial,length_dataframe_m3,ewma_m3,cumsum_m3=self.prediction(identifier,m3_dataframe,processed_daily_data,dependent_variables,30)
+        m3_pred,m3_spe,m3_t2_initial,length_dataframe_m3,ewma_m3,cumsum_m3=self.prediction(dataframe,currdate,3,None,identifier,main_data_dict)
+        
         pred['m3']=m3_pred
         spe['m3']=m3_spe
         # crit_data['m3']=m3_crit_data
@@ -652,9 +685,7 @@ class UpdateIndividualProcessors():
         # print(pred)
         # print(spe_limit_array)
         # exit()
-        
-        m6_dataframe=self.dataframe_generator(identifier,main_data_dict,dependent_variables,processed_daily_data,6,0)
-        m6_pred,m6_spe,m6_t2_initial,length_dataframe_m6,ewma_m6,cumsum_m6=self.prediction(identifier,m6_dataframe,processed_daily_data,dependent_variables,60)
+        m6_pred,m6_spe,m6_t2_initial,length_dataframe_m6,ewma_m6,cumsum_m6=self.prediction(dataframe,currdate,6,None,identifier,main_data_dict)
         pred['m6']=m6_pred
         spe['m6']=m6_spe
         # crit_data['m6']=m6_crit_data
@@ -669,10 +700,8 @@ class UpdateIndividualProcessors():
         ewma['m6']=ewma_m6
         cumsum['m6']=cumsum_m6
         # ewma_ucl['m6']=ewma_ucl_m6
-
         # exit()
-        m12_dataframe=self.dataframe_generator(identifier,main_data_dict,dependent_variables,processed_daily_data,12,0)
-        m12_pred,m12_spe,m12_t2_initial,length_dataframe_m12,ewma_m12,cumsum_m12=self.prediction(identifier,m12_dataframe,processed_daily_data,dependent_variables,90)
+        m12_pred,m12_spe,m12_t2_initial,length_dataframe_m12,ewma_m12,cumsum_m12=self.prediction(dataframe,currdate,12,None,identifier,main_data_dict)
         pred['m12']=m12_pred
         spe['m12']=m12_spe
         # crit_data['m12']=m12_crit_data
@@ -688,8 +717,7 @@ class UpdateIndividualProcessors():
         cumsum['m12']=cumsum_m12
         # ewma_ucl['m12']=ewma_ucl_m12
         # exit()
-        ly_m3_dataframe=self.dataframe_generator(identifier,main_data_dict,dependent_variables,processed_daily_data,0,3)
-        ly_m3_pred,ly_m3_spe,ly_m3_t2_initial,length_dataframe_ly_m3,ewma_ly_m3,cumsum_ly_m3=self.prediction(identifier,ly_m3_dataframe,processed_daily_data,dependent_variables,30)
+        ly_m3_pred,ly_m3_spe,ly_m3_t2_initial,length_dataframe_ly_m3,ewma_ly_m3,cumsum_ly_m3=self.prediction(dataframe,currdate,None,3,identifier,main_data_dict)
         pred['ly_m3']=ly_m3_pred
         spe['ly_m3']=ly_m3_spe
         # crit_data['ly_m3']=ly_m3_crit_data
@@ -706,8 +734,7 @@ class UpdateIndividualProcessors():
         # ewma_ucl['ly_m3']=ewma_ucl_ly_m3
 
         # exit()
-        ly_m6_dataframe=self.dataframe_generator(identifier,main_data_dict,dependent_variables,processed_daily_data,0,6)
-        ly_m6_pred,ly_m6_spe,ly_m6_t2_initial,length_dataframe_ly_m6,ewma_ly_m6,cumsum_ly_m6=self.prediction(identifier,ly_m6_dataframe,processed_daily_data,dependent_variables,60)
+        ly_m6_pred,ly_m6_spe,ly_m6_t2_initial,length_dataframe_ly_m6,ewma_ly_m6,cumsum_ly_m6=self.prediction(dataframe,currdate,None,6,identifier,main_data_dict)
         pred['ly_m6']=ly_m6_pred
         spe['ly_m6']=ly_m6_spe
         # crit_data['ly_m6']=ly_m6_crit_data
@@ -723,8 +750,7 @@ class UpdateIndividualProcessors():
         cumsum['ly_m6']=cumsum_ly_m6
         # ewma_ucl['ly_m6']=ewma_ucl_ly_m6
 
-        ly_m12_dataframe=self.dataframe_generator(identifier,main_data_dict,dependent_variables,processed_daily_data,0,12)
-        ly_m12_pred,ly_m12_spe,ly_m12_t2_initial,length_dataframe_ly_m12,ewma_ly_m12,cumsum_ly_m12=self.prediction(identifier,ly_m12_dataframe,processed_daily_data,dependent_variables,90)
+        ly_m12_pred,ly_m12_spe,ly_m12_t2_initial,length_dataframe_ly_m12,ewma_ly_m12,cumsum_ly_m12=self.prediction(dataframe,currdate,None,12,identifier,main_data_dict)
         pred['ly_m12']=ly_m12_pred
         spe['ly_m12']=ly_m12_spe
         # crit_data['ly_m12']=ly_m12_crit_data
@@ -743,17 +769,8 @@ class UpdateIndividualProcessors():
         # print(spe_limit_array)
         # print(pred)
         # exit()
-        # print(pred)
-     
+        
         return pred,spe,t2_initial,length_dataframe,ewma,cumsum
-        
-
-    def rpm_processor(self,main_data_dict,processed_daily_data):
-        return self.base_prediction_processor('main_fuel_per_dst',main_data_dict,['cpress','w_force','rep_dt','draft_mean','speed_ship_sog','rpm','w_rel_0'],processed_daily_data)
-    
-    # def rpm_processor(self,Y,main_data_dict,X,processed_daily_data):
-        
-    #     return self.base_prediction_processor(Y,main_data_dict,X,processed_daily_data)
 
 
 
@@ -768,6 +785,8 @@ class LRPI:
     def fit(self, X_train, y_train):
         self.X_train = pd.DataFrame(X_train)
         self.y_train = pd.DataFrame(y_train)
+        # print(self.X_train)
+        # print(self.y_train)
         self.LR.fit(self.X_train, self.y_train)
         X_train_fit = self.LR.predict(self.X_train)
         self.MSE = np.power(self.y_train.subtract(X_train_fit), 2).sum(axis=0) / (self.X_train.shape[0] - self.X_train.shape[1] - 1)
@@ -785,7 +804,7 @@ class LRPI:
         SE = [np.dot(np.transpose(self.X_test.values[i]) , np.dot(self.XTX_inv, self.X_test.values[i]) ) for i in range(len(self.X_test))]
         quant=np.quantile(SE,0.9)
         if SE[-1]>quant:
-            print("greaaaaaaaaaaaaat")
+            # print("greaaaaaaaaaaaaat")
             SE=[0.3]*len(self.X_test)
         # SE=[0.3]*len(self.X_test)
         results = pd.DataFrame(self.pred , columns=['Pred'])
@@ -818,7 +837,7 @@ class LRPI_low_x:
         results = pd.DataFrame(self.pred , columns=['Pred'])
         quant=np.quantile(SE,0.9)
         if SE[-1]>quant:
-            print("greaaaaaaaaaaaaat")
+            # print("greaaaaaaaaaaaaat")
             SE=[0.3]*len(self.X_test)
        
         results.loc[:,"lower"] = results['Pred'].subtract((self.t_value)* (np.sqrt(self.MSE.values + np.multiply(SE,self.MSE.values) )),  axis=0)
