@@ -279,6 +279,11 @@ class MainDB():
                     # for i in output.split():
                     output=output.replace(',',' ')
                     output_list=output.split()
+                if pandas.isnull(self.ship_configs['data'][key]['source_idetifier'])==False and self.ship_configs['data'][key]['source_idetifier']=="available":
+                    equipment_base_dict['processed']=1
+                else:
+                    equipment_base_dict['processed']=0
+
                 equipment_base_dict['input_param']=input_list
                 equipment_base_dict['output_param']=output_list
                 self.processed_equipment_data[key]=equipment_base_dict
@@ -328,9 +333,10 @@ class MainDB():
         print("boooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooom")
         self.get_main_db()
         processed_daily_data=self.main_data['processed_daily_data']
-        IP_two=IndividualProcessorsTwo(self.ship_configs,processed_daily_data)
+        equipment_data=self.main_data['Equipment']
+        IP_two=IndividualProcessorsTwo(self.ship_configs,processed_daily_data,equipment_data)
         for key in self.ship_configs['data']:
-            if key in processed_daily_data and (pandas.isnull(processed_daily_data[key]['processed']) or processed_daily_data[key]['processed']==None) and self.ship_configs['data'][key]['Derived']==True:
+            if key in processed_daily_data and (pandas.isnull(processed_daily_data[key]['processed']) or processed_daily_data[key]['processed']==0 or processed_daily_data[key]['processed']==1) and self.ship_configs['data'][key]['Derived']==True:
                 print(key)
                 base_dict=processed_daily_data[key]
                 maindict=IP_two.base_individual_processor(key,base_dict)
@@ -472,6 +478,8 @@ class MainDB():
                     operationalmin_max['max']=None
                     main_data_dict_key['within_outlier_limits']=else_dict
                     main_data_dict_key['within_operational_limits']=else_dict
+                    main_data_dict_key['outlier_limit_msg']=else_dict
+                    main_data_dict_key['operational_limit_msg']=else_dict
                     main_data_dict_key['z_score']=else_dict
                     main_data_dict_key['outlier_limit_value']=outliermin_max
                     main_data_dict_key['operational_limit_value']=operationalmin_max
@@ -689,7 +697,7 @@ class MainDB():
             else:
                 maindb.update_one(maindb.find({"ship_imo": int(self.ship_imo),"timestamp":self.timestamp,"processed_daily_data.rep_dt.processed":self.report_date})[0],{"$set":{"within_good_voyage_limit":False}})
         else:
-                maindb.update_one(maindb.find({"ship_imo": int(self.ship_imo),"timestamp":self.timestamp,"processed_daily_data.rep_dt.processed":self.report_date})[0],{"$set":{"within_good_voyage_limit":False}})
+            maindb.update_one(maindb.find({"ship_imo": int(self.ship_imo),"timestamp":self.timestamp,"processed_daily_data.rep_dt.processed":self.report_date})[0],{"$set":{"within_good_voyage_limit":False}})
         
     #@check_status
     def main_db_writer(self):
@@ -1485,6 +1493,24 @@ class MainDB():
         spe_messages={}
         t2_messages={}
         ewma_messages={}
+
+
+        indice_list=[]
+        for i in indices:
+            if indices[i]['Derived']!=True:
+                indice_list.append(i)
+
+        spe_indice_limits=self.ship_configs['spe_limits_indices']
+        t2_indice_limits=self.ship_configs['t2_limits_indices']
+        mewma_limits=self.ship_configs['mewma_limits']
+        t2_indice_anamoly={}
+        spe_indice_anamoly={}
+        mewma_anamoly={}
+        t2_indice_messages={}
+        spe_indice_messages={}
+        mewma_messages={}
+
+
         try:
             for key in ml_list:
                 try:
@@ -1570,6 +1596,101 @@ class MainDB():
                                         ewma_msg_list.append(None)
                                 ewma_messages[month]=ewma_msg_list
                         self.maindb.update_one(self.maindb.find({"ship_imo": int(self.ship_imo),"timestamp":self.timestamp,"processed_daily_data.rep_dt.processed":self.report_date})[0],{"$set":{"processed_daily_data."+key+".is_not_spe_anamolous":spe_anamoly,"processed_daily_data."+key+".is_not_t2_anamolous":t2_anamoly,"processed_daily_data."+key+".is_not_ewma_anamolous":ewma_anamoly,"processed_daily_data."+key+".spe_messages":spe_messages,"processed_daily_data."+key+"._t2_messages":t2_messages,"processed_daily_data."+key+".ewma_messages":ewma_messages}})
+                except:
+                    continue
+            
+            for key in indice_list:
+                print("indiiiiiiiiiiiiiiiiiiicesssssssssssssssssssssssss")
+                try:
+                    if key in self.main_data[i]['independent_indices']:
+                        for month in months:
+                            spe_indice_list=[]
+                            t2_indice_list=[]
+                            mewma_list=[]
+                            if pandas.isnull(self.main_data[i]['independent_indices'][key]['SPEy'][month])==False:
+                                for alphas in alpha:
+                                    if spe_indice_limits[key][month][alphas]>self.main_data[i]['independent_indices'][key]['SPEy'][month]:
+                                        spe_indice_list.append(True)
+                                    else:
+                                        spe_indice_list.append(False)
+                            else:
+                                spe_indice_list=None
+                            spe_indice_anamoly[month]=spe_indice_list
+                            if pandas.isnull(self.main_data[i]['independent_indices'][key]['t2_initial'][month])==False:
+                                for alphas in alpha:
+                                    if t2_indice_limits[key][alphas]>self.main_data[i]['independent_indices'][key]['t2_initial'][month]:
+                                        t2_indice_list.append(True)
+                                    else:
+                                        t2_indice_list.append(False)
+                            else:
+                                t2_indice_list=None
+                            t2_indice_anamoly[month]=t2_indice_list
+                            if pandas.isnull(self.main_data[i]['independent_indices'][key]['mewma_val'][month])==False:
+                                for j in range(0,3):
+                                    if mewma_limits[key][month][j]>self.main_data[i]['independent_indices'][key]['mewma_val'][month]:
+                                        mewma_list.append(True)
+                                    else:
+                                        mewma_list.append(False)
+                            else:
+                                mewma_list.append(None)
+                            
+                            mewma_anamoly[month]=mewma_list
+                        for month in months:
+                            spe_indice_msg_list=[]
+                            t2_indice_msg_list=[]
+                            mewma_msg_list=[]
+                            if len(spe_indice_anamoly[month])>0:
+                                for ind in range(0,3):
+                                    if spe_indice_anamoly[month][ind]==False:
+                                        print("false_ speeeeeeeee here")
+                                        if ind==0:
+                                            spe_indice_msg_list.append(self.ship_configs['parameter_anamoly']['SPE_alpha1']['message']+str(self.ship_configs['data'][key]['spe_rule_based_message']))
+                                        elif ind==1:
+                                            spe_indice_msg_list.append(self.ship_configs['parameter_anamoly']['SPE_alpha2']['message']+str(self.ship_configs['data'][key]['spe_rule_based_message']))
+                                        elif ind==2:
+                                            spe_indice_msg_list.append(self.ship_configs['parameter_anamoly']['SPE_alpha3']['message']+str(self.ship_configs['data'][key]['spe_rule_based_message']))
+                                    else:
+                                        spe_indice_msg_list.append(None)
+                                spe_indice_messages[month]=spe_indice_msg_list
+
+                            if len(t2_indice_anamoly[month])>0:
+                                for ind in range(0,3):
+                                    if t2_indice_anamoly[month][ind]==False:
+                                        print("false t2 hereeeeeeeeeeeee")
+                                        if ind==0:
+                                            t2_indice_msg_list.append(self.ship_configs['parameter_anamoly']['T2_alpha1']['message']+str(self.ship_configs['data'][key]['t2_rule_based_message']))
+                                        elif ind==1:
+                                            t2_indice_msg_list.append(self.ship_configs['parameter_anamoly']['T2_alpha2']['message']+str(self.ship_configs['data'][key]['t2_rule_based_message']))
+                                        elif ind==2:
+                                            t2_indice_msg_list.append(self.ship_configs['parameter_anamoly']['T2_alpha3']['message']+str(self.ship_configs['data'][key]['t2_rule_based_message']))
+                                    else:
+                                        t2_indice_msg_list.append(None)
+                                t2_indice_messages[month]=t2_indice_msg_list
+
+                            if len(mewma_anamoly[month])>0:
+                                for ind in range(0,3):
+                                    if mewma_anamoly[month][ind]==False:
+                                        print("false mewma hereeeeeeeeeeeee")
+                                        if ind==0:
+                                            mewma_msg_list.append(self.ship_configs['parameter_anamoly']['MEWMA_CUMSUM_alpha1']['message']+str(self.ship_configs['data'][key]['ewma_rule_based_message']))
+                                        elif ind==1:
+                                            mewma_msg_list.append(self.ship_configs['parameter_anamoly']['MEWMA_CUMSUM_alpha2']['message']+str(self.ship_configs['data'][key]['ewma_rule_based_message']))
+                                        elif ind==2:
+                                            mewma_msg_list.append(self.ship_configs['parameter_anamoly']['MEWMA_CUMSUM_alpha3']['message']+str(self.ship_configs['data'][key]['ewma_rule_based_message']))
+                                    else:
+                                        mewma_msg_list.append(None)
+                                mewma_messages[month]=mewma_msg_list
+                            
+                            
+
+
+                    # print(spe_anamoly)
+                    # print(t2_anamoly)
+                    # print(ewma_anamoly)
+
+                    # maindb.update_one(maindb.find({"ship_imo": int(self.ship_imo),"processed_daily_data.rep_dt.processed":{"$gte":datetime(2016,2,1,12)}})[i],{"$set":{"processed_daily_data."+key+".spe_anamoly":spe_anamoly,"processed_daily_data."+key+".t2_anamoly":t2_anamoly,"processed_daily_data."+key+".ewma_anamoly":ewma_anamoly}})
+                    self.maindb.update_one(self.maindb.find({"ship_imo": int(self.ship_imo),"timestamp":self.timestamp,"processed_daily_data.rep_dt.processed":self.report_date})[0],{"$set":{"independent_indices."+key+".is_not_spe_anamolous":spe_indice_anamoly,"independent_indices."+key+".is_not_t2_anamolous":t2_indice_anamoly,"independent_indices."+key+".is_not_mewma_anamolous":mewma_anamoly,"independent_indices."+key+".spe_messages":spe_indice_messages,"independent_indices."+key+"._t2_messages":t2_indice_messages,"independent_indices."+key+".mewma_messages":mewma_messages}})
+                    print("doneeeeeeee")
                 except:
                     continue
         except:
@@ -1666,34 +1787,6 @@ class MainDB():
 # obj=MainDB(9591301)
 
 start_time = time.time()
-# obj.get_ship_configs()
-# # obj.get_daily_data()
-# # obj.process_daily_data()
-# obj.get_ship_stats()
-# # obj.get_main_db(1)
-# # obj.process_main_data()
-# # obj.update_maindb()
-# obj.update_maindb_alldoc()
-# # obj.process_main_data_predictions(1)
-# # obj.example_equipment()
-# #obj.main_db_writer()
-# # obj.ad_all()
-# # obj.processing_indices()
-# # obj.update_indices()
-# # obj.update_main_fuel()
-# # obj.update_sfoc()
-# # obj.update_sfoc_processed()
-# # obj.update_avg_hfo()
-# # obj.update_maindb_predictions_alldoc()
-# # obj.good_voyage()
-# # obj.update_good_voyage()
-# # obj.ewma_limits()
-# # obj.universal_limit()
-# obj.anamolies_by_config()
-# # obj.universal_indices_limits()
-# obj.indice_ewma_limit()
-# end_time=time.time()
-# print(end_time-start_time)
 
 # daily_obj=DailyInsert('F:\Afzal_cs\Internship\Arvind data files\RTM FUEL.xlsx','F:\Afzal_cs\Internship\Arvind data files\RTM ENGINE.xlsx',9591301,True)
 # daily_obj.do_steps()
@@ -1705,7 +1798,7 @@ obj.get_ship_configs()
 # obj.maindb_lvl_two()
 #initial population done (remove date condition on find  before uploading in aws)
 
-obj.update_maindb_alldoc()
+# obj.update_maindb_alldoc()
 
 #outlier (both outlier 1 and 2 inside this) and (remove date condition on find  before uploading in aws)
 # obj.update_good_voyage()
@@ -1727,7 +1820,7 @@ obj.update_maindb_alldoc()
 # obj.update_avg_hfo()
 #Backcalculating
 # obj.update_cp_msg()
-# obj.anamolies_by_config()
+obj.anamolies_by_config()
 
 #temporarily added for checking spe and ewma using a diferent dataframe and formula
 # done till here  
