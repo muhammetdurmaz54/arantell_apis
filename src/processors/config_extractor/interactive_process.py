@@ -14,7 +14,7 @@ from datetime import datetime
 log = CommonLogger(__name__,debug=True).setup_logger()
 
 class InteractiveExtractor():
-    def __init__(self, ship_imo, X, Y, duration, Z=None, color=None, size=None, shape=None, **other_X):
+    def __init__(self, ship_imo, X, Y, duration, Z=None, color=None, size=None, shape=None, typeofinput="input", **other_X):
         self.ship_imo = int(ship_imo)
         self.X = X
         self.Y = Y
@@ -24,6 +24,7 @@ class InteractiveExtractor():
         self.shape = shape
         self.duration = duration
         self.other_X = other_X
+        self.typeofinput = typeofinput
     
     def read_data(self):
         self.configuration = Configurator(self.ship_imo)
@@ -31,19 +32,28 @@ class InteractiveExtractor():
         self.main_db = self.configuration.get_main_data()
         result={}
         if self.Z is not None:
-            dataframe, X_name, Y_name, Z_name, X_list, Y_list, Z_list = self.configuration.create_dataframe(self.X, self.Y, self.duration, self.Z, **self.other_X)
-            X1, Y1, pred_list = self.configuration.regress_for_constant_x(dataframe, self.X, self.Y, self.Z, **self.other_X)
-            result['Prediction'] = {
-                'x': X1,
-                'y': Y1,
-                'z': pred_list
-            }
-            result['Actual Values'] = {
-                'x': X_list,
-                'y': Y_list,
-                'z': Z_list
-            }
-            return X_name, Y_name, Z_name, result
+            if self.typeofinput == 'input':
+                X_name, Y_name, Z_name, X_list, Y_list, Z_list = self.configuration.create_surface_data(self.X, self.Y, self.duration, self.Z, **self.other_X)
+                result['Actual Values'] = {
+                    'x': X_list,
+                    'y': Y_list,
+                    'z': Z_list
+                }
+                return X_name, Y_name, Z_name, result
+            if self.typeofinput == 'target':
+                dataframe, X_name, Y_name, Z_name, X_list, Y_list, Z_list = self.configuration.create_dataframe(self.X, self.Y, self.duration, self.Z, **self.other_X)
+                X1, Y1, pred_list = self.configuration.regress_for_constant_x(dataframe, self.X, self.Y, self.Z, **self.other_X)
+                result['Prediction'] = {
+                    'x': X1,
+                    'y': Y1,
+                    'z': pred_list
+                }
+                result['Actual Values'] = {
+                    'x': X_list,
+                    'y': Y_list,
+                    'z': Z_list
+                }
+                return X_name, Y_name, Z_name, result
         else:
             dataframe, X_name, Y_name, X_list, Y_list = self.configuration.create_dataframe(self.X, self.Y, self.duration, **self.other_X)
             X1, pred_list = self.configuration.regress_for_constant_x(dataframe, self.X, self.Y, **self.other_X)
