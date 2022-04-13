@@ -24,7 +24,9 @@ log = CommonLogger(__name__,debug=True).setup_logger()
 # b = a.mask(a.str.startswith('Unnamed')).ffill().fillna('')
 # df.columns = [b, df.columns.get_level_values(1)]
 
-
+spe_limit_global = 1/0.8
+t2_limit_global = 1/0.65
+ewma_limit_global = 1
 
 
 class TrendsExtractor():
@@ -50,20 +52,24 @@ class TrendsExtractor():
         #     a = self.process_data()
         #     return a
         # else:
-        if self.include_outliers == 'true':
-            if 'Lastyear' in self.duration:
-                a, b, c, d, e, f, g, h, i, j, k, l, m, n = self.process_data()
-                return a, b, c, d, e, f, g, h, i, j, k, l, m, n
+        if 'Multi Axis' not in self.group:
+            if self.include_outliers == 'true':
+                if 'Lastyear' in self.duration:
+                    a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s = self.process_data()
+                    return a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s
+                else:
+                    a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p = self.process_data()
+                    return a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p
             else:
-                a, b, c, d, e, f, g, h, i, j, k = self.process_data()
-                return a, b, c, d, e, f, g, h, i, j, k
-        else:
-            if 'Lastyear' in self.duration:
-                a, b, c, d, e, g, h, i, j, k, l, m, n = self.process_data()
-                return a, b, c, d, e, g, h, i, j, k, l, m, n
-            else:
-                a, b, c, d, e, g, h, i, j, k = self.process_data()
-                return a, b, c, d, e, g, h, i, j, k
+                if 'Lastyear' in self.duration:
+                    a, b, c, d, e, g, h, i, j, k, l, m, n, o, p, q, r, s = self.process_data()
+                    return a, b, c, d, e, g, h, i, j, k, l, m, n, o, p, q, r, s
+                else:
+                    a, b, c, d, e, g, h, i, j, k, l, m, n, o, p = self.process_data()
+                    return a, b, c, d, e, g, h, i, j, k, l, m, n, o, p
+        if 'Multi Axis' in self.group:
+            a, b, c, d, e, f, g, h, i, j, k, l = self.process_data()
+            return a, b, c, d, e, f, g, h, i, j, k, l
     
     @check_status
     def connect(self):
@@ -210,6 +216,8 @@ class TrendsExtractor():
             self.groupsList = self.configuration.get_group_selection_for_individual_parameters(self.individual_params, self.group)
         print(self.groupsList)
 
+        subgroup_dict = self.configuration.get_subgroup_names(self.group)
+
         print("START CURRENT DURATION")
         durationActual = self.configuration.create_current_duration(self.duration)
         print("END CURRENT DURATION")
@@ -225,38 +233,389 @@ class TrendsExtractor():
         spelimitdict = {}
         t2dict = {}
         t2limitdict = {}
+        ewmadict = {}
+        ewmalimitdict = {}
         spe_number_dict = {}
         t2_number_dict = {}
+        ewma_number_dict = {}
+        spe_messages_dict = {}
+        new_duration = durationActual.replace('ly_','') if 'ly_' in durationActual else durationActual # Remove when Last year duration added in DB.
+        loaded_ballast_list = self.configuration.get_shapes_for_loaded_ballast_data()
+        dict_of_issues, issuesCount = self.configuration.create_dict_of_issues('')
         if('Multi Axis' in self.group):
             ''' TEMPORARY PURPOSES'''
-            nameslist = self.configuration.temporary_dict_and_list_according_to_groups(self.group)
-            group = self.configuration.temporary_group_selection_for_11(self.group)
+            number_of_the_unit = self.group.replace('Multi Axis - Unit ', '')
+            print("UNIT!!!!!!!", number_of_the_unit)
+            group = self.configuration.temporary_group_selection_for_multi_axis(number_of_the_unit)
+            print("GROUP!!!!!!!",group)
+            nameslist = self.configuration.temporary_dict_and_list_according_to_groups(group)
+            short_names_list = self.configuration.get_short_names_list_for_multi_axis(number_of_the_unit)
+            for name in nameslist:
+                newlist=[]
+                explist=[]
+                upperlist=[]
+                lowerlist=[]
+                print("NAME!!!!!", name)
+                for doc in self.main_db.find({'ship_imo': self.ship_imo}, {'ship_imo': 1, 'processed_daily_data.'+name: 1, '_id': 0}).sort('processed_daily_data.rep_dt.processed', ASCENDING):
+                    if name != 'rep_dt':
+                        try:
+                            newlist.append(self.configuration.makeDecimal(doc['processed_daily_data'][name]['processed']))
+                        except TypeError:
+                            newlist.append(None)
+                        try:
+                            explist.append(self.configuration.makeDecimal(doc['processed_daily_data'][name]['predictions'][new_duration][1]))
+                        except TypeError:
+                            explist.append(None)
+                        try:
+                            upperlist.append(self.configuration.makeDecimal(doc['processed_daily_data'][name]['predictions'][new_duration][2]))
+                        except TypeError:
+                            upperlist.append(None)
+                        try:
+                            lowerlist.append(self.configuration.makeDecimal(doc['processed_daily_data'][name]['predictions'][new_duration][0]))
+                        except TypeError:
+                            lowerlist.append(None)
+                    else:
+                        newdate = doc['processed_daily_data'][name]['processed'].strftime("%Y-%m-%d")
+                        newlist.append(newdate)
+                        explist.append(newdate)
+                datadict[name] = newlist
+                expecteddict['expected_'+name] = explist
+                lowerdict[name] = lowerlist
+                upperdict[name] = upperlist
+            print(datadict, expecteddict, lowerdict, upperdict)
+            for k in datadict.copy():
+                if datadict[k] == []:
+                    del datadict[k]
+                try:
+                    if all(x is None for x in datadict[k]):
+                        del datadict[k]
+                except KeyError:
+                    continue
+            for k in expecteddict.copy():
+                if expecteddict[k] == []:
+                    del expecteddict[k]
+                try:
+                    if all(x is None for x in expecteddict[k]):
+                        del expecteddict[k]
+                except KeyError:
+                    continue
+            for k in lowerdict.copy():
+                if lowerdict[k] == []:
+                    del lowerdict[k]
+                try:
+                    if all(x is None for x in lowerdict[k]):
+                        del lowerdict[k]
+                except KeyError:
+                    continue
+            for k in upperdict.copy():
+                if upperdict[k] == []:
+                    del upperdict[k]
+                try:
+                    if all(x is None for x in upperdict[k]):
+                        del upperdict[k]
+                except KeyError:
+                    continue
+            fuel_consumption = self.process_fuel_consumption()
+            new_group = []
+            new_short_names_list = []
+            for param in datadict.keys():
+                for grp in group:
+                    if param == grp['name']:
+                        new_group.append(grp)
+                for name in short_names_list:
+                    if name == grp['short_names'] and name not in new_short_names_list:
+                        new_short_names_list.append(name)
+            
+            chart_height = self.get_chart_height(new_group)
+            variables_list = self.configuration.get_variables_list_in_order_of_blocks(new_group)
+            return datadict, expecteddict, lowerdict, upperdict, new_short_names_list, loaded_ballast_list, fuel_consumption, new_group, chart_height, dict_of_issues, variables_list
         else:
             print("START DICT AND LIST ACC TO GROUPS")
             if self.group == "" and self.individual_params != "":
                 nameslist = self.individual_params
             if self.group != "" and self.individual_params == "":
-                nameslist = self.configuration.get_dict_and_list_according_to_groups(self.groupsList)
+                paramsList, indicesList = self.configuration.get_dict_and_list_according_to_groups(self.groupsList)
             if self.group != "" and self.individual_params != "":
-                nameslist = self.configuration.get_dict_and_list_according_to_groups(self.groupsList)
+                paramsList, indicesList = self.configuration.get_dict_and_list_according_to_groups(self.groupsList)
             
             print("END DICT AND LIST ACC TO GROUPS")
             # group = self.configuration.get_group_selection(self.group)
             # dependent_parameters = self.configuration.get_dependent_parameters()
-            new_duration = durationActual.replace('ly_','') if 'ly_' in durationActual else durationActual
+            
+            for name in paramsList:
+                for doc in self.main_db.find({'ship_imo': self.ship_imo}, {'processed_daily_data.'+name: 1}).sort('processed_daily_data.rep_dt.processed', DESCENDING).limit(1):
+                    if name != 'rep_dt':
+                        if 'spe_messages' in doc['processed_daily_data'][name].keys() and new_duration in doc['processed_daily_data'][name]['spe_messages'].keys():
+                            spe_messages_dict[name] = doc['processed_daily_data'][name]['spe_messages'][new_duration][2]
+                        else:
+                            spe_messages_dict[name] = None
+            for name in indicesList:
+                for doc in self.main_db.find({'ship_imo': self.ship_imo}, {'independent_indices.'+name: 1}).sort('processed_daily_data.rep_dt.processed', DESCENDING).limit(1):
+                    if name != 'rep_dt':
+                        if 'spe_messages' in doc['independent_indices'][name].keys() and new_duration in doc['independent_indices'][name]['spe_messages'].keys():
+                            spe_messages_dict[name] = doc['independent_indices'][name]['spe_messages'][new_duration][2]
+                        else:
+                            spe_messages_dict[name] = None
             groups = self.groupsList
             print("START LIST")
-            for name in nameslist:
+            for name in paramsList:
+                if name != 'rep_dt':
+                    try:
+                        cursor_temp_spe = self.ship_configs.find({'ship_imo': self.ship_imo}, {'spe_limits.'+name: 1, 't2_limits.'+name+'.zero_two': 1, 'ewma_limits.'+name: 1})
+                        temp_spe = loads(dumps(cursor_temp_spe))
+                        print("TEMP SPE", temp_spe)
+                        spe_number_dict[name] = temp_spe[0]['spe_limits'][name][durationActual]['zero_zero_five']
+                        t2_number_dict[name] = temp_spe[0]['t2_limits'][name]['zero_two']
+                        ewma_number_dict[name] = temp_spe[0]['ewma_limits'][name][durationActual][2]
+                    except KeyError:
+                        continue
+                    except TypeError:
+                        continue
+                # except TypeError:
+                #     continue
+            for name in indicesList:
                 try:
-                    cursor_temp_spe = self.ship_configs.find({'ship_imo': self.ship_imo}, {'spe_limits.'+name+'.zero_zero_five': 1, 't2_limits.'+name+'.zero_two': 1})
-                    temp_spe = loads(dumps(cursor_temp_spe))
-                    print("TEMP SPE", temp_spe)
-                    spe_number_dict[name] = temp_spe[0]['spe_limits'][name]['zero_zero_five']
-                    t2_number_dict[name] = temp_spe[0]['t2_limits'][name]['zero_two']
+                    cursor_temp_spe_indices = self.ship_configs.find({'ship_imo': self.ship_imo}, {'spe_limits_indices.'+name: 1, 't2_limits_indices.'+name+'.zero_two': 1, 'mewma_limits.'+name: 1})
+                    temp_spe_indices = loads(dumps(cursor_temp_spe_indices))
+                    spe_number_dict[name] = temp_spe_indices[0]['spe_limits_indices'][name][durationActual]['zero_zero_five']
+                    t2_number_dict[name] = temp_spe_indices[0]['t2_limits_indices'][name]['zero_two']
+                    ewma_number_dict[name] = temp_spe_indices[0]['mewma_limits'][name][durationActual][2]
                 except KeyError:
                     continue
-            print("SPE & T2", spe_number_dict, t2_number_dict)
-            for name in nameslist:
+                except TypeError:
+                    continue
+            print("SPE & T2", spe_number_dict, t2_number_dict, ewma_number_dict)
+
+            # INDEPENDENT INDICES------------------------------------------
+            for name in indicesList:
+                newlist=[]
+                # explist=[]
+                # upperlist=[]
+                # lowerlist=[]
+                # outlierlist=[]
+                # lyexplist=[]
+                # lylowerlist=[]
+                # lyupperlist=[]
+                # spe_list=[]
+                outlierspe_list = []
+                spe_limit_list = []
+                outlierspe_limit_list = []
+                t2_list = []
+                ewma_list = []
+                outliert2_list = []
+                t2_limit_list = []
+                ewma_limit_list = []
+                outliert2_limit_list = []    
+                # try:
+                for doc in self.main_db.find({'ship_imo': self.ship_imo}, {'ship_imo': 1, 'historical': 1, 'independent_indices': 1, '_id': 0}).sort('processed_daily_data.rep_dt.processed', ASCENDING):
+                    if name in doc['independent_indices'].keys():
+                        if self.anomalies == 'false':
+                            try:
+                                if doc['historical'] == True:
+                                    new_spe = self.configuration.spe_divide(doc['independent_indices'][name]['SPEy'][durationActual], spe_number_dict[name])
+                                    if doc['independent_indices'][name]['SPEy'][durationActual] < spe_number_dict[name]:
+                                        newlist.append(self.configuration.makeDecimal(new_spe))
+                                        # spe_list.append(doc['processed_daily_data'][name]['SPEy'][durationActual])
+                                        # spe_list.append(spe_number_dict[name])
+                                    else:
+                                        newlist.append(None)
+                            except KeyError:
+                                newlist.append(None)
+                            except TypeError:
+                                newlist.append(None)
+                            except IndexError:
+                                newlist.append(None)
+                            
+                            try:
+                                if doc['historical'] == True:
+                                    if doc['independent_indices'][name]['is_not_spe_anamolous'][durationActual][2] == True:
+                                        spe_limit_list.append(self.configuration.makeDecimal(spe_limit_global))
+                                        # spe_limit_list.append(doc['processed_daily_data'][name]['Q_y'][durationActual][1])
+                                        # spe_limit_list.append(spe_number_dict[name])
+                                    else:
+                                        spe_limit_list.append(None)
+                            except KeyError:
+                                spe_limit_list.append(None)
+                            except TypeError:
+                                spe_limit_list.append(None)
+                            except IndexError:
+                                spe_limit_list.append(None)
+                            
+                            #T2----------------------------------------------------------------------
+                            try:
+                                # if doc['processed_daily_data'][name]['t2_anamoly'][durationActual][0] == True:
+                                if doc['historical'] == True:
+                                    new_t2 = self.configuration.t2_divide(doc['independent_indices'][name]['t2_initial'][durationActual], t2_number_dict[name])
+                                    if doc['independent_indices'][name]['t2_initial'][durationActual] < t2_number_dict[name]:
+                                        t2_list.append(self.configuration.makeDecimal(new_t2))
+                                        # t2_list.append(doc['processed_daily_data'][name]['t2_initial'][durationActual])
+                                    else:
+                                        t2_list.append(None)
+                            except KeyError:
+                                t2_list.append(None)
+                            except TypeError:
+                                t2_list.append(None)
+                            except IndexError:
+                                t2_list.append(None)
+                            
+                            try:
+                                if doc['independent_indices'][name]['is_not_t2_anamolous'][durationActual][0] == True:
+                                    t2_limit_list.append(self.configuration.makeDecimal(t2_limit_global))
+                                    # t2_limit_list.append(doc['processed_daily_data'][name]['ucl_crit_beta'][durationActual])
+                                    # t2_limit_list.append(t2_number_dict[name])
+                                else:
+                                    t2_limit_list.append(None)
+                            except KeyError:
+                                t2_limit_list.append(None)
+                            except TypeError:
+                                t2_limit_list.append(None)
+                            except IndexError:
+                                t2_limit_list.append(None)
+                            #EWMA-----------------------------------------------------------------------
+                            try:
+                                # if doc['processed_daily_data'][name]['t2_anamoly'][durationActual][0] == True:
+                                if doc['historical'] == True:
+                                    new_ewma = self.configuration.ewma_divide(doc['independent_indices'][name]['mewma_val'][durationActual], ewma_number_dict[name])
+                                    if doc['independent_indices'][name]['mewma_val'][durationActual] < ewma_number_dict[name]:
+                                        ewma_list.append(self.configuration.makeDecimal(new_ewma))
+                                        # ewma_list.append(doc['processed_daily_data'][name]['ewma'][durationActual][2])
+                                    else:
+                                        ewma_list.append(None)
+                            except KeyError:
+                                ewma_list.append(None)
+                            except TypeError:
+                                ewma_list.append(None)
+                            except IndexError:
+                                ewma_list.append(None)
+                            
+                            try:
+                                if doc['historical'] == True:
+                                    if doc['independent_indices'][name]['is_not_mewma_anamolous'][durationActual][2] == True:
+                                        ewma_limit_list.append(self.configuration.makeDecimal(ewma_limit_global))
+                                        # t2_limit_list.append(doc['processed_daily_data'][name]['ucl_crit_beta'][durationActual])
+                                        # ewma_limit_list.append(ewma_number_dict[name])
+                                    else:
+                                        ewma_limit_list.append(None)
+                            except KeyError:
+                                ewma_limit_list.append(None)
+                            except TypeError:
+                                ewma_limit_list.append(None)
+                            except IndexError:
+                                ewma_limit_list.append(None)
+                        
+                        if self.anomalies == 'true':
+                            try:
+                                if doc['historical'] == True:
+                                    new_spe = self.configuration.spe_divide(doc['independent_indices'][name]['SPEy'][durationActual], spe_number_dict[name])
+                                    # if doc['processed_daily_data'][name]['SPEy'][durationActual] < spe_number_dict[name]:
+                                    newlist.append(self.configuration.makeDecimal(new_spe))
+                                        # spe_list.append(doc['processed_daily_data'][name]['SPEy'][durationActual])
+                                        # spe_list.append(spe_number_dict[name])
+                                    # else:
+                                    #     spe_list.append(None)
+                            except KeyError:
+                                newlist.append(None)
+                            except TypeError:
+                                newlist.append(None)
+                            except IndexError:
+                                newlist.append(None)
+                            
+                            try:
+                                if doc['historical'] == True:
+                                    # if doc['processed_daily_data'][name]['is_not_spe_anamolous'][durationActual][2] == True:
+                                    spe_limit_list.append(self.configuration.makeDecimal(spe_limit_global))
+                                        # spe_limit_list.append(doc['processed_daily_data'][name]['Q_y'][durationActual][1])
+                                        # spe_limit_list.append(spe_number_dict[name])
+                                    # else:
+                                    #     spe_limit_list.append(None)
+                            except KeyError:
+                                spe_limit_list.append(None)
+                            except TypeError:
+                                spe_limit_list.append(None)
+                            except IndexError:
+                                spe_limit_list.append(None)
+                            
+                            #T2----------------------------------------------------------------------
+                            try:
+                                # if doc['processed_daily_data'][name]['t2_anamoly'][durationActual][0] == True:
+                                if doc['historical'] == True:
+                                    new_t2 = self.configuration.t2_divide(doc['independent_indices'][name]['t2_initial'][durationActual], t2_number_dict[name])
+                                    # if doc['processed_daily_data'][name]['t2_initial'][durationActual] < t2_number_dict[name]:
+                                    t2_list.append(self.configuration.makeDecimal(new_t2))
+                                        # t2_list.append(doc['processed_daily_data'][name]['t2_initial'][durationActual])
+                                    # else:
+                                    #     t2_list.append(None)
+                            except KeyError:
+                                t2_list.append(None)
+                            except TypeError:
+                                t2_list.append(None)
+                            except IndexError:
+                                t2_list.append(None)
+                            
+                            try:
+                                # if doc['processed_daily_data'][name]['is_not_t2_anamolous'][durationActual][0] == True:
+                                t2_limit_list.append(self.configuration.makeDecimal(t2_limit_global))
+                                    # t2_limit_list.append(doc['processed_daily_data'][name]['ucl_crit_beta'][durationActual])
+                                    # t2_limit_list.append(t2_number_dict[name])
+                                # else:
+                                #     t2_limit_list.append(None)
+                            except KeyError:
+                                t2_limit_list.append(None)
+                            except TypeError:
+                                t2_limit_list.append(None)
+                            except IndexError:
+                                t2_limit_list.append(None)
+                            #EWMA-----------------------------------------------------------------------
+                            try:
+                                # if doc['processed_daily_data'][name]['t2_anamoly'][durationActual][0] == True:
+                                # print("MEWMA!!!!!!!", doc['independent_indices'][name]['mewma_val'][durationActual], ewma_number_dict[name])
+                                if doc['historical'] == True:
+                                    new_ewma = self.configuration.ewma_divide(doc['independent_indices'][name]['mewma_val'][durationActual], ewma_number_dict[name])
+                                    # if doc['processed_daily_data'][name]['ewma'][durationActual][2] < ewma_number_dict[name]:
+                                    ewma_list.append(self.configuration.makeDecimal(new_ewma))
+                                        # ewma_list.append(doc['processed_daily_data'][name]['ewma'][durationActual][2])
+                                    # else:
+                                    #     ewma_list.append(None)
+                            except KeyError:
+                                ewma_list.append(None)
+                            except TypeError:
+                                ewma_list.append(None)
+                            except IndexError:
+                                ewma_list.append(None)
+                            
+                            try:
+                                if doc['historical'] == True:
+                                    # if doc['processed_daily_data'][name]['is_not_ewma_anamolous'][durationActual][2] == True:
+                                    ewma_limit_list.append(self.configuration.makeDecimal(ewma_limit_global))
+                                        # t2_limit_list.append(doc['processed_daily_data'][name]['ucl_crit_beta'][durationActual])
+                                        # ewma_limit_list.append(ewma_number_dict[name])
+                                    # else:
+                                    #     ewma_limit_list.append(None)
+                            except KeyError:
+                                ewma_limit_list.append(None)
+                            except TypeError:
+                                ewma_limit_list.append(None)
+                            except IndexError:
+                                ewma_limit_list.append(None)
+                # except KeyError:
+                #     continue
+                # print("MEWMA!!!!!!!", name, ewma_list)
+                datadict[name] = newlist
+                # expecteddict['expected_'+name] = explist
+                # lyexpecteddict['lyexpected_'+name] = lyexplist
+                # ewmadict['ewma_'+name] = ewma_list
+                spelimitdict[name] = spe_limit_list
+                ewmadict[name] = ewma_list
+                ewmalimitdict[name] = ewma_limit_list
+                t2dict[name] = t2_list
+                t2limitdict[name] = t2_limit_list
+                # lowerdict[name] = lowerlist
+                # upperdict[name] = upperlist
+                # lylowerdict[name] = lylowerlist
+                # lyupperdict[name] = lyupperlist
+                # outlierdict[name] = outlierlist
+            #PARAMETERS-----------------------------------------------
+            for name in paramsList:
                 newlist=[]
                 explist=[]
                 upperlist=[]
@@ -270,444 +629,418 @@ class TrendsExtractor():
                 spe_limit_list = []
                 outlierspe_limit_list = []
                 t2_list = []
+                ewma_list = []
                 outliert2_list = []
                 t2_limit_list = []
+                ewma_limit_list = []
                 outliert2_limit_list = []
                 # outlierColorList=[]
                 # opacityList=[]
                 # if name != 'rep_dt':
                 # print(name)
                 # spe_limit_number = self.ship_configs.find({'ship_imo': self.ship_imo}, {''})
-                try:
-                    for doc in self.main_db.find({'ship_imo': self.ship_imo}, {'ship_imo': 1, 'processed_daily_data.'+name: 1, '_id': 0}).sort('processed_daily_data.rep_dt.processed', ASCENDING):
-                        # try:
-                            if name != 'rep_dt':
-                                try:
-                                    if doc['processed_daily_data'][name]['within_outlier_limits'][new_duration] == False:
-                                        if pd.isnull(doc['processed_daily_data'][name]['processed']) == False:
-                                            outlierlist.append(self.configuration.makeDecimal(doc['processed_daily_data'][name]['processed']))
-                                        else:
-                                            outlierlist.append(None)
-                                        
-                                        # try:
-                                        #     if doc['processed_daily_data'][name]['spe_anamoly'][durationActual][0] == True:
-                                        #         outlierspe_list.append(doc['processed_daily_data'][name]['SPEy'][durationActual])
-                                        #     else:
-                                        #         outlierspe_list.append(None)
-                                        # except KeyError:
-                                        #     outlierspe_list.append(None)
-                                        # except TypeError:
-                                        #     outlierspe_list.append(None)
-                                        # except IndexError:
-                                        #     outlierspe_list.append(None)
-                                        
-                                        # try:
-                                        #     if doc['processed_daily_data'][name]['spe_anamoly'][durationActual][0] == True:
-                                        #         outlierspe_limit_list.append(doc['processed_daily_data'][name]['Q_y'][durationActual][1])
-                                        #     else:
-                                        #         outlierspe_limit_list.append(None)
-                                        # except KeyError:
-                                        #     outlierspe_limit_list.append(None)
-                                        # except TypeError:
-                                        #     outlierspe_limit_list.append(None)
-                                        # except IndexError:
-                                        #     outlierspe_limit_list.append(None)
-                                        
-                                        # try:
-                                        #     if doc['processed_daily_data'][name]['spe_anamoly'][durationActual][0] == True:
-                                        #         outliert2_list.append(doc['processed_daily_data'][name]['t2_initial'][durationActual])
-                                        #     else:
-                                        #         outliert2_list.append(None)
-                                        # except KeyError:
-                                        #     outliert2_list.append(None)
-                                        # except TypeError:
-                                        #     outliert2_list.append(None)
-                                        # except IndexError:
-                                        #     outliert2_list.append(None)
-
-                                        # try:
-                                        #     if doc['processed_daily_data'][name]['spe_anamoly'][durationActual][0] == True:
-                                        #         outliert2_limit_list.append(doc['processed_daily_data'][name]['ucl_crit_beta'][durationActual])
-                                        #     else:
-                                        #         outliert2_limit_list.append(None)
-                                        # except KeyError:
-                                        #     outliert2_limit_list.append(None)
-                                        # except TypeError:
-                                        #     outliert2_limit_list.append(None)
-                                        # except IndexError:
-                                        #     outliert2_limit_list.append(None)
-                                    else:
-                                        outlierlist.append(None)
-                                        # outlierspe_list.append(None)
-                                        # outlierspe_limit_list.append(None)
-                                        # outliert2_list.append(None)
-                                        # outliert2_limit_list.append(None)
-                                except TypeError:
+                # try:
+                for doc in self.main_db.find({'ship_imo': self.ship_imo}, {'ship_imo': 1, 'historical': 1, 'processed_daily_data.'+name: 1, '_id': 0}).sort('processed_daily_data.rep_dt.processed', ASCENDING):
+                    # try:
+                    if name != 'rep_dt' and name in doc['processed_daily_data'].keys():
+                        try:
+                            if doc['processed_daily_data'][name]['within_outlier_limits'][new_duration] == False:
+                                if pd.isnull(doc['processed_daily_data'][name]['processed']) == False:
+                                    outlierlist.append(self.configuration.makeDecimal(doc['processed_daily_data'][name]['processed']))
+                                else:
                                     outlierlist.append(None)
-                                    # outlierspe_list.append(None)
-                                    # outlierspe_limit_list.append(None)
-                                    # outliert2_list.append(None)
-                                    # outliert2_limit_list.append(None)
-                                    # outlierColorList.append(None)
-                                    # opacityList.append(0)
-                                try:
-                                    if doc['processed_daily_data'][name]['within_outlier_limits'][new_duration] == True:
-                                        if pd.isnull(doc['processed_daily_data'][name]['processed']) == False:
-                                            newlist.append(self.configuration.makeDecimal(doc['processed_daily_data'][name]['processed']))
-                                        else:
-                                            newlist.append(None)
-                                        
-                                        
+                                
+                            else:
+                                outlierlist.append(None)
+                                # outlierspe_list.append(None)
+                                # outlierspe_limit_list.append(None)
+                                # outliert2_list.append(None)
+                                # outliert2_limit_list.append(None)
+                        except TypeError:
+                            outlierlist.append(None)
+                            # outlierspe_list.append(None)
+                            # outlierspe_limit_list.append(None)
+                            # outliert2_list.append(None)
+                            # outliert2_limit_list.append(None)
+                            # outlierColorList.append(None)
+                            # opacityList.append(0)
+                        try:
+                            if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][new_duration]) == False:
+                                if doc['processed_daily_data'][name]['within_outlier_limits'][new_duration] == True:
+                                    if pd.isnull(doc['processed_daily_data'][name]['processed']) == False:
+                                        newlist.append(self.configuration.makeDecimal(doc['processed_daily_data'][name]['processed']))
                                     else:
                                         newlist.append(None)
-                                        # spe_list.append(None)
-                                        # spe_limit_list.append(None)
-                                        # t2_list.append(None)
-                                        # t2_limit_list.append(None)
-                                except TypeError:
+                                    
+                                    
+                                else:
                                     newlist.append(None)
-                                    # spe_list.append(None)
-                                    # spe_limit_list.append(None)
-                                    # t2_list.append(None)
-                                    # t2_limit_list.append(None)
-                                
-                                # if self.anomalies == 'false':
-                                try:
-                                    # if doc['processed_daily_data'][name]['spe_anamoly'][durationActual][2] == True:
+                            else:
+                                if pd.isnull(doc['processed_daily_data'][name]['processed']) == False:
+                                        newlist.append(self.configuration.makeDecimal(doc['processed_daily_data'][name]['processed']))
+                                else:
+                                    newlist.append(None)
+                                # spe_list.append(None)
+                                # spe_limit_list.append(None)
+                                # t2_list.append(None)
+                                # t2_limit_list.append(None)
+                        except TypeError:
+                            newlist.append(None)
+                            # spe_list.append(None)
+                            # spe_limit_list.append(None)
+                            # t2_list.append(None)
+                            # t2_limit_list.append(None)
+                        
+                        if self.anomalies == 'false':
+                            try:
+                                if doc['historical'] == True:
+                                    new_spe = self.configuration.spe_divide(doc['processed_daily_data'][name]['SPEy'][durationActual], spe_number_dict[name])
                                     if doc['processed_daily_data'][name]['SPEy'][durationActual] < spe_number_dict[name]:
-                                        spe_list.append(doc['processed_daily_data'][name]['SPEy'][durationActual])
+                                        spe_list.append(self.configuration.makeDecimal(new_spe))
+                                        # spe_list.append(doc['processed_daily_data'][name]['SPEy'][durationActual])
                                         # spe_list.append(spe_number_dict[name])
                                     else:
                                         spe_list.append(None)
-                                except KeyError:
-                                    spe_list.append(None)
-                                except TypeError:
-                                    spe_list.append(None)
-                                except IndexError:
-                                    spe_list.append(None)
-                                
-                                try:
-                                    if doc['processed_daily_data'][name]['spe_anamoly'][durationActual][2] == True:
+                            except KeyError:
+                                spe_list.append(None)
+                            except TypeError:
+                                spe_list.append(None)
+                            except IndexError:
+                                spe_list.append(None)
+                            
+                            try:
+                                if doc['historical'] == True:
+                                    if doc['processed_daily_data'][name]['is_not_spe_anamolous'][durationActual][2] == True:
+                                        spe_limit_list.append(self.configuration.makeDecimal(spe_limit_global))
                                         # spe_limit_list.append(doc['processed_daily_data'][name]['Q_y'][durationActual][1])
-                                        spe_limit_list.append(spe_number_dict[name])
+                                        # spe_limit_list.append(spe_number_dict[name])
                                     else:
                                         spe_limit_list.append(None)
-                                except KeyError:
-                                    spe_limit_list.append(None)
-                                except TypeError:
-                                    spe_limit_list.append(None)
-                                except IndexError:
-                                    spe_limit_list.append(None)
-                                
-                                #T2----------------------------------------------------------------------
-                                try:
-                                    # if doc['processed_daily_data'][name]['t2_anamoly'][durationActual][0] == True:
+                            except KeyError:
+                                spe_limit_list.append(None)
+                            except TypeError:
+                                spe_limit_list.append(None)
+                            except IndexError:
+                                spe_limit_list.append(None)
+                            
+                            #T2----------------------------------------------------------------------
+                            try:
+                                # if doc['processed_daily_data'][name]['t2_anamoly'][durationActual][0] == True:
+                                if doc['historical'] == True:
+                                    new_t2 = self.configuration.t2_divide(doc['processed_daily_data'][name]['t2_initial'][durationActual], t2_number_dict[name])
                                     if doc['processed_daily_data'][name]['t2_initial'][durationActual] < t2_number_dict[name]:
-                                        t2_list.append(doc['processed_daily_data'][name]['t2_initial'][durationActual])
+                                        t2_list.append(self.configuration.makeDecimal(new_t2))
+                                        # t2_list.append(doc['processed_daily_data'][name]['t2_initial'][durationActual])
                                     else:
                                         t2_list.append(None)
-                                except KeyError:
-                                    t2_list.append(None)
-                                except TypeError:
-                                    t2_list.append(None)
-                                except IndexError:
-                                    t2_list.append(None)
-                                
-                                try:
-                                    if doc['processed_daily_data'][name]['t2_anamoly'][durationActual][0] == True:
-                                        # t2_limit_list.append(doc['processed_daily_data'][name]['ucl_crit_beta'][durationActual])
-                                        t2_limit_list.append(t2_number_dict[name])
+                            except KeyError:
+                                t2_list.append(None)
+                            except TypeError:
+                                t2_list.append(None)
+                            except IndexError:
+                                t2_list.append(None)
+                            
+                            try:
+                                if doc['processed_daily_data'][name]['is_not_t2_anamolous'][durationActual][0] == True:
+                                    t2_limit_list.append(self.configuration.makeDecimal(t2_limit_global))
+                                    # t2_limit_list.append(doc['processed_daily_data'][name]['ucl_crit_beta'][durationActual])
+                                    # t2_limit_list.append(t2_number_dict[name])
+                                else:
+                                    t2_limit_list.append(None)
+                            except KeyError:
+                                t2_limit_list.append(None)
+                            except TypeError:
+                                t2_limit_list.append(None)
+                            except IndexError:
+                                t2_limit_list.append(None)
+                            #EWMA-----------------------------------------------------------------------
+                            try:
+                                # if doc['processed_daily_data'][name]['t2_anamoly'][durationActual][0] == True:
+                                if doc['historical'] == True:
+                                    new_ewma = self.configuration.ewma_divide(doc['processed_daily_data'][name]['ewma'][durationActual][2], ewma_number_dict[name])
+                                    if doc['processed_daily_data'][name]['ewma'][durationActual][2] < ewma_number_dict[name]:
+                                        ewma_list.append(self.configuration.makeDecimal(new_ewma))
+                                        # ewma_list.append(doc['processed_daily_data'][name]['ewma'][durationActual][2])
                                     else:
-                                        t2_limit_list.append(None)
-                                except KeyError:
-                                    t2_limit_list.append(None)
-                                except TypeError:
-                                    t2_limit_list.append(None)
-                                except IndexError:
-                                    t2_limit_list.append(None)
-
-                                # if self.anomalies == 'true':
-                                #     try:
-                                #         # if doc['processed_daily_data'][name]['spe_anamoly'][durationActual][1] == True:
-                                #         spe_list.append(doc['processed_daily_data'][name]['SPEy'][durationActual])
-                                #         # else:
-                                #         #     spe_list.append(None)
-                                #     except KeyError:
-                                #         spe_list.append(None)
-                                #     except TypeError:
-                                #         spe_list.append(None)
-                                #     except IndexError:
-                                #         spe_list.append(None)
-                                    
-                                #     try:
-                                #         # if doc['processed_daily_data'][name]['spe_anamoly'][durationActual][1] == True:
-                                #             # spe_limit_list.append(doc['processed_daily_data'][name]['Q_y'][durationActual][1])
-                                #         spe_limit_list.append(spe_number_dict[name])
-                                #         # else:
-                                #         #     spe_limit_list.append(None)
-                                #     except KeyError:
-                                #         spe_limit_list.append(None)
-                                #     except TypeError:
-                                #         spe_limit_list.append(None)
-                                #     except IndexError:
-                                #         spe_limit_list.append(None)
-                                    
-                                #     #T2----------------------------------------------------------------------
-                                #     try:
-                                #         # if doc['processed_daily_data'][name]['t2_anamoly'][durationActual] == True:
-                                #         t2_list.append(doc['processed_daily_data'][name]['t2_initial'][durationActual])
-                                #         # else:
-                                #         #     t2_list.append(None)
-                                #     except KeyError:
-                                #         t2_list.append(None)
-                                #     except TypeError:
-                                #         t2_list.append(None)
-                                #     except IndexError:
-                                #         t2_list.append(None)
-                                    
-                                #     try:
-                                #         # if doc['processed_daily_data'][name]['t2_anamoly'][durationActual] == True:
-                                #             # t2_limit_list.append(doc['processed_daily_data'][name]['ucl_crit_beta'][durationActual])
-                                #         t2_limit_list.append(t2_number_dict[name])
-                                #         # else:
-                                #         #     t2_limit_list.append(None)
-                                #     except KeyError:
-                                #         t2_limit_list.append(None)
-                                #     except TypeError:
-                                #         t2_limit_list.append(None)
-                                #     except IndexError:
-                                #         t2_limit_list.append(None)
-                                print("SPE!!!!!", name)
-                                # try:
-                                #     if doc['processed_daily_data'][name]['spe_anamoly'][durationActual][0] == False:
-                                #         spe_list.append(doc['processed_daily_data'][name]['SPEy'][durationActual])
-                                #     else:
-                                #         spe_list.append(None)
-                                # except KeyError:
-                                #     spe_list.append(None)
-                                # except TypeError:
-                                #     spe_list.append(None)
-                                # except IndexError:
-                                #     spe_list.append(None)
-                                
-                                # try:
-                                #     if doc['processed_daily_data'][name]['spe_anamoly'][durationActual][0] == False:
-                                #         spe_limit_list.append(doc['processed_daily_data'][name]['Q_y'][durationActual][1])
-                                #     else:
-                                #         spe_limit_list.append(None)
-                                # except KeyError:
-                                #     spe_limit_list.append(None)
-                                # except TypeError:
-                                #     spe_limit_list.append(None)
-                                # except IndexError:
-                                #     spe_limit_list.append(None)
-                                
-                                # #T2----------------------------------------------------------------------
-                                # if 't2_initial' in doc['processed_daily_data'][name]:
-                                #     t2_list.append(doc['processed_daily_data'][name]['t2_initial'][durationActual])
-                                # else:
-                                #     t2_list.append(None)
-                                # if 'ucl_crit_beta' in doc['processed_daily_data'][name]:
-                                #     t2_limit_list.append(doc['processed_daily_data'][name]['ucl_crit_beta'][durationActual])
+                                        ewma_list.append(None)
+                            except KeyError:
+                                ewma_list.append(None)
+                            except TypeError:
+                                ewma_list.append(None)
+                            except IndexError:
+                                ewma_list.append(None)
+                            
+                            try:
+                                if doc['historical'] == True:
+                                    if doc['processed_daily_data'][name]['is_not_ewma_anamolous'][durationActual][2] == True:
+                                        ewma_limit_list.append(self.configuration.makeDecimal(ewma_limit_global))
+                                        # t2_limit_list.append(doc['processed_daily_data'][name]['ucl_crit_beta'][durationActual])
+                                        # ewma_limit_list.append(ewma_number_dict[name])
+                                    else:
+                                        ewma_limit_list.append(None)
+                            except KeyError:
+                                ewma_limit_list.append(None)
+                            except TypeError:
+                                ewma_limit_list.append(None)
+                            except IndexError:
+                                ewma_limit_list.append(None)
+                        
+                        if self.anomalies == 'true':
+                            try:
+                                if doc['historical'] == True:
+                                    new_spe = self.configuration.spe_divide(doc['processed_daily_data'][name]['SPEy'][durationActual], spe_number_dict[name])
+                                    # if doc['processed_daily_data'][name]['SPEy'][durationActual] < spe_number_dict[name]:
+                                    spe_list.append(self.configuration.makeDecimal(new_spe))
+                                        # spe_list.append(doc['processed_daily_data'][name]['SPEy'][durationActual])
+                                        # spe_list.append(spe_number_dict[name])
+                                    # else:
+                                    #     spe_list.append(None)
+                            except KeyError:
+                                spe_list.append(None)
+                            except TypeError:
+                                spe_list.append(None)
+                            except IndexError:
+                                spe_list.append(None)
+                            
+                            try:
+                                if doc['historical'] == True:
+                                    # if doc['processed_daily_data'][name]['is_not_spe_anamolous'][durationActual][2] == True:
+                                    spe_limit_list.append(self.configuration.makeDecimal(spe_limit_global))
+                                        # spe_limit_list.append(doc['processed_daily_data'][name]['Q_y'][durationActual][1])
+                                        # spe_limit_list.append(spe_number_dict[name])
+                                    # else:
+                                    #     spe_limit_list.append(None)
+                            except KeyError:
+                                spe_limit_list.append(None)
+                            except TypeError:
+                                spe_limit_list.append(None)
+                            except IndexError:
+                                spe_limit_list.append(None)
+                            
+                            #T2----------------------------------------------------------------------
+                            try:
+                                # if doc['processed_daily_data'][name]['t2_anamoly'][durationActual][0] == True:
+                                if doc['historical'] == True:
+                                    new_t2 = self.configuration.t2_divide(doc['processed_daily_data'][name]['t2_initial'][durationActual], t2_number_dict[name])
+                                    # if doc['processed_daily_data'][name]['t2_initial'][durationActual] < t2_number_dict[name]:
+                                    t2_list.append(self.configuration.makeDecimal(new_t2))
+                                        # t2_list.append(doc['processed_daily_data'][name]['t2_initial'][durationActual])
+                                    # else:
+                                    #     t2_list.append(None)
+                            except KeyError:
+                                t2_list.append(None)
+                            except TypeError:
+                                t2_list.append(None)
+                            except IndexError:
+                                t2_list.append(None)
+                            
+                            try:
+                                # if doc['processed_daily_data'][name]['is_not_t2_anamolous'][durationActual][0] == True:
+                                t2_limit_list.append(self.configuration.makeDecimal(t2_limit_global))
+                                    # t2_limit_list.append(doc['processed_daily_data'][name]['ucl_crit_beta'][durationActual])
+                                    # t2_limit_list.append(t2_number_dict[name])
                                 # else:
                                 #     t2_limit_list.append(None)
+                            except KeyError:
+                                t2_limit_list.append(None)
+                            except TypeError:
+                                t2_limit_list.append(None)
+                            except IndexError:
+                                t2_limit_list.append(None)
+                            #EWMA-----------------------------------------------------------------------
+                            try:
+                                # if doc['processed_daily_data'][name]['t2_anamoly'][durationActual][0] == True:
+                                if doc['historical'] == True:
+                                    new_ewma = self.configuration.ewma_divide(doc['processed_daily_data'][name]['ewma'][durationActual][2], ewma_number_dict[name])
+                                    # if doc['processed_daily_data'][name]['ewma'][durationActual][2] < ewma_number_dict[name]:
+                                    ewma_list.append(self.configuration.makeDecimal(new_ewma))
+                                        # ewma_list.append(doc['processed_daily_data'][name]['ewma'][durationActual][2])
+                                    # else:
+                                    #     ewma_list.append(None)
+                            except KeyError:
+                                ewma_list.append(None)
+                            except TypeError:
+                                ewma_list.append(None)
+                            except IndexError:
+                                ewma_list.append(None)
+                            
+                            try:
+                                if doc['historical'] == True:
+                                    # if doc['processed_daily_data'][name]['is_not_ewma_anamolous'][durationActual][2] == True:
+                                    ewma_limit_list.append(self.configuration.makeDecimal(ewma_limit_global))
+                                        # t2_limit_list.append(doc['processed_daily_data'][name]['ucl_crit_beta'][durationActual])
+                                        # ewma_limit_list.append(ewma_number_dict[name])
+                                    # else:
+                                    #     ewma_limit_list.append(None)
+                            except KeyError:
+                                ewma_limit_list.append(None)
+                            except TypeError:
+                                ewma_limit_list.append(None)
+                            except IndexError:
+                                ewma_limit_list.append(None)
 
-                                if 'ly_' in durationActual:
-                                    try:
-                                        if pd.isnull(doc['processed_daily_data'][name]['predictions'][new_duration][1]) == False:
-                                            explist.append(self.configuration.makeDecimal(doc['processed_daily_data'][name]['predictions'][new_duration][1]))
-                                        else:
-                                            explist.append(None)
-                                    except TypeError:
-                                        explist.append(None)
-                                    except KeyError:
-                                        explist.append(None)
-                                    except IndexError:
-                                        explist.append(None)
-                                    try:
-                                        if pd.isnull(doc['processed_daily_data'][name]['predictions'][durationActual][1]) == False:
-                                            lyexplist.append(self.configuration.makeDecimal(doc['processed_daily_data'][name]['predictions'][durationActual][1]))
-                                        else:
-                                            lyexplist.append(None)
-                                    except TypeError:
-                                        lyexplist.append(None)
-                                    except KeyError:
-                                        lyexplist.append(None)
-                                    except IndexError:
-                                        lyexplist.append(None)
-                                    
-                                    try:
-                                        if doc['processed_daily_data'][name]['predictions'][new_duration][0] != -np.inf:
-                                            if pd.isnull(doc['processed_daily_data'][name]['predictions'][new_duration][0]) == False:
-                                                lowerlist.append(self.configuration.makeDecimal(doc['processed_daily_data'][name]['predictions'][new_duration][0]))
-                                            else:
-                                                lowerlist.append(None)
-                                        else:
-                                            lowerlist.append(None)
-                                    except TypeError:
+                        print("SPE!!!!!", name)
+
+                        if 'ly_' in durationActual:
+                            try:
+                                if pd.isnull(doc['processed_daily_data'][name]['predictions'][new_duration][1]) == False:
+                                    explist.append(self.configuration.makeDecimal(doc['processed_daily_data'][name]['predictions'][new_duration][1]))
+                                else:
+                                    explist.append(None)
+                            except TypeError:
+                                explist.append(None)
+                            except KeyError:
+                                explist.append(None)
+                            except IndexError:
+                                explist.append(None)
+                            try:
+                                if pd.isnull(doc['processed_daily_data'][name]['predictions'][durationActual][1]) == False:
+                                    lyexplist.append(self.configuration.makeDecimal(doc['processed_daily_data'][name]['predictions'][durationActual][1]))
+                                else:
+                                    lyexplist.append(None)
+                            except TypeError:
+                                lyexplist.append(None)
+                            except KeyError:
+                                lyexplist.append(None)
+                            except IndexError:
+                                lyexplist.append(None)
+                            
+                            try:
+                                if doc['processed_daily_data'][name]['predictions'][new_duration][0] != -np.inf:
+                                    if pd.isnull(doc['processed_daily_data'][name]['predictions'][new_duration][0]) == False:
+                                        lowerlist.append(self.configuration.makeDecimal(doc['processed_daily_data'][name]['predictions'][new_duration][0]))
+                                    else:
                                         lowerlist.append(None)
-                                    except KeyError:
-                                        lowerlist.append(None)
-                                    except IndexError:
-                                        lowerlist.append(None)
-                                    try:
-                                        if doc['processed_daily_data'][name]['predictions'][durationActual][0] != -np.inf:
-                                            if pd.isnull(doc['processed_daily_data'][name]['predictions'][durationActual][0]) == False:
-                                                lylowerlist.append(self.configuration.makeDecimal(doc['processed_daily_data'][name]['predictions'][durationActual][0]))
-                                            else:
-                                                lylowerlist.append(None)
-                                        else:
-                                            lylowerlist.append(None)
-                                    except TypeError:
+                                else:
+                                    lowerlist.append(None)
+                            except TypeError:
+                                lowerlist.append(None)
+                            except KeyError:
+                                lowerlist.append(None)
+                            except IndexError:
+                                lowerlist.append(None)
+                            try:
+                                if doc['processed_daily_data'][name]['predictions'][durationActual][0] != -np.inf:
+                                    if pd.isnull(doc['processed_daily_data'][name]['predictions'][durationActual][0]) == False:
+                                        lylowerlist.append(self.configuration.makeDecimal(doc['processed_daily_data'][name]['predictions'][durationActual][0]))
+                                    else:
                                         lylowerlist.append(None)
-                                    except KeyError:
-                                        lylowerlist.append(None)
-                                    except IndexError:
-                                        lylowerlist.append(None)
-                                    
-                                    try:
-                                        if doc['processed_daily_data'][name]['predictions'][new_duration][2] != np.inf:
-                                            if pd.isnull(doc['processed_daily_data'][name]['predictions'][new_duration][2]) == False:
-                                                upperlist.append(self.configuration.makeDecimal(doc['processed_daily_data'][name]['predictions'][new_duration][2]))
-                                            else:
-                                                upperlist.append(None)
-                                        else:
-                                            upperlist.append(None)
-                                    except TypeError:
+                                else:
+                                    lylowerlist.append(None)
+                            except TypeError:
+                                lylowerlist.append(None)
+                            except KeyError:
+                                lylowerlist.append(None)
+                            except IndexError:
+                                lylowerlist.append(None)
+                            
+                            try:
+                                if doc['processed_daily_data'][name]['predictions'][new_duration][2] != np.inf:
+                                    if pd.isnull(doc['processed_daily_data'][name]['predictions'][new_duration][2]) == False:
+                                        upperlist.append(self.configuration.makeDecimal(doc['processed_daily_data'][name]['predictions'][new_duration][2]))
+                                    else:
                                         upperlist.append(None)
-                                    except KeyError:
-                                        upperlist.append(None)
-                                    except IndexError:
-                                        upperlist.append(None)
-                                    try:
-                                        if doc['processed_daily_data'][name]['predictions'][durationActual][2] != np.inf:
-                                            if pd.isnull(doc['processed_daily_data'][name]['predictions'][durationActual][2]) == False:
-                                                lyupperlist.append(self.configuration.makeDecimal(doc['processed_daily_data'][name]['predictions'][durationActual][2]))
-                                            else:
-                                                lyupperlist.append(None)
-                                        else:
-                                            lyupperlist.append(None)
-                                    except TypeError:
-                                        lyupperlist.append(None)
-                                    except KeyError:
-                                        lyupperlist.append(None)
-                                    except IndexError:
+                                else:
+                                    upperlist.append(None)
+                            except TypeError:
+                                upperlist.append(None)
+                            except KeyError:
+                                upperlist.append(None)
+                            except IndexError:
+                                upperlist.append(None)
+                            try:
+                                if doc['processed_daily_data'][name]['predictions'][durationActual][2] != np.inf:
+                                    if pd.isnull(doc['processed_daily_data'][name]['predictions'][durationActual][2]) == False:
+                                        lyupperlist.append(self.configuration.makeDecimal(doc['processed_daily_data'][name]['predictions'][durationActual][2]))
+                                    else:
                                         lyupperlist.append(None)
                                 else:
-                                    try:
-                                        if pd.isnull(doc['processed_daily_data'][name]['predictions'][new_duration][1]) == False:
-                                            explist.append(self.configuration.makeDecimal(doc['processed_daily_data'][name]['predictions'][new_duration][1]))
-                                        else:
-                                            explist.append(None)
-                                    except TypeError:
-                                        explist.append(None)
-                                    except KeyError:
-                                        explist.append(None)
-                                    except IndexError:
-                                        explist.append(None)
+                                    lyupperlist.append(None)
+                            except TypeError:
+                                lyupperlist.append(None)
+                            except KeyError:
+                                lyupperlist.append(None)
+                            except IndexError:
+                                lyupperlist.append(None)
+                        else:
+                            try:
+                                if pd.isnull(doc['processed_daily_data'][name]['predictions'][new_duration][1]) == False:
+                                    explist.append(self.configuration.makeDecimal(doc['processed_daily_data'][name]['predictions'][new_duration][1]))
+                                else:
+                                    explist.append(None)
+                            except TypeError:
+                                explist.append(None)
+                            except KeyError:
+                                explist.append(None)
+                            except IndexError:
+                                explist.append(None)
 
-                                    try:
-                                        if doc['processed_daily_data'][name]['predictions'][new_duration][0] != -np.inf:
-                                            if pd.isnull(doc['processed_daily_data'][name]['predictions'][new_duration][0]) == False:
-                                                lowerlist.append(self.configuration.makeDecimal(doc['processed_daily_data'][name]['predictions'][new_duration][0]))
-                                            else:
-                                                lowerlist.append(None)
-                                        else:
-                                            lowerlist.append(None)
-                                    except TypeError:
+                            try:
+                                if doc['processed_daily_data'][name]['predictions'][new_duration][0] != -np.inf:
+                                    if pd.isnull(doc['processed_daily_data'][name]['predictions'][new_duration][0]) == False:
+                                        lowerlist.append(self.configuration.makeDecimal(doc['processed_daily_data'][name]['predictions'][new_duration][0]))
+                                    else:
                                         lowerlist.append(None)
-                                    except KeyError:
-                                        lowerlist.append(None)
-                                    except IndexError:
-                                        lowerlist.append(None)
-                                    
-                                    try:
-                                        if doc['processed_daily_data'][name]['predictions'][new_duration][2] != np.inf:
-                                            if pd.isnull(doc['processed_daily_data'][name]['predictions'][new_duration][2]) == False:
-                                                upperlist.append(self.configuration.makeDecimal(doc['processed_daily_data'][name]['predictions'][new_duration][2]))
-                                            else:
-                                                upperlist.append(None)
-                                        else:
-                                            upperlist.append(None)
-                                    except TypeError:
+                                else:
+                                    lowerlist.append(None)
+                            except TypeError:
+                                lowerlist.append(None)
+                            except KeyError:
+                                lowerlist.append(None)
+                            except IndexError:
+                                lowerlist.append(None)
+                            
+                            try:
+                                if doc['processed_daily_data'][name]['predictions'][new_duration][2] != np.inf:
+                                    if pd.isnull(doc['processed_daily_data'][name]['predictions'][new_duration][2]) == False:
+                                        upperlist.append(self.configuration.makeDecimal(doc['processed_daily_data'][name]['predictions'][new_duration][2]))
+                                    else:
                                         upperlist.append(None)
-                                    except KeyError:
-                                        upperlist.append(None)
-                                    except IndexError:
-                                        upperlist.append(None)
-                                
-                            else:
-                                newdate = doc['processed_daily_data'][name]['processed'].strftime("%Y-%m-%d")
-                                newlist.append(newdate)
-                                explist.append(newdate)
-                                lyexplist.append(newdate)
-                except KeyError:
-                    for doc in self.main_db.find({'ship_imo': self.ship_imo}, {'ship_imo': 1, 'independent_indices.'+name: 1, '_id': 0}).sort('processed_daily_data.rep_dt.processed', ASCENDING):
-                        try:
-                            if doc['independent_indices'][name]['spe_anamoly'][durationActual][1] == True:
-                            # spe_list.append(doc['independent_indices'][name]['SPE'][durationActual])
-                                print('SPE!!!!', name)
-                                newlist.append(self.configuration.makeDecimal(doc['independent_indices'][name]['SPEy'][durationActual]))
-                            else:
-                                newlist.append(None)
-                        except KeyError:
-                            newlist.append(None)
-                        except TypeError:
-                            newlist.append(None)
-                        except IndexError:
-                            newlist.append(None)
-                        
-                        try:
-                            if doc['independent_indices'][name]['spe_anamoly'][durationActual][1] == True:
-                            # spe_list.append(doc['independent_indices'][name]['SPE'][durationActual])
-                                print('SPE!!!!', name)
-                                spe_limit_list.append(self.configuration.makeDecimal(doc['independent_indices'][name]['Q_y'][durationActual][1]))
-                            else:
-                                spe_limit_list.append(None)
-                        except KeyError:
-                            spe_limit_list.append(None)
-                        except TypeError:
-                            spe_limit_list.append(None)
-                        except IndexError:
-                            spe_limit_list.append(None)
-                        
-                        try:
-                            if 't2_initial' in doc['independent_indices'][name]:
-                                t2_list.append(doc['independent_indices'][name]['t2_initial'][durationActual])
-                            else:
-                                t2_list.append(None)
-                        except KeyError:
-                            t2_list.append(None)
-                        
-                        try:
-                            if 'ucl_crit_beta' in doc['independent_indices'][name]:
-                                t2_limit_list.append(doc['independent_indices'][name]['ucl_crit_beta'][durationActual])
-                            else:
-                                t2_limit_list.append(None)
-                        except KeyError:
-                            t2_limit_list.append(None)
-
+                                else:
+                                    upperlist.append(None)
+                            except TypeError:
+                                upperlist.append(None)
+                            except KeyError:
+                                upperlist.append(None)
+                            except IndexError:
+                                upperlist.append(None)
+                    # datadict[name] = newlist
+                    # expecteddict['expected_'+name] = explist
+                    # lyexpecteddict['lyexpected_'+name] = lyexplist
+                    # spedict['spe_'+name] = spe_list
+                    # ewmadict['ewma_'+name] = ewma_list
+                    # spelimitdict['spe_limit_'+name] = spe_limit_list
+                    # ewmalimitdict['ewma_limit_'+name] = ewma_limit_list
+                    # t2dict['t2_'+name] = t2_list
+                    # t2limitdict['t2_limit_'+name] = t2_limit_list
+                    # lowerdict[name] = lowerlist
+                    # upperdict[name] = upperlist
+                    # lylowerdict[name] = lylowerlist
+                    # lyupperdict[name] = lyupperlist
+                    # outlierdict[name] = outlierlist
+                    if name == 'rep_dt' and name in doc['processed_daily_data'].keys():
+                        newdate = doc['processed_daily_data'][name]['processed'].strftime("%Y-%m-%d")
+                        newlist.append(newdate)
+                        explist.append(newdate)
+                        lyexplist.append(newdate)
+                # except KeyError:
+                #     continue
                 datadict[name] = newlist
                 expecteddict['expected_'+name] = explist
                 lyexpecteddict['lyexpected_'+name] = lyexplist
                 spedict['spe_'+name] = spe_list
-                if 'index' in name:
-                    spelimitdict[name] = spe_limit_list
-                    t2dict[name] = t2_list
-                    t2limitdict[name] = t2_limit_list
-                else:
-                    spelimitdict['spe_limit_'+name] = spe_limit_list
-                    t2dict['t2_'+name] = t2_list
-                    t2limitdict['t2_limit_'+name] = t2_limit_list
+                ewmadict['ewma_'+name] = ewma_list
+                spelimitdict['spe_limit_'+name] = spe_limit_list
+                ewmalimitdict['ewma_limit_'+name] = ewma_limit_list
+                t2dict['t2_'+name] = t2_list
+                t2limitdict['t2_limit_'+name] = t2_limit_list
                 lowerdict[name] = lowerlist
                 upperdict[name] = upperlist
                 lylowerdict[name] = lylowerlist
                 lyupperdict[name] = lyupperlist
                 outlierdict[name] = outlierlist
-                # outlierdict['spe_'+name] = outlierspe_list
-                # outlierdict['spe_limit_'+name] = outlierspe_limit_list
-                # outlierdict['t2_'+name] = outliert2_limit_list
-                # outlierdict['t2_limit_'+name] = outlierlist
+            print("DATADICT!!!!!!", datadict)
+            
             ''' Deleting all the variables that do not have expected, lower, and upper values'''
             for k in datadict.copy():
                 if datadict[k] == []:
@@ -733,6 +1066,22 @@ class TrendsExtractor():
                         del spelimitdict[k]
                 except KeyError:
                     continue
+            for k in ewmadict.copy():
+                if ewmadict[k] == []:
+                    del ewmadict[k]
+                try:
+                    if all(x is None for x in ewmadict[k]):
+                        del ewmadict[k]
+                except KeyError:
+                    continue
+            for k in ewmalimitdict.copy():
+                if ewmalimitdict[k] == []:
+                    del ewmalimitdict[k]
+                try:
+                    if all(x is None for x in ewmalimitdict[k]):
+                        del ewmalimitdict[k]
+                except KeyError:
+                    continue
             for k in t2dict.copy():
                 if t2dict[k] == []:
                     del t2dict[k]
@@ -750,29 +1099,53 @@ class TrendsExtractor():
                 except KeyError:
                     continue
             for k in expecteddict.copy():
-                if not expecteddict[k]:
+                if expecteddict[k] == []:
                     del expecteddict[k]
-            # for k in spedict.copy():
-            #     if not spedict[k]:
-            #         del spedict[k]
+                try:
+                    if all(x is None for x in expecteddict[k]):
+                        del expecteddict[k]
+                except KeyError:
+                    continue
             for k in lowerdict.copy():
-                if not lowerdict[k]:
+                if lowerdict[k] == []:
                     del lowerdict[k]
+                try:
+                    if all(x is None for x in lowerdict[k]):
+                        del lowerdict[k]
+                except KeyError:
+                    continue
             for k in upperdict.copy():
-                if not upperdict[k]:
+                if upperdict[k] == []:
                     del upperdict[k]
+                try:
+                    if all(x is None for x in upperdict[k]):
+                        del upperdict[k]
+                except KeyError:
+                    continue
             for k in lyexpecteddict.copy():
-                if not lyexpecteddict[k]:
+                if lyexpecteddict[k] == []:
                     del lyexpecteddict[k]
+                try:
+                    if all(x is None for x in lyexpecteddict[k]):
+                        del lyexpecteddict[k]
+                except KeyError:
+                    continue
             for k in lylowerdict.copy():
-                if not lylowerdict[k]:
+                if lylowerdict[k] == []:
                     del lylowerdict[k]
+                try:
+                    if all(x is None for x in lylowerdict[k]):
+                        del lylowerdict[k]
+                except KeyError:
+                    continue
             for k in lyupperdict.copy():
-                if not lyupperdict[k]:
+                if lyupperdict[k] == []:
                     del lyupperdict[k]
-            # for k in outlierdict.copy():
-            #     if not outlierdict[k]:
-            #         del outlierdict[k]
+                try:
+                    if all(x is None for x in lyupperdict[k]):
+                        del lyupperdict[k]
+                except KeyError:
+                    continue
             for k in outlierdict.copy():
                 if outlierdict[k] == []:
                     del outlierdict[k]
@@ -780,37 +1153,34 @@ class TrendsExtractor():
                     if all(x is None for x in outlierdict[k]):
                         del outlierdict[k]
                 except KeyError:
-                    continue
-            # for k in outlierColorDict.copy():
-            #     if not outlierColorDict[k]:
-            #         del outlierColorDict[k]  
-            # for k in outlierOpacityDict.copy():
-            #     if not outlierOpacityDict[k]:
-            #         del outlierOpacityDict[k]          
-        print("END LIST")
-        # newgroup = self.configuration.get_corrected_group_selection(datadict, group, spe=False)
-        print("START SPE")
-        newgroup_spe = self.configuration.get_group_selection_including_spe(groups, datadict, spedict)
-        print("END SPE")
-        print("START CORRECTED GRP")
-        corrected_group = self.configuration.get_corrected_group_selection(newgroup_spe)
-        self.corrected = corrected_group
-        print("END CORRECTED GRP")
-        loaded_ballast_list = self.configuration.get_shapes_for_loaded_ballast_data()
-        if self.include_outliers == 'true':
-            if 'ly_' in durationActual:
-                return corrected_group, datadict, expecteddict, lowerdict, upperdict, lyexpecteddict, lylowerdict, lyupperdict, outlierdict, loaded_ballast_list, spedict, spelimitdict, t2dict, t2limitdict
+                    continue          
+            print("END LIST")
+            # newgroup = self.configuration.get_corrected_group_selection(datadict, group, spe=False)
+            print("START SPE")
+            newgroup_spe = self.configuration.get_group_selection_including_spe(groups, datadict, spedict)
+            print("END SPE")
+            print("START CORRECTED GRP")
+            corrected_group = self.configuration.get_corrected_group_selection(newgroup_spe)
+            self.corrected = corrected_group
+            print("END CORRECTED GRP")
+            
+            if self.include_outliers == 'true':
+                if 'ly_' in durationActual:
+                    return corrected_group, datadict, expecteddict, lowerdict, upperdict, lyexpecteddict, lylowerdict, lyupperdict, outlierdict, loaded_ballast_list, spedict, spelimitdict, t2dict, t2limitdict, ewmadict, ewmalimitdict, dict_of_issues, spe_messages_dict, subgroup_dict
+                else:
+                    return corrected_group, datadict, expecteddict, lowerdict, upperdict, outlierdict, loaded_ballast_list, spedict, spelimitdict, t2dict, t2limitdict, ewmadict, ewmalimitdict, dict_of_issues, spe_messages_dict, subgroup_dict
             else:
-                return corrected_group, datadict, expecteddict, lowerdict, upperdict, outlierdict, loaded_ballast_list, spedict, spelimitdict, t2dict, t2limitdict
-        else:
-            if 'ly_' in durationActual:
-                return corrected_group, datadict, expecteddict, lowerdict, upperdict, lyexpecteddict, lylowerdict, lyupperdict, loaded_ballast_list, spedict, spelimitdict, t2dict, t2limitdict
-            else:
-                return corrected_group, datadict, expecteddict, lowerdict, upperdict, loaded_ballast_list, spedict, spelimitdict, t2dict, t2limitdict
+                if 'ly_' in durationActual:
+                    return corrected_group, datadict, expecteddict, lowerdict, upperdict, lyexpecteddict, lylowerdict, lyupperdict, loaded_ballast_list, spedict, spelimitdict, t2dict, t2limitdict, ewmadict, ewmalimitdict, dict_of_issues, spe_messages_dict, subgroup_dict
+                else:
+                    return corrected_group, datadict, expecteddict, lowerdict, upperdict, loaded_ballast_list, spedict, spelimitdict, t2dict, t2limitdict, ewmadict, ewmalimitdict, dict_of_issues, spe_messages_dict, subgroup_dict
     
     def process_fuel_consumption(self):
         ''' Returns the dictionary of all the variables for Fuel Consumption sorted by date(rep_dt)'''
         fuelSelection = self.configuration.get_selection_for_fuel_consumption()
+        durationActual = self.configuration.create_current_duration(self.duration)
+        charter_party_static_data = self.configuration.get_static_data_for_charter_party()
+        charter_party_static_data_list = list(charter_party_static_data.keys())
         # dateres = self.read_for_fuel_consumption()
         # fuelres = loads(dumps(fuelcursor))
         # print(loads(dumps(fuelres)))
@@ -837,13 +1207,42 @@ class TrendsExtractor():
                     for i in range(len(fuelresList)):
                         if fuelresList[i]['Report Date'] == doc['processed_daily_data']['rep_dt']['processed'].strftime('%Y-%m-%d'):
                             short_name = doc['processed_daily_data'][var]['name'].strip() if var in doc['processed_daily_data'] else 'null'
+                            temp = []
                             try:
                                 new_processed = self.configuration.makeDecimal(doc['processed_daily_data'][var]['processed'])
+                                temp.append(new_processed)
+
                             except TypeError:
-                                new_processed = 'null'
+                                new_processed = None
+                                temp.append(new_processed)
                             except KeyError:
-                                continue
-                            fuelresList[i][short_name] = new_processed
+                                new_processed = None
+                                temp.append(new_processed)
+                            except IndexError:
+                                new_processed = None
+                                temp.append(new_processed)
+                            
+                            if var == 'main_fuel':
+                                for key in charter_party_static_data_list:
+                                    if var == key:
+                                        new_predictions = charter_party_static_data[key]
+                                        temp.append(new_predictions)
+                            else:
+                                new_predictions = None
+                                temp.append(new_predictions)
+                            # try:
+                            #     new_predictions = self.configuration.makeDecimal(doc['processed_daily_data'][var]['predictions'][durationActual][1])
+                            #     temp.append(new_predictions)
+                            # except TypeError:
+                            #     new_predictions = None
+                            #     temp.append(new_predictions)
+                            # except KeyError:
+                            #     new_predictions = None
+                            #     temp.append(new_predictions)
+                            # except IndexError:
+                            #     new_predictions = None
+                            #     temp.append(new_predictions)
+                            fuelresList[i][short_name] = temp
 
 
 
@@ -884,9 +1283,9 @@ class TrendsExtractor():
         return height_after_double_click
     print("End CHART HEIGHT AFTER 2x CLICK")
     
-    def get_short_names_list_for_multi_axis(self):
-        namesList = self.configuration.get_short_names_list_for_multi_axis(self.group)
-        return namesList
+    # def get_short_names_list_for_multi_axis(self):
+    #     namesList = self.configuration.get_short_names_list_for_multi_axis(self.group)
+    #     return namesList
     
     print("START Y POSITION")
     def get_Y_position(self):
@@ -904,16 +1303,27 @@ class TrendsExtractor():
     def variable_list_according_to_order_blocks(self, datadict, groupsList):
         # print(datadict.keys())
         new_variables_list = []
+        spe_variables_list = []
         variables_list = self.configuration.get_variables_list_in_order_of_blocks(groupsList)
+
+        for i in variables_list:
+            if 'spe_' in i:
+                spe_variables_list.append(i)
+        
         for i in range(len(variables_list)):
             new_variables_list.append(variables_list[i])
-            if 'spe_' in variables_list[i]:
-                name1 = variables_list[i].replace('spe_', 'spe_limit_')
-                name2 = variables_list[i].replace('spe_', 't2_')
-                name3 = variables_list[i].replace('spe_', 't2_limit_')
-                new_variables_list.append(name1)
-                new_variables_list.append(name2)
-                new_variables_list.append(name3)
+        
+        for i in spe_variables_list:
+            name1 = i.replace('spe_', 'spe_limit_')
+            name2 = i.replace('spe_', 't2_')
+            name3 = i.replace('spe_', 't2_limit_')
+            name4 = i.replace('spe_', 'ewma_')
+            name5 = i.replace('spe_', 'ewma_limit_')
+            new_variables_list.append(name1)
+            new_variables_list.append(name2)
+            new_variables_list.append(name3)
+            new_variables_list.append(name4)
+            new_variables_list.append(name5)
         # datadictList = list(datadict)
         # for var in variables_list:
         #     if var not in datadictList:
