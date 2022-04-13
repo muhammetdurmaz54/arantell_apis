@@ -72,9 +72,62 @@ class ConfigExtractor():
         b = a.mask(a.str.startswith('Unnamed')).ffill().fillna('')
         self.df_groups.columns = [b, self.df_groups.columns.get_level_values(1)]
         self.grpnames = pd.read_excel(self.file, sheet_name="GrpDir", engine='openpyxl')
+        self.grpdict = pd.read_excel(self.file, sheet_name="GrpDirTwo", engine='openpyxl')
         self.mlcontrol=pd.read_excel(self.file, sheet_name='MLcontrol',skiprows = [0, 1, 2], engine='openpyxl')
         self.anamoly_messages=pd.read_excel(self.file, sheet_name='AnamolyMessages', engine='openpyxl')
         
+
+    def group_dict_create(self):
+        self.group_final_dict={}
+        grp_list=[]
+        for col in self.grpdict.columns:
+            if "Serial" not in col and "serial" not in col and "Unnamed" not in col :
+                grp_list.append(col)
+        for i in grp_list:
+            name_dict=self.get_subgroup_names(i,self.grpdict)
+            self.group_final_dict[i]=name_dict
+        self.temp_grp_dict={}
+        for key in list(self.group_final_dict.keys()):
+            self.temp_grp_dict[key]=self.group_final_dict[key]
+            for in_key in list(self.group_final_dict[key].keys()):
+                if "." in in_key:
+                    print(key)
+                    final_key=key.split()
+                    used_key=final_key[0]
+                    print(used_key)
+                    self.temp_grp_dict[key][used_key]=self.group_final_dict[key][in_key]
+                else:
+                    self.temp_grp_dict[key][in_key]=self.group_final_dict[key][in_key]
+        print(self.temp_grp_dict)
+        return self.temp_grp_dict
+
+    def get_subgroup_names(self,groupname,dataframe):
+        ''' Returns a dictionary for sub-group names. Group name is key, sub-group name is value.'''
+        subgroup_name_file = dataframe
+        subgroup_name_file_dict = subgroup_name_file.to_dict("list")
+        subgroup_dict_names = {}
+        subgroup_dict_labels = {}
+
+        for key in subgroup_name_file_dict.keys():
+            if 'Serial' in key:
+                subgroup_dict_labels[key] = subgroup_name_file[key]
+            else:
+                subgroup_dict_names[key] = subgroup_name_file[key]
+
+        subgroup_names = subgroup_dict_names[groupname]
+        index_of_sub_group_column = list(subgroup_dict_names.keys()).index(groupname)
+        name_of_corresponding_column = list(subgroup_dict_labels.keys())[index_of_sub_group_column]
+        subgroup_labels = subgroup_dict_labels[name_of_corresponding_column]
+
+        subgroup_labels = [int(i) if type(i) == float and pd.isnull(i) == False else i for i in subgroup_labels ]
+        subgroup_labels_new = ['Sub-Group ' + str(i) for i in subgroup_labels if pd.isnull(i) == False]
+        subgroup_dict = dict(zip(subgroup_labels_new, subgroup_names))
+
+        for key in subgroup_dict.copy():
+           if pd.isnull(key) == True:
+               del subgroup_dict[key]
+        
+        return subgroup_dict
 
     def stat(self,s):
         self.dest={}
@@ -373,10 +426,18 @@ class ConfigExtractor():
             "outlier_anamoly":self.outlier_anamoly,
             "identifier_mapping" : self.identifier_mapping,
             "indices_data":self.create_indices(),
+            "group_dict":self.group_dict_create(),
             "data" : self.data
         }
       
-    
+        if self.ship_imo in ship_imos:
+            ship_configs = ship_collection.find({"ship_imo": self.ship_imo})[0]
+            ship['t2_limits']=ship_configs['t2_limits']
+            ship['t2_limits_indices']=ship_configs['t2_limits_indices']
+            ship['ewma_limits']=ship_configs['ewma_limits']
+            ship['spe_limits']=ship_configs['spe_limits']
+            ship['mewma_limits']=ship_configs['mewma_limits']
+            ship['spe_limits_indices']=ship_configs['spe_limits_indices']
 
         
         # if self.override:
@@ -395,21 +456,21 @@ class ConfigExtractor():
                 print("yes")
                 ship_collection.delete_one({"ship_imo": self.ship_imo})
                 print("deleteddd")
-                return ship_collection.insert_one(ship).inserted_id
+                return ship_collection.insert_one(ship)
                 
             else:
                 print("ksssssssssssssssssssssssssssss")
-                return ship_collection.insert_one(ship).inserted_id
+                return ship_collection.insert_one(ship)
         
         elif self.override==False:
             if self.ship_imo in ship_imos:
                 print("Record already exist")
                 return "Record already exists!"
             else:
-                return ship_collection.insert_one(ship).inserted_id
+                return ship_collection.insert_one(ship)
 
 
-obj=ConfigExtractor(9591301,'F:\Afzal_cs\Internship\ConfiguratorRev_9591301_new.xlsx',True)
+obj=ConfigExtractor(9591363,'F:\Afzal_cs\Internship\ConfiguratorRev_9591363_new.xlsx',True)
 # obj.connect()
 # obj.read_files()
 # obj.anamoly()
