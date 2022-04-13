@@ -625,14 +625,17 @@ class IndividualProcessors():
 
     def w_dir_rel_i_processor(self,base_dict):
         base_dict=base_dict      
-        wind_dir_deg="NE"      #to be read from api
-        if type(wind_dir_deg)==str:
-            wind_dir_deg_i=self.to_degree(wind_dir_deg.strip())
-        else:
-            wind_dir_deg_i=wind_dir_deg
-        base_dict['processed']=wind_dir_deg_i - self.daily_data['data']['vessel_head']
-        base_dict['is_read']=True
-        base_dict['is_processed']=False
+        try:
+            wind_dir_deg="NE"      #to be read from api
+            if type(wind_dir_deg)==str:
+                wind_dir_deg_i=self.to_degree(wind_dir_deg.strip())
+            else:
+                wind_dir_deg_i=wind_dir_deg
+            base_dict['processed']=wind_dir_deg_i - self.daily_data['data']['vessel_head']
+            base_dict['is_read']=True
+            base_dict['is_processed']=False
+        except:
+            base_dict['processed']=None
         return base_dict
 
     def swell_dir_rel_i_processor(self,base_dict):
