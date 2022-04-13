@@ -35,6 +35,7 @@ class DailyReportExtractor():
         # shortNameDict = self.configuration.create_short_names_dictionary()
         equipment_list, parameter_list = self.configuration.get_Equipment_and_Parameter_list()
         static_data_for_charter_party = self.configuration.get_static_data_for_charter_party()
+        
         # anomalyList=[]
         dateList=[]
         subcategoryDictData={}
@@ -60,13 +61,15 @@ class DailyReportExtractor():
             latestResult = self.read_data_for_specific_date(self.dateString)
             latestRes = self.configuration.check_for_nan_and_replace(latestResult)
             issues = self.configuration.get_category_and_subcategory_with_issues(dateString=self.dateString)
-            charter_party_values = self.configuration.get_daily_charter_party_values(dateString=self.dateString)
+            charter_party_values, charter_party_prediction_values = self.configuration.get_daily_charter_party_values(dateString=self.dateString)
+            compliance_messages = self.configuration.create_dict_of_compliance_messages(dateString=self.dateString)
         else:
             # tempDateList = dateList.reverse()[0]
             latestResult = self.read_data_for_specific_date(dateList[len(dateList) - 1])
             latestRes = self.configuration.check_for_nan_and_replace(latestResult)
             issues = self.configuration.get_category_and_subcategory_with_issues("")
-            charter_party_values = self.configuration.get_daily_charter_party_values('')
+            charter_party_values, charter_party_prediction_values = self.configuration.get_daily_charter_party_values('')
+            compliance_messages = self.configuration.create_dict_of_compliance_messages('')
             
             # print(issues)
 
@@ -98,13 +101,19 @@ class DailyReportExtractor():
                         tempDict = { keyName: subcategoryDictDataDecimal[keyName]}
                         tempList.append(tempDict)
             categoryDictData[key] = tempList
-        categoryDictData['VESSEL PARTICULARS'] = [{'Vessel Particulars': subcategoryDict['Vessel Particulars']}]
+        newVesselParticulars={}
+        for key in subcategoryDict['Vessel Particulars'].keys():
+            if subcategoryDict['Vessel Particulars'][key]['name'] != "" and subcategoryDict['Vessel Particulars'][key]['value'] != "":
+                newVesselParticulars[key] = subcategoryDict['Vessel Particulars'][key]
+        categoryDictData['VESSEL PARTICULARS'] = [{'Vessel Particulars': newVesselParticulars}]
+
+        listOfVesselParticularKeys = list(newVesselParticulars.keys())
 
         # anomalyList = self.getAnomalyList(categoryDictData)
         
         # categoryDictDataDecimal = self.configuration.get_decimal_control_on_daily_values(categoryDictData)
         
-        return categoryList, categoryDict, column_headers, subcategoryDict, dateList, categoryDictData, issues, static_data_for_charter_party, charter_party_values
+        return categoryList, categoryDict, column_headers, subcategoryDict, dateList, categoryDictData, issues, static_data_for_charter_party, charter_party_values, charter_party_prediction_values, compliance_messages, listOfVesselParticularKeys
 
 
         # return categoryDict, column_headers, subcategoryDict, dateList, latestRes
