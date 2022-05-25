@@ -350,6 +350,11 @@ class MainDB():
         
     def create_base_dataframe(self,main_dict_list):
         maindb = database.get_collection("Main_db")
+        main_data = maindb.find({"ship_imo": int(self.ship_imo)})
+        self.main_data_list=[]
+        for i in range(0,main_data.count()):
+            print(i)
+            self.main_data_list.append(main_data[i])
         ident_list=[]
         for i in self.ship_configs['data']:
             ident_list.append(i)
@@ -360,7 +365,7 @@ class MainDB():
             load=json_util.loads(mainobject)
             temp_list.append(load)
             # print(temp_list)
-            temp_dict={}
+        temp_dict={}
         for i in range(len(temp_list)):
             temp_list_2=[]
             for j in range(0,len(temp_list[i])):
@@ -374,8 +379,8 @@ class MainDB():
                 
                 temp_dict[ident_list[i]]=temp_list_2    
         dataframe=pandas.DataFrame(temp_dict)
-        # dataframe=dataframe.sort_values(by=['rep_dt'])
-        # dataframe=dataframe.reset_index(drop=True)
+        dataframe=dataframe.sort_values(by=['rep_dt'])
+        dataframe=dataframe.reset_index(drop=True)
         # dataframe.to_csv("fulldata.csv")
         # newdatearray=[]
         # for i in dataframe['rep_dt']:
@@ -385,21 +390,18 @@ class MainDB():
 
 
         temp_dict_two={}
-        for j in range(0,len(ident_list)):
-            temp_list_3=[]
-            if main_dict_list['within_good_voyage_limit']==True:
+        if main_dict_list['within_good_voyage_limit']==True:
+            for j in ident_list:
+                temp_list_3=[]
                 try:
-                    temp_list_3.append(main_dict_list['processed_daily_data'][ident_list[j]]['processed'])
+                    temp_list_3.append(main_dict_list['processed_daily_data'][j]['processed'])
                 except:
-                    try:
-                        temp_list_3.append(main_dict_list['independent_indices'][ident_list[j]]['processed'])
-                    except:
-                        temp_list_3.append(None)
+                    temp_list_3.append(None)
                 
-                temp_dict_two[ident_list[j]]=temp_list_2    
+                temp_dict_two[j]=temp_list_3    
         dataframe_two=pandas.DataFrame(temp_dict_two)
         dataframe=dataframe.append(dataframe_two)
-        dataframe=dataframe.sort_values(by=['rep_dt'])
+        # dataframe=dataframe.sort_values(by=['rep_dt'])
         dataframe=dataframe.reset_index(drop=True)
         # dataframe.to_csv("fulldata.csv")
         newdatearray=[]
@@ -958,7 +960,7 @@ class MainDB():
         document = {
             "ship_imo": self.ship_imo,
             "date": datetime.utcnow(),
-            "historical":True,
+            "historical":False,
             "Noon":self.daily_data['Noon'],
             "Logs":self.daily_data['Logs'],
             "timestamp":timestamp,
@@ -1571,8 +1573,6 @@ class MainDB():
         t2_alpha_str={"0.2":"zero_two","0.1":"zero_one","0.05":"zero_zero_five"}
         ewma_final_limits={}
         spe_final_limits={}
-        maindb = database.get_collection("Main_db")
-        main_data = maindb.find({"ship_imo": int(self.ship_imo)})
         for j in ml_control:
             ewma_limits={}
             spe_limits={}
@@ -1582,10 +1582,10 @@ class MainDB():
                     try:
                         # spe_main =maindb.find({"ship_imo":self.ship_imo,"within_good_voyage_limit":True,"processed_daily_data."+j+".SPEy."+month:{"$lte":8}},{"processed_daily_data."+j+".SPEy."+month:1,"_id":0})
                         temp_list_2=[]
-                        for i in range(0,main_data.count()):
-                            if main_data[i]['within_good_voyage_limit']==True:
+                        for i in range(0,len(self.main_data_list)):
+                            if self.main_data_list[i]['within_good_voyage_limit']==True:
                                 try:
-                                    temp_list_2.append(main_data[i]['processed_daily_data'][j]['SPEy'][month])
+                                    temp_list_2.append(self.main_data_list[i]['processed_daily_data'][j]['SPEy'][month])
                                 except KeyError:
                                     temp_list_2.append(None)
                         if main_dict_list['within_good_voyage_limit']==True:
@@ -1637,6 +1637,7 @@ class MainDB():
         main_dict_list['spe_limits']=spe_final_limits
         main_dict_list['ewma_limits']=ewma_final_limits
         print("kiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii")
+        return main_dict_list
     
 
     def indice_ewma_limit(self,main_dict_list):
@@ -1646,9 +1647,8 @@ class MainDB():
         t2_alpha_str={"0.2":"zero_two","0.1":"zero_one","0.05":"zero_zero_five"}
         mewma_final_limits={}
         spe_indices_limits={}
-        maindb = database.get_collection("Main_db")
-        main_data = maindb.find({"ship_imo": int(self.ship_imo)})
         for j in ship_indices_data:
+            print(j)
             if ship_indices_data[j]['Derived']!=True:
                 mewma_limits={}
                 spe_limits={}
@@ -1657,10 +1657,10 @@ class MainDB():
                         try:
                             # spe_main =maindb.find({"ship_imo":self.ship_imo,"within_good_voyage_limit":True,"independent_indices."+j+".SPEy."+month:{"$lte":8}},{"independent_indices."+j+".SPEy."+month:1,"_id":0})
                             temp_list_2=[]
-                            for i in range(0,main_data.count()):
-                                if main_data[i]['within_good_voyage_limit']==True:
+                            for i in range(0,len(self.main_data_list)):
+                                if self.main_data_list[i]['within_good_voyage_limit']==True:
                                     try:
-                                        temp_list_2.append(main_data[i]['independent_indices'][j]['SPEy'][month])
+                                        temp_list_2.append(self.main_data_list[i]['independent_indices'][j]['SPEy'][month])
                                     except KeyError:
                                         temp_list_2.append(None)
                             if main_dict_list['within_good_voyage_limit']==True:
@@ -1709,6 +1709,7 @@ class MainDB():
         main_dict_list['spe_limits_indices']=spe_indices_limits
         main_dict_list['mewma_limits']=mewma_final_limits
         print("kiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii")
+        return main_dict_list
                 
     def universal_limit(self,main_dict):
         ml_control=self.ship_configs['mlcontrol']
@@ -1774,9 +1775,15 @@ class MainDB():
             ml_list.append("main_fuel")
         if "sfoc" not in ml_list:
             ml_list.append("sfoc")
-        spe_limits=self.ship_configs['spe_limits']
-        t2_limits=self.ship_configs['t2_limits']
-        ewma_limits=self.ship_configs['ewma_limits']
+        try:
+            spe_limits=main_dict_list['spe_limits']
+            t2_limits=main_dict_list['t2_limits']
+            ewma_limits=main_dict_list['ewma_limits']
+
+        except:
+            spe_limits=self.ship_configs['spe_limits']
+            t2_limits=self.ship_configs['t2_limits']
+            ewma_limits=self.ship_configs['ewma_limits']
         # maindata = maindb.find({"ship_imo": int(self.ship_imo),"processed_daily_data.rep_dt.processed":{"$gte":datetime(2016,2,1,12)}})
         months=['m3','m6','m12','ly_m3','ly_m6','ly_m12']
         alpha=['zero_two','zero_one','zero_zero_five']
@@ -1785,10 +1792,15 @@ class MainDB():
         for i in indices:
             if indices[i]['Derived']!=True:
                 indice_list.append(i)
-
-        spe_indice_limits=self.ship_configs['spe_limits_indices']
-        t2_indice_limits=self.ship_configs['t2_limits_indices']
-        mewma_limits=self.ship_configs['mewma_limits']
+        try:
+            spe_indice_limits=main_dict_list['spe_limits_indices']
+            t2_indice_limits=main_dict_list['t2_limits_indices']
+            mewma_limits=main_dict_list['mewma_limits']
+        
+        except:
+            spe_indice_limits=self.ship_configs['spe_limits_indices']
+            t2_indice_limits=self.ship_configs['t2_limits_indices']
+            mewma_limits=self.ship_configs['mewma_limits']
 
 
         print("booooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooom")
@@ -2104,7 +2116,10 @@ start_time = time.time()
 
 # daily_obj=DailyInsert('F:\Afzal_cs\Internship\Arvind data files\RTM FUEL.xlsx','F:\Afzal_cs\Internship\Arvind data files\RTM ENGINE.xlsx',9591301,True)
 # daily_obj.do_steps()
-obj=MainDB(9591301,400,datetime.strptime('22/3/18','%d/%m/%y'))
+# maindb = database.get_collection("Main_db")
+
+# maindb.delete_many({"ship_imo": 9591301,"processed_daily_data.rep_dt.processed":datetime(2017,1,1,12)})
+obj=MainDB(9591301,None,datetime.strptime('1/1/17 12:00:00','%d/%m/%y %H:%M:%S'))
 obj.get_ship_configs()
 # obj.get_main_db(0)
 first_maindict=obj.ad_all()
