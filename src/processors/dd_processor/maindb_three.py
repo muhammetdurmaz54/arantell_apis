@@ -1,4 +1,5 @@
 
+from email.errors import NonPrintableDefect
 from logging import NOTSET
 from pickle import TRUE
 from re import M, T
@@ -52,7 +53,14 @@ client = MongoClient(MONGODB_URI)
 # client = MongoClient("mongodb://localhost:27017/aranti")
 db=client.get_database("aranti")
 database = db
-
+# maindb=database.get_collection("Main_db")
+# maindb.delete_many({"ship_imo":9591301})
+# # maindb.update_many( {}, { "$rename": { "historical_noon": "Noon" } } )
+# main_data = maindb.find({"ship_imo": 9591301})[0]
+# print(main_data['processed_daily_data']['rep_dt']['processed'].date())
+# rep_dt= '22-3-18'
+# rep_dt_new = datetime.strptime(rep_dt, '%d-%m-%y')
+# print(rep_dt_new.date())
 
 
 def check_status(func) -> object:
@@ -336,6 +344,7 @@ class MainDB():
                     processed_daily_data[key]=maindict
             # maindb.update_one(maindb.find({"ship_imo": int(self.ship_imo)})[i],{"$set":{"processed_daily_data":processed_daily_data}})
             main_dict_list[i]['processed_daily_data']=processed_daily_data
+            # print(main_dict_list[i]['processed_daily_data']['i_5'])
             # print(main_dict_list[i]['processed_daily_data']['rep_dt'])
         print("lvltwo doneee")
         return main_dict_list
@@ -623,10 +632,179 @@ class MainDB():
                     # print(main_data_dict[key])
                     # self.maindb.update_one(self.maindb.find({"ship_imo": int(self.ship_imo),"within_good_voyage_limit":True})[index],{"$set":{"processed_daily_data."+key:main_data_dict_key}})
             # maindb.update_one(maindb.find({"ship_imo": int(self.ship_imo)})[i],{"$set":{"processed_daily_data":main_data_dict}})
+            try:
+                main_data_dict['main_fuel']['t2_initial']=main_data_dict['main_fuel_per_dst']['t2_initial']
+                main_data_dict['main_fuel']['ewma']=main_data_dict['main_fuel_per_dst']['ewma']
+                main_data_dict['sfoc']['t2_initial']=main_data_dict['main_fuel_per_dst']['t2_initial']
+                main_data_dict['sfoc']['ewma']=main_data_dict['main_fuel_per_dst']['ewma']
+                main_data_dict['avg_hfo']['t2_initial']=main_data_dict['main_fuel_per_dst']['t2_initial']
+                main_data_dict['avg_hfo']['ewma']=main_data_dict['main_fuel_per_dst']['ewma']
+            except:
+                pass
             main_dict_list[i]['processed_daily_data']=main_data_dict
             print("kiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii")
         return main_dict_list
             
+    def update_main_fuel_spe(self,main_dict_list):
+        for i in range(0,len(main_dict_list)):
+            try:
+                print(i)
+                main_data=main_dict_list[i]
+                main_fuel_per_dst_m3=main_data['processed_daily_data']['main_fuel_per_dst']['predictions']['m3']
+                main_fuel_per_dst_m6=main_data['processed_daily_data']['main_fuel_per_dst']['predictions']['m6']
+                main_fuel_per_dst_m12=main_data['processed_daily_data']['main_fuel_per_dst']['predictions']['m12']
+                main_fuel_per_dst_ly_m3=main_data['processed_daily_data']['main_fuel_per_dst']['predictions']['ly_m3']
+                main_fuel_per_dst_ly_m6=main_data['processed_daily_data']['main_fuel_per_dst']['predictions']['ly_m6']
+                main_fuel_per_dst_ly_m12=main_data['processed_daily_data']['main_fuel_per_dst']['predictions']['ly_m12']
+
+
+                # stm_hrs=self.main_data['processed_daily_data']['stm_hrs']['processed']
+                dst_last=main_data['processed_daily_data']['dst_last']['processed']
+                pred={}
+                spe_y={}
+ 
+                months_list={"m3":main_fuel_per_dst_m3,"m6":main_fuel_per_dst_m6,"m12":main_fuel_per_dst_m12,"ly_m3":main_fuel_per_dst_ly_m3,"ly_m6":main_fuel_per_dst_ly_m6,"ly_m12":main_fuel_per_dst_ly_m12}
+                
+                main_fuel=main_data['processed_daily_data']['main_fuel']
+                
+                for month in months_list:
+                    if months_list[month] and pandas.isnull(months_list[month][1])==False and pandas.isnull(dst_last)==False:
+                        temp_list=[]
+                        if pandas.isnull(months_list[month][0])==False or months_list[month][0]!=None:
+                            temp_list.append(months_list[month][0] * dst_last)
+                        else:
+                            temp_list.append(None)
+                        temp_list.append(months_list[month][1] * dst_last)
+                        if pandas.isnull(months_list[month][2])==False or months_list[month][2]!=None:
+                            temp_list.append(months_list[month][2] * dst_last)
+                        else:
+                            temp_list.append(None)
+                        pred[month]=temp_list
+                    else:
+                        pred[month]=[]
+                    main_fuel['predictions']=pred
+                # for month in months_list:
+                    if pred[month] and pandas.isnull(pred[month][1])==False and pandas.isnull(main_fuel['processed'])==False:
+                        spe_y[month]=(pred[month][1]-main_fuel['processed'])**2
+                    else:
+                        spe_y[month]=None
+                    main_fuel['SPEy']=spe_y
+
+                main_dict_list[i]['processed_daily_data']['main_fuel']=main_fuel
+                print("done")
+            except:
+                print("nopeeeee")
+                continue
+        return main_dict_list
+
+    def update_sfoc_spe(self,main_dict_list):
+        months_list=["m3","m6","m12","ly_m3","ly_m6","ly_m12"]
+
+        for i in range(0,len(main_dict_list)):
+            try:
+                print(i)
+                main_data=main_dict_list[i]
+                sfoc=main_data['processed_daily_data']['sfoc']
+                main_fuel=main_data['processed_daily_data']['main_fuel']
+                pwr=main_data['processed_daily_data']['pwr']
+                stm_hrs=main_data['processed_daily_data']['stm_hrs']['processed']
+                pred={}
+                spe_y={}
+                
+                
+                for month in months_list:
+                    if main_fuel['predictions'][month] and pandas.isnull(main_fuel['predictions'][month][1])==False and pwr['predictions'][month] and pandas.isnull(pwr['predictions'][month][1])==False and pandas.isnull(stm_hrs)==False:
+                        temp_list=[]
+                        if pandas.isnull(main_fuel['predictions'][month][0])==False or main_fuel['predictions'][month][0]!=None:
+                            first_div=main_fuel['predictions'][month][0]/pwr['predictions'][month][1]
+                            second_div=first_div/stm_hrs
+                            val=second_div*10000
+                            temp_list.append(val)
+                        else:
+                            temp_list.append(None)
+                        first_div=main_fuel['predictions'][month][1]/pwr['predictions'][month][1]
+                        second_div=first_div/stm_hrs
+                        val=second_div*10000
+                        temp_list.append(val)
+                        if pandas.isnull(main_fuel['predictions'][month][2])==False or main_fuel['predictions'][month][2]!=None :
+                            first_div=main_fuel['predictions'][month][2]/pwr['predictions'][month][1]
+                            second_div=first_div/stm_hrs
+                            val=second_div*10000
+                            temp_list.append(val)
+                        else:
+                            temp_list.append(None)
+                        pred[month]=temp_list
+                    else:
+                        pred[month]=[]
+                    sfoc['predictions']=pred
+                # for month in months_list:
+                    if pred[month] and pandas.isnull(pred[month][1])==False and pandas.isnull(sfoc['processed'])==False:
+                        spe_y[month]=(pred[month][1] - sfoc['processed'])**2
+                    else:
+                        spe_y[month]=None
+                    sfoc['SPEy']=spe_y
+
+                main_dict_list[i]['processed_daily_data']['sfoc']=sfoc
+                print("done")
+            except:
+                print("nope")
+                continue
+        return main_dict_list
+
+    def update_avg_hfo_spe(self,main_dict_list):
+        for i in range(0,len(main_dict_list)):
+            try:
+                print(i)
+                main_data=main_dict_list[i]
+                main_fuel_per_dst_m3=main_data['processed_daily_data']['main_fuel']['predictions']['m3']
+                main_fuel_per_dst_m6=main_data['processed_daily_data']['main_fuel']['predictions']['m6']
+                main_fuel_per_dst_m12=main_data['processed_daily_data']['main_fuel']['predictions']['m12']
+                main_fuel_per_dst_ly_m3=main_data['processed_daily_data']['main_fuel']['predictions']['ly_m3']
+                main_fuel_per_dst_ly_m6=main_data['processed_daily_data']['main_fuel']['predictions']['ly_m6']
+                main_fuel_per_dst_ly_m12=main_data['processed_daily_data']['main_fuel']['predictions']['ly_m12']
+
+                stm_hrs=main_data['processed_daily_data']['stm_hrs']['processed']
+                pred={}
+                spe_y={}
+
+                months_list={"m3":main_fuel_per_dst_m3,"m6":main_fuel_per_dst_m6,"m12":main_fuel_per_dst_m12,"ly_m3":main_fuel_per_dst_ly_m3,"ly_m6":main_fuel_per_dst_ly_m6,"ly_m12":main_fuel_per_dst_ly_m12}
+                
+                avg_hfo=main_data['processed_daily_data']['avg_hfo']
+
+                for month in months_list:
+                    if months_list[month] and pandas.isnull(months_list[month][1])==False and pandas.isnull(stm_hrs)==False:
+                        
+                        temp_list=[]
+                        if pandas.isnull(months_list[month][0])==False or months_list[month][0]!=None:
+                            temp_list.append(months_list[month][0] * (24/stm_hrs))
+                        else:
+                            temp_list.append(None)
+                        temp_list.append(months_list[month][1] * (24/stm_hrs))
+                        if pandas.isnull(months_list[month][2])==False or months_list[month][2]!=None:
+                            temp_list.append(months_list[month][2] * (24/stm_hrs))
+                        else:
+                            temp_list.append(None)
+
+                        pred[month]=temp_list
+                    else:
+                        pred[month]=[]
+                    
+                    avg_hfo['predictions']=pred
+                # for month in months_list:
+                    if pred[month] and pandas.isnull(pred[month][1])==False and pandas.isnull(avg_hfo['processed'])==False:
+                        spe_y[month]=(pred[month][1] - avg_hfo['processed'])**2
+                    else:
+                        spe_y[month]=None
+                    
+                    avg_hfo['SPEy']=spe_y
+
+
+                main_dict_list[i]['processed_daily_data']['avg_hfo']=avg_hfo
+                print("done")      
+            except:
+                print("nopeee")
+                continue
+        return main_dict_list
                 
     def update_indices(self,main_dict_list):
         # maindata = maindb.find({"ship_imo": int(self.ship_imo),"within_good_voyage_limit":True,"processed_daily_data.rep_dt.processed":{"$lte":datetime(2015,7,1,12),"$gte":datetime(2015,5,1,12)}})
@@ -760,10 +938,18 @@ class MainDB():
     def main_db_writer(self):
         eng=self.daily_data['data_available_engine']
         nav=self.daily_data['data_available_nav']
+        try:
+            timestamp=self.daily_data['data']['timestamp']
+        except:
+            timestamp=None
         document = {
             "ship_imo": self.ship_imo,
             "date": datetime.utcnow(),
             "historical":True,
+            "Noon":self.daily_data['Noon'],
+            "Logs":self.daily_data['Logs'],
+            "timestamp":timestamp,
+            "final_rep_dt":self.daily_data['final_rep_dt'],
             "processed_daily_data": self.processed_daily_data,
             "within_good_voyage_limit":True, #new
             "vessel_loaded_check":self.vessel_load_check(),
@@ -1366,6 +1552,9 @@ class MainDB():
     
     def ewma_limits(self,main_dict_list):
         ml_control=self.ship_configs['mlcontrol']
+        ml_control['main_fuel']=None
+        ml_control['sfoc']=None
+        ml_control['avg_hfo']=None
         indices=self.ship_configs['indices_data']
         for i in indices:
             if indices[i]['Derived']==True:
@@ -1545,6 +1734,12 @@ class MainDB():
             except:
                 t2_limit_dict[key]=None
         # self.ship_configs_collection.update_one(self.ship_configs_collection.find({"ship_imo": int(self.ship_imo)})[0],{"$set":{"t2_limits":t2_limit_dict}})
+        try:
+            t2_limit_dict['main_fuel']=t2_limit_dict['main_fuel_per_dst']
+            t2_limit_dict['sfoc']=t2_limit_dict['main_fuel_per_dst']
+            t2_limit_dict['avg_hfo']=t2_limit_dict['main_fuel_per_dst']
+        except:
+            pass
         self.ship_configs['t2_limits']=t2_limit_dict
 
 
@@ -1636,11 +1831,11 @@ class MainDB():
                                     for ind in range(0,3):
                                         if spe_anamoly[month][ind]==False:
                                             if ind==0:
-                                                spe_msg_list.append(self.ship_configs['parameter_anamoly']['SPE_alpha1']['message']+str(self.ship_configs['data'][key]['spe_rule_based_message']))
+                                                spe_msg_list.append(self.ship_configs['parameter_anamoly']['SPE_alpha1']['message']+str(self.ship_configs['data'][key]['spe_rule_based_message'])+(" ,alpha: "+str(self.ship_configs['parameter_anamoly']['SPE_alpha1']['alpha'])))
                                             elif ind==1:
-                                                spe_msg_list.append(self.ship_configs['parameter_anamoly']['SPE_alpha2']['message']+str(self.ship_configs['data'][key]['spe_rule_based_message']))
+                                                spe_msg_list.append(self.ship_configs['parameter_anamoly']['SPE_alpha2']['message']+str(self.ship_configs['data'][key]['spe_rule_based_message'])+(" ,alpha: "+str(self.ship_configs['parameter_anamoly']['SPE_alpha2']['alpha'])))
                                             elif ind==2:
-                                                spe_msg_list.append(self.ship_configs['parameter_anamoly']['SPE_alpha3']['message']+str(self.ship_configs['data'][key]['spe_rule_based_message']))
+                                                spe_msg_list.append(self.ship_configs['parameter_anamoly']['SPE_alpha3']['message']+str(self.ship_configs['data'][key]['spe_rule_based_message'])+(" ,alpha: "+str(self.ship_configs['parameter_anamoly']['SPE_alpha3']['alpha'])))
                                         else:
                                             spe_msg_list.append(None)
                                     spe_messages[month]=spe_msg_list
@@ -1649,11 +1844,11 @@ class MainDB():
                                     for ind in range(0,3):
                                         if t2_anamoly[month][ind]==False:
                                             if ind==0:
-                                                t2_msg_list.append(self.ship_configs['parameter_anamoly']['T2_alpha1']['message']+str(self.ship_configs['data'][key]['t2_rule_based_message']))
+                                                t2_msg_list.append(self.ship_configs['parameter_anamoly']['T2_alpha1']['message']+str(self.ship_configs['data'][key]['t2_rule_based_message'])+(" ,alpha: "+str(self.ship_configs['parameter_anamoly']['T2_alpha1']['alpha'])))
                                             elif ind==1:
-                                                t2_msg_list.append(self.ship_configs['parameter_anamoly']['T2_alpha2']['message']+str(self.ship_configs['data'][key]['t2_rule_based_message']))
+                                                t2_msg_list.append(self.ship_configs['parameter_anamoly']['T2_alpha2']['message']+str(self.ship_configs['data'][key]['t2_rule_based_message'])+(" ,alpha: "+str(self.ship_configs['parameter_anamoly']['T2_alpha2']['alpha'])))
                                             elif ind==2:
-                                                t2_msg_list.append(self.ship_configs['parameter_anamoly']['T2_alpha3']['message']+str(self.ship_configs['data'][key]['t2_rule_based_message']))
+                                                t2_msg_list.append(self.ship_configs['parameter_anamoly']['T2_alpha3']['message']+str(self.ship_configs['data'][key]['t2_rule_based_message'])+(" ,alpha: "+str(self.ship_configs['parameter_anamoly']['T2_alpha3']['alpha'])))
                                         else:
                                             t2_msg_list.append(None)
                                     t2_messages[month]=t2_msg_list
@@ -1662,11 +1857,11 @@ class MainDB():
                                     for ind in range(0,3):
                                         if ewma_anamoly[month][ind]==False:
                                             if ind==0:
-                                                ewma_msg_list.append(self.ship_configs['parameter_anamoly']['MEWMA_CUMSUM_alpha1']['message']+str(self.ship_configs['data'][key]['ewma_rule_based_message']))
+                                                ewma_msg_list.append(self.ship_configs['parameter_anamoly']['MEWMA_CUMSUM_alpha1']['message']+str(self.ship_configs['data'][key]['ewma_rule_based_message'])+(" ,alpha: "+str(self.ship_configs['parameter_anamoly']['MEWMA_CUMSUM_alpha1']['alpha'])))
                                             elif ind==1:
-                                                ewma_msg_list.append(self.ship_configs['parameter_anamoly']['MEWMA_CUMSUM_alpha2']['message']+str(self.ship_configs['data'][key]['ewma_rule_based_message']))
+                                                ewma_msg_list.append(self.ship_configs['parameter_anamoly']['MEWMA_CUMSUM_alpha2']['message']+str(self.ship_configs['data'][key]['ewma_rule_based_message'])+(" ,alpha: "+str(self.ship_configs['parameter_anamoly']['MEWMA_CUMSUM_alpha2']['alpha'])))
                                             elif ind==2:
-                                                ewma_msg_list.append(self.ship_configs['parameter_anamoly']['MEWMA_CUMSUM_alpha3']['message']+str(self.ship_configs['data'][key]['ewma_rule_based_message']))
+                                                ewma_msg_list.append(self.ship_configs['parameter_anamoly']['MEWMA_CUMSUM_alpha3']['message']+str(self.ship_configs['data'][key]['ewma_rule_based_message'])+(" ,alpha: "+str(self.ship_configs['parameter_anamoly']['MEWMA_CUMSUM_alpha3']['alpha'])))
                                         else:
                                             ewma_msg_list.append(None)
                                     ewma_messages[month]=ewma_msg_list
@@ -1735,11 +1930,11 @@ class MainDB():
                                     for ind in range(0,3):
                                         if spe_indice_anamoly[month][ind]==False:
                                             if ind==0:
-                                                spe_indice_msg_list.append(self.ship_configs['parameter_anamoly']['SPE_alpha1']['message']+str(self.ship_configs['data'][key]['spe_rule_based_message']))
+                                                spe_indice_msg_list.append(self.ship_configs['parameter_anamoly']['SPE_alpha1']['message']+str(self.ship_configs['data'][key]['spe_rule_based_message'])+(" ,alpha: "+str(self.ship_configs['parameter_anamoly']['SPE_alpha1']['alpha'])))
                                             elif ind==1:
-                                                spe_indice_msg_list.append(self.ship_configs['parameter_anamoly']['SPE_alpha2']['message']+str(self.ship_configs['data'][key]['spe_rule_based_message']))
+                                                spe_indice_msg_list.append(self.ship_configs['parameter_anamoly']['SPE_alpha2']['message']+str(self.ship_configs['data'][key]['spe_rule_based_message'])+(" ,alpha: "+str(self.ship_configs['parameter_anamoly']['SPE_alpha2']['alpha'])))
                                             elif ind==2:
-                                                spe_indice_msg_list.append(self.ship_configs['parameter_anamoly']['SPE_alpha3']['message']+str(self.ship_configs['data'][key]['spe_rule_based_message']))
+                                                spe_indice_msg_list.append(self.ship_configs['parameter_anamoly']['SPE_alpha3']['message']+str(self.ship_configs['data'][key]['spe_rule_based_message'])+(" ,alpha: "+str(self.ship_configs['parameter_anamoly']['SPE_alpha3']['alpha'])))
                                         else:
                                             spe_indice_msg_list.append(None)
                                     spe_indice_messages[month]=spe_indice_msg_list
@@ -1748,11 +1943,11 @@ class MainDB():
                                     for ind in range(0,3):
                                         if t2_indice_anamoly[month][ind]==False:
                                             if ind==0:
-                                                t2_indice_msg_list.append(self.ship_configs['parameter_anamoly']['T2_alpha1']['message']+str(self.ship_configs['data'][key]['t2_rule_based_message']))
+                                                t2_indice_msg_list.append(self.ship_configs['parameter_anamoly']['T2_alpha1']['message']+str(self.ship_configs['data'][key]['t2_rule_based_message'])+(" ,alpha: "+str(self.ship_configs['parameter_anamoly']['T2_alpha1']['alpha'])))
                                             elif ind==1:
-                                                t2_indice_msg_list.append(self.ship_configs['parameter_anamoly']['T2_alpha2']['message']+str(self.ship_configs['data'][key]['t2_rule_based_message']))
+                                                t2_indice_msg_list.append(self.ship_configs['parameter_anamoly']['T2_alpha2']['message']+str(self.ship_configs['data'][key]['t2_rule_based_message'])+(" ,alpha: "+str(self.ship_configs['parameter_anamoly']['T2_alpha2']['alpha'])))
                                             elif ind==2:
-                                                t2_indice_msg_list.append(self.ship_configs['parameter_anamoly']['T2_alpha3']['message']+str(self.ship_configs['data'][key]['t2_rule_based_message']))
+                                                t2_indice_msg_list.append(self.ship_configs['parameter_anamoly']['T2_alpha3']['message']+str(self.ship_configs['data'][key]['t2_rule_based_message'])+(" ,alpha: "+str(self.ship_configs['parameter_anamoly']['T2_alpha3']['alpha'])))
                                         else:
                                             t2_indice_msg_list.append(None)
                                     t2_indice_messages[month]=t2_indice_msg_list
@@ -1760,11 +1955,11 @@ class MainDB():
                                     for ind in range(0,3):
                                         if mewma_anamoly[month][ind]==False:
                                             if ind==0:
-                                                mewma_msg_list.append(self.ship_configs['parameter_anamoly']['MEWMA_CUMSUM_alpha1']['message']+str(self.ship_configs['data'][key]['ewma_rule_based_message']))
+                                                mewma_msg_list.append(self.ship_configs['parameter_anamoly']['MEWMA_CUMSUM_alpha1']['message']+str(self.ship_configs['data'][key]['ewma_rule_based_message'])+(" ,alpha: "+str(self.ship_configs['parameter_anamoly']['MEWMA_CUMSUM_alpha1']['alpha'])))
                                             elif ind==1:
-                                                mewma_msg_list.append(self.ship_configs['parameter_anamoly']['MEWMA_CUMSUM_alpha2']['message']+str(self.ship_configs['data'][key]['ewma_rule_based_message']))
+                                                mewma_msg_list.append(self.ship_configs['parameter_anamoly']['MEWMA_CUMSUM_alpha2']['message']+str(self.ship_configs['data'][key]['ewma_rule_based_message'])+(" ,alpha: "+str(self.ship_configs['parameter_anamoly']['MEWMA_CUMSUM_alpha2']['alpha'])))
                                             elif ind==2:
-                                                mewma_msg_list.append(self.ship_configs['parameter_anamoly']['MEWMA_CUMSUM_alpha3']['message']+str(self.ship_configs['data'][key]['ewma_rule_based_message']))
+                                                mewma_msg_list.append(self.ship_configs['parameter_anamoly']['MEWMA_CUMSUM_alpha3']['message']+str(self.ship_configs['data'][key]['ewma_rule_based_message'])+(" ,alpha: "+str(self.ship_configs['parameter_anamoly']['MEWMA_CUMSUM_alpha3']['alpha'])))
                                         else:
                                             mewma_msg_list.append(None)
                                     mewma_messages[month]=mewma_msg_list
@@ -1899,7 +2094,7 @@ start_time = time.time()
 
 # daily_obj=DailyInsert('F:\Afzal_cs\Internship\Arvind data files\RTM FUEL.xlsx','F:\Afzal_cs\Internship\Arvind data files\RTM ENGINE.xlsx',9591301,True)
 # daily_obj.do_steps()
-obj=MainDB(9591363)
+obj=MainDB(9591301)
 obj.get_ship_configs()
 # obj.get_main_db(0)
 first_maindict=obj.ad_all()
@@ -1914,12 +2109,19 @@ base_dataframe_one=obj.create_base_dataframe(lvl_two_main_dict)
 outlier_main_dict=obj.update_outlier_maindb_alldoc(lvl_two_main_dict)
 # #outlier (both outlier 1 and 2 inside this) and (remove date condition on find  before uploading in aws)
 good_voyage_main_dict=obj.update_good_voyage(outlier_main_dict)
-# #good voyage tag created here essential for predictions process 
+# #good voyage tag created here essential for predictions process
 base_dataframe_two=obj.create_base_dataframe(good_voyage_main_dict)
 # #call again bcz after running good voyage function now good voyage values will be false in some rows so good data for prediction will be selected now
 preds_main_dict=obj.update_maindb_predictions_alldoc(good_voyage_main_dict)
 # #predictions, spe, t2, ewma, cumsum all done here (remove date condition on find  before uploading in aws)
-indices_preds_main_dict=obj.update_indices(preds_main_dict)
+main_fuel_spe=obj.update_main_fuel_spe(preds_main_dict)
+
+sfoc_spe=obj.update_sfoc_spe(main_fuel_spe)
+
+avg_hfo_spe=obj.update_avg_hfo_spe(sfoc_spe)
+
+
+indices_preds_main_dict=obj.update_indices(avg_hfo_spe)
 # #creating indices as well as prediction, spe, t2, mewma, mcumsum, all done here
 
 obj.universal_limit()
@@ -1927,13 +2129,13 @@ obj.universal_indices_limits()
 obj.ewma_limits(indices_preds_main_dict)
 obj.indice_ewma_limit(indices_preds_main_dict)
 
-main_fuel_main_dict=obj.update_main_fuel(indices_preds_main_dict)
+# main_fuel_main_dict=obj.update_main_fuel(indices_preds_main_dict)
 # #backcalculationg main fuel by given furlmula (all values which are created in predictions processe will be backcalculated with same formula)
-sfoc_main_dict=obj.update_sfoc(main_fuel_main_dict)
+# sfoc_main_dict=obj.update_sfoc(main_fuel_main_dict)
 # # #backcalculating 
-avg_hfo_main_dict=obj.update_avg_hfo(sfoc_main_dict)
+# avg_hfo_main_dict=obj.update_avg_hfo(sfoc_main_dict)
 # # #Backcalculating
-cp_msg_main_dict=obj.update_cp_msg(avg_hfo_main_dict)
+cp_msg_main_dict=obj.update_cp_msg(indices_preds_main_dict)
 final_main_dict=obj.anamolies_by_config(cp_msg_main_dict)
 create_maindb_update_shipconfig=obj.final_maindb_config(final_main_dict)
 
