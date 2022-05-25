@@ -20,10 +20,15 @@ log = CommonLogger(__name__, debug=True).setup_logger()
 
 
 class DailyDataExtractor:
-    def __init__(self,fuelfile,engfile,imo,override):
+    def __init__(self,fuelfile,engfile,imo,logs,override):
         self.fuel=fuelfile
         self.eng=engfile
         self.imo=int(imo)
+        self.logs=logs
+        if logs==True:
+            self.Noon=False
+        elif logs==False:
+            self.Noon=True
         self.error = False
         self.override=override
         
@@ -40,6 +45,21 @@ class DailyDataExtractor:
     def connect(self):
         self.db = connect_db()
 
+    def closest(self,lst, K):
+        return lst[min(range(len(lst)), key = lambda i: abs(lst[i]-K))]
+
+    def final_rep_dt(self,rep_dt,timestamp):
+        timestamp_dict={"400":4,"800":8,"1200":12,"1600":16,"2000":20,"2400":0}
+        stamp_list=[400,800,1200,1600,2000,2400]
+        if self.logs==False or timestamp==None:
+            final_rep_dt=rep_dt
+        elif self.logs==True:
+            logs_time=int(timestamp)
+            final_log_time=self.closest(stamp_list,logs_time)
+            final_rep_dt=rep_dt.replace(hour=timestamp_dict[str(final_log_time)])
+        return final_rep_dt
+
+
     def dailydata_insert(self):
         if self.fuel!=None:
             fuel = pd.DataFrame(self.fuel)
@@ -52,7 +72,10 @@ class DailyDataExtractor:
             data_available_engine=self.ship_configs['data_available_engine']
             identifier_mapping=self.ship_configs['identifier_mapping']
             input_rep_dt=fuel[identifier_mapping["rep_dt"]][0].strip()
-            input_timestamp=int(fuel['timestamp'][0])
+            try:
+                input_timestamp=int(fuel[identifier_mapping['timestamp']][0])
+            except:
+                input_timestamp=None
             try:
                 try:
                     try:
@@ -71,7 +94,10 @@ class DailyDataExtractor:
                 for dates in rep_dt_list:
                     if dates.date()==rep_dt.date():
                         self.dates=dates
-                        daily_data=daily_data_collection.find({"ship_imo":self.imo,"data.rep_dt":dates,"timestamp":input_timestamp})[0]
+                        try:
+                            daily_data=daily_data_collection.find({"ship_imo":self.imo,"historical":False,"data.rep_dt":dates,"timestamp":input_timestamp})[0]
+                        except:
+                            daily_data=None
                 if daily_data:
                     if 'data_available_engine' in daily_data and len(daily_data['data_available_engine'])>0 and daily_data['engine_data_available']==True:
                         historical=False
@@ -79,7 +105,7 @@ class DailyDataExtractor:
                         previous_data=daily_data['data']
                         data=self.getdata(fuel,data_available_nav,identifier_mapping,previous_data)
                         data['rep_dt']=self.dates
-                        daily_data_collection.update_one(daily_data_collection.find({"ship_imo":self.imo,"data.rep_dt":self.dates,"timestamp":input_timestamp})[0],{"$set":{"historical":False,"nav_data_available":True,"data_available_nav":data_available_nav,"data":data}})
+                        daily_data_collection.update_one(daily_data_collection.find({"ship_imo":self.imo,"historical":False,"data.rep_dt":self.dates,"timestamp":input_timestamp})[0],{"$set":{"historical":False,"nav_data_available":True,"data_available_nav":data_available_nav,"data":data}})
                         print(data)
                         return "engine data avaailable and fuel data updated"
 
@@ -91,10 +117,10 @@ class DailyDataExtractor:
                             previous_data=daily_data['data']
                             data=self.getdata(fuel,data_available_nav,identifier_mapping,previous_data)
                             data['rep_dt']=self.dates
-                            daily_data_collection.update_one(daily_data_collection.find({"ship_imo":self.imo,"data.rep_dt":self.dates,"timestamp":input_timestamp})[0],{"$set":{"historical":False,"nav_data_available":True,"data_available_nav":data_available_nav,"data":data}})
+                            daily_data_collection.update_one(daily_data_collection.find({"ship_imo":self.imo,"historical":False,"data.rep_dt":self.dates,"timestamp":input_timestamp})[0],{"$set":{"historical":False,"nav_data_available":True,"data_available_nav":data_available_nav,"data":data}})
                             return "eng data not there but fuel data override"
                         elif self.override==False:
-                            return "fuel data already present"   
+                            return "fuel data already present"
                     
                 else:
                     data=self.getdata(fuel,data_available_nav,identifier_mapping,{})
@@ -102,9 +128,10 @@ class DailyDataExtractor:
                     daily_nav={
                         "ship_imo":self.imo,
                         "ship_name":ship_name,
-                        "date":datetime.now(),
                         "timestamp":input_timestamp,
                         "historical":False,
+                        "Noon":self.Noon,
+                        "Logs":self.logs,
                         "nav_data_available":True,
                         "engine_data_available":False,
                         "nav_data_details":{"file_name":"daily_data19June20.xlsx","file_url":"aws.s3.xyz.com","uploader_details":{"userid":"xyz","company":"sdf"}},
@@ -113,6 +140,10 @@ class DailyDataExtractor:
                         "data_available_engine":[],
                         "data":data
                     }
+                    try:
+                        daily_nav['final_rep_dt']=self.final_rep_dt(daily_nav['data']['rep_dt'],daily_nav['data']['timestamp'])
+                    except:
+                        daily_nav['final_rep_dt']=self.final_rep_dt(daily_nav['data']['rep_dt'],None)
                     daily_data_collection.insert_one(daily_nav).inserted_id
                     return "inserted new fuel data"
 
@@ -127,7 +158,10 @@ class DailyDataExtractor:
             data_available_engine=self.ship_configs['data_available_engine']
             identifier_mapping=self.ship_configs['identifier_mapping']
             input_rep_dt=eng[identifier_mapping["rep_dt"]][0].strip()
-            input_timestamp=int(eng['timestamp'][0])
+            try:
+                input_timestamp=int(eng[identifier_mapping['timestamp']][0])
+            except:
+                input_timestamp=None
             try:
                 try:
                     try:
@@ -146,7 +180,10 @@ class DailyDataExtractor:
                 for dates in rep_dt_list:
                     if dates.date()==rep_dt.date():
                         self.dates=dates
-                        daily_data=daily_data_collection.find({"ship_imo":self.imo,"data.rep_dt":dates,"timestamp":input_timestamp})[0]
+                        try:
+                            daily_data=daily_data_collection.find({"ship_imo":self.imo,"historical":False,"data.rep_dt":dates,"timestamp":input_timestamp})[0]
+                        except:
+                            daily_data=None                
                 if daily_data:
                     if 'data_available_nav' in daily_data and len(daily_data['data_available_nav'])>0 and daily_data['nav_data_available']==True:
                         historical=False
@@ -155,7 +192,7 @@ class DailyDataExtractor:
                         data=self.getdata(eng,data_available_engine,identifier_mapping,previous_data)
                         data['rep_dt']=self.dates
                         print(data)
-                        daily_data_collection.update_one(daily_data_collection.find({"ship_imo":self.imo,"data.rep_dt":self.dates,"timestamp":input_timestamp})[0],{"$set":{"historical":False,"engine_data_available":True,"data_available_engine":data_available_engine,"data":data}})
+                        daily_data_collection.update_one(daily_data_collection.find({"ship_imo":self.imo,"historical":False,"data.rep_dt":self.dates,"timestamp":input_timestamp})[0],{"$set":{"historical":False,"engine_data_available":True,"data_available_engine":data_available_engine,"data":data}})
                         return "fuel data available and eng ddata updated"
                     elif 'data_available_engine' in daily_data and len(daily_data['data_available_engine'])>0 and daily_data['engine_data_available']==True:
                         print("hereeeee")
@@ -165,7 +202,7 @@ class DailyDataExtractor:
                             previous_data=daily_data['data']
                             data=self.getdata(eng,data_available_engine,identifier_mapping,previous_data)
                             data['rep_dt']=self.dates
-                            daily_data_collection.update_one(daily_data_collection.find({"ship_imo":self.imo,"data.rep_dt":self.dates,"timestamp":input_timestamp})[0],{"$set":{"historical":False,"engine_data_available":True,"data_available_engine":data_available_engine,"data":data}})
+                            daily_data_collection.update_one(daily_data_collection.find({"ship_imo":self.imo,"historical":False,"data.rep_dt":self.dates,"timestamp":input_timestamp})[0],{"$set":{"historical":False,"engine_data_available":True,"data_available_engine":data_available_engine,"data":data}})
                             return "fuel data not there but eng data override"
                         else:
                             return "eng data already present"
@@ -176,9 +213,10 @@ class DailyDataExtractor:
                     daily_nav={
                         "ship_imo":self.imo,
                         "ship_name":ship_name,
-                        "date":datetime.now(),
                         "timestamp":input_timestamp,
                         "historical":False,
+                        "Noon":self.Noon,
+                        "Logs":self.logs,
                         "nav_data_available":False,
                         "engine_data_available":True,
                         "nav_data_details":None,
@@ -187,7 +225,11 @@ class DailyDataExtractor:
                         "data_available_engine":data_available_engine,
                         "data":data
                     }
-                    daily_data_collection.insert_one(daily_nav).inserted_id    
+                    try:
+                        daily_nav['final_rep_dt']=self.final_rep_dt(daily_nav['data']['rep_dt'],daily_nav['data']['timestamp'])
+                    except:
+                        daily_nav['final_rep_dt']=self.final_rep_dt(daily_nav['data']['rep_dt'],None)
+                    daily_data_collection.insert_one(daily_nav).inserted_id
                     return "inserted new engine data"
             
 
@@ -201,14 +243,14 @@ class DailyDataExtractor:
                 elif identifier_mapping[w].strip() in row:
                     dest[w]=self.is_float(str(row[identifier_mapping[w]].iloc[0]))
             except KeyError:
-                continue    
-     
+                continue
+    
         return dest
     
     def is_float(self,floatnum):
         float_regex = '[+-]?[0-9]+\.[0-9]+'
         int_regex = '^[0-9]+$'
-        if(re.search(float_regex, floatnum)): 
+        if(re.search(float_regex, floatnum)):
             try:
                 return float(floatnum)
             except:
@@ -222,7 +264,7 @@ class DailyDataExtractor:
             return floatnum
 
 
-obj=DailyDataExtractor(None,{"timestamp":[1400],"pwr": [11000],"ship_imo": [9591301],"rep_dt": ['22-3-18'],"ext_tempavg":[228]},9591301,True)
+obj=DailyDataExtractor(None,{"avg_hfo": [42],"ship_imo": [9591301],"rep_dt": ['23-3-18'],"pwr_dev":[8000],"ext_temp1":[280]},9591301,False,True)
 obj.connect()
 msg=obj.dailydata_insert()
 print(msg)
