@@ -20,7 +20,6 @@ from pandas.core.dtypes.missing import isnull
 sys.path.insert(1,"D:\\Internship\\Repository\\Aranti\\arantell_apis")
 #from mongoengine import *
 from src.db.schema.ship import Ship 
-from src.processors.config_extractor.outlier import CheckOutlier
 # from src.processors.dd_processor.regress import regress
 #from src.processors.dd_processor.regress import regress
 import numpy as np
@@ -219,16 +218,22 @@ class UpdateIndividualProcessors():
                     x.append(col)
                 x.remove(y)
                 # print(new_data[identifier])
+                mean_val=np.mean(new_data[identifier])
+                standdev=np.std(new_data[identifier])
+                zsc_list=[]
                 try:
                     z_score=st.zscore(new_data[identifier])
                     new_data['z_score']=z_score
-                    new_data= new_data.drop(index=new_data[new_data['z_score'] > 2].index)
-                    new_data= new_data.drop(index=new_data[new_data['z_score'] < -2].index)
-                    new_data=new_data.reset_index(drop=True)
-                    new_data=new_data.drop(columns='z_score')
-                    new_data=new_data.reset_index(drop=True)
                 except:
-                    pass
+                    for rowval in new_data[identifier]:
+                        zsc=(rowval-mean_val)/standdev
+                        zsc_list.append(zsc)
+                    new_data['z_score']=zsc_list
+                new_data= new_data.drop(index=new_data[new_data['z_score'] > 2].index)
+                new_data= new_data.drop(index=new_data[new_data['z_score'] < -2].index)
+                new_data=new_data.reset_index(drop=True)
+                new_data=new_data.drop(columns='z_score')
+                new_data=new_data.reset_index(drop=True)
                 data_today=new_data
                 if len(curr_data) == 1:
                     data_today=data_today.append(curr_data[new_data.columns])
