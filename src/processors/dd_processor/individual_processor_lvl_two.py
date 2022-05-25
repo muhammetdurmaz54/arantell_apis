@@ -23,9 +23,12 @@ class IndividualProcessorsTwo():
         static_data=self.ship_configs['static_data']
         main_data=self.main_data
         temp_dict={}
+        
         for i in list_var:
             if i in static_data and pandas.isnull(static_data[i])==False:
                 temp_dict[i]=static_data[i]['value']
+            elif i in main_data and "param_dummy_val" in main_data[i] and pandas.isnull(main_data[i]['param_dummy_val'])==False:
+                temp_dict[i]=main_data[i]['param_dummy_val']
             elif i in main_data and pandas.isnull(main_data[i]['processed'])==False:
                 temp_dict[i]=main_data[i]['processed']
             elif i in self.equipment_data and pandas.isnull(self.equipment_data[i]['processed'])==False:
