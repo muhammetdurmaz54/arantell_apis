@@ -62,6 +62,10 @@ class DailyDataExtractor:
 
     def dailydata_insert(self):
         if self.fuel!=None:
+            try:
+                del self.fuel['undefined']
+            except:
+                pass
             fuel = pd.DataFrame(self.fuel)
             database=self.db.get_database("aranti")
             ship_configs_collection=database.get_collection("ship")
@@ -79,13 +83,25 @@ class DailyDataExtractor:
             try:
                 try:
                     try:
-                        rep_dt = datetime.strptime(input_rep_dt, '%d/%m/%y %H:%M:%S')
+                        try:
+                            rep_dt = datetime.strptime(input_rep_dt, '%d/%m/%y %H:%M:%S')
+                        except:
+                            rep_dt = datetime.strptime(input_rep_dt, '%d/%m/%Y %H:%M:%S')
                     except:
-                        rep_dt = datetime.strptime(input_rep_dt, '%d/%m/%y')
+                        try:
+                            rep_dt = datetime.strptime(input_rep_dt, '%d/%m/%y')
+                        except:
+                            rep_dt = datetime.strptime(input_rep_dt, '%d/%m/%Y')
                 except:
-                    rep_dt = datetime.strptime(input_rep_dt, '%d-%m-%y %H:%M:%S')
+                    try:
+                        rep_dt = datetime.strptime(input_rep_dt, '%d-%m-%y %H:%M:%S')
+                    except:
+                        rep_dt = datetime.strptime(input_rep_dt, '%d-%m-%Y %H:%M:%S')
             except:
-                rep_dt = datetime.strptime(input_rep_dt, '%d-%m-%y')
+                try:
+                    rep_dt = datetime.strptime(input_rep_dt, '%d-%m-%y')
+                except:
+                    rep_dt = datetime.strptime(input_rep_dt, '%d-%m-%Y')
             ship_imos=daily_data_collection.distinct("ship_imo")
             if self.imo in ship_imos:
                 # try:
@@ -107,7 +123,7 @@ class DailyDataExtractor:
                         data['rep_dt']=self.dates
                         daily_data_collection.update_one(daily_data_collection.find({"ship_imo":self.imo,"historical":False,"data.rep_dt":self.dates,"timestamp":input_timestamp})[0],{"$set":{"historical":False,"nav_data_available":True,"data_available_nav":data_available_nav,"data":data}})
                         print(data)
-                        return "engine data avaailable and fuel data updated"
+                        return input_rep_dt, input_timestamp
 
                     elif 'data_available_nav' in daily_data and len(daily_data['data_available_nav'])>0 and daily_data['nav_data_available']==True:
                         print("hereeeee")
@@ -118,9 +134,9 @@ class DailyDataExtractor:
                             data=self.getdata(fuel,data_available_nav,identifier_mapping,previous_data)
                             data['rep_dt']=self.dates
                             daily_data_collection.update_one(daily_data_collection.find({"ship_imo":self.imo,"historical":False,"data.rep_dt":self.dates,"timestamp":input_timestamp})[0],{"$set":{"historical":False,"nav_data_available":True,"data_available_nav":data_available_nav,"data":data}})
-                            return "eng data not there but fuel data override"
+                            return None, None
                         elif self.override==False:
-                            return "fuel data already present"
+                            return None, None
                     
                 else:
                     data=self.getdata(fuel,data_available_nav,identifier_mapping,{})
@@ -145,9 +161,13 @@ class DailyDataExtractor:
                     except:
                         daily_nav['final_rep_dt']=self.final_rep_dt(daily_nav['data']['rep_dt'],None)
                     daily_data_collection.insert_one(daily_nav).inserted_id
-                    return "inserted new fuel data"
+                    return None, None
 
         elif self.eng!=None:
+            try:
+                del self.eng['undefined']
+            except:
+                pass
             eng = pd.DataFrame(self.eng)
             database=self.db.get_database("aranti")
             ship_configs_collection=database.get_collection("ship")
@@ -165,13 +185,25 @@ class DailyDataExtractor:
             try:
                 try:
                     try:
-                        rep_dt = datetime.strptime(input_rep_dt, '%d/%m/%y %H:%M:%S')
+                        try:
+                            rep_dt = datetime.strptime(input_rep_dt, '%d/%m/%y %H:%M:%S')
+                        except:
+                            rep_dt = datetime.strptime(input_rep_dt, '%d/%m/%Y %H:%M:%S')
                     except:
-                        rep_dt = datetime.strptime(input_rep_dt, '%d/%m/%y')
+                        try:
+                            rep_dt = datetime.strptime(input_rep_dt, '%d/%m/%y')
+                        except:
+                            rep_dt = datetime.strptime(input_rep_dt, '%d/%m/%Y')
                 except:
-                    rep_dt = datetime.strptime(input_rep_dt, '%d-%m-%y %H:%M:%S')
+                    try:
+                        rep_dt = datetime.strptime(input_rep_dt, '%d-%m-%y %H:%M:%S')
+                    except:
+                        rep_dt = datetime.strptime(input_rep_dt, '%d-%m-%Y %H:%M:%S')
             except:
-                rep_dt = datetime.strptime(input_rep_dt, '%d-%m-%y')
+                try:
+                    rep_dt = datetime.strptime(input_rep_dt, '%d-%m-%y')
+                except:
+                    rep_dt = datetime.strptime(input_rep_dt, '%d-%m-%Y')
             ship_imos=daily_data_collection.distinct("ship_imo")
             if self.imo in ship_imos:
                 # try:
@@ -193,7 +225,7 @@ class DailyDataExtractor:
                         data['rep_dt']=self.dates
                         print(data)
                         daily_data_collection.update_one(daily_data_collection.find({"ship_imo":self.imo,"historical":False,"data.rep_dt":self.dates,"timestamp":input_timestamp})[0],{"$set":{"historical":False,"engine_data_available":True,"data_available_engine":data_available_engine,"data":data}})
-                        return "fuel data available and eng ddata updated"
+                        return input_rep_dt, input_timestamp
                     elif 'data_available_engine' in daily_data and len(daily_data['data_available_engine'])>0 and daily_data['engine_data_available']==True:
                         print("hereeeee")
                         if self.override==True:
@@ -203,9 +235,9 @@ class DailyDataExtractor:
                             data=self.getdata(eng,data_available_engine,identifier_mapping,previous_data)
                             data['rep_dt']=self.dates
                             daily_data_collection.update_one(daily_data_collection.find({"ship_imo":self.imo,"historical":False,"data.rep_dt":self.dates,"timestamp":input_timestamp})[0],{"$set":{"historical":False,"engine_data_available":True,"data_available_engine":data_available_engine,"data":data}})
-                            return "fuel data not there but eng data override"
+                            return None, None
                         else:
-                            return "eng data already present"
+                            return None, None
                     
                 else:
                     data=self.getdata(eng,data_available_engine,identifier_mapping,{})
@@ -230,7 +262,7 @@ class DailyDataExtractor:
                     except:
                         daily_nav['final_rep_dt']=self.final_rep_dt(daily_nav['data']['rep_dt'],None)
                     daily_data_collection.insert_one(daily_nav).inserted_id
-                    return "inserted new engine data"
+                    return None, None
             
 
 
@@ -242,6 +274,8 @@ class DailyDataExtractor:
                     dest[w]=self.is_float(str(row[w].iloc[0]))
                 elif identifier_mapping[w].strip() in row:
                     dest[w]=self.is_float(str(row[identifier_mapping[w]].iloc[0]))
+                if dest[w] == "None" or dest[w] == "none":
+                    dest[w] = None
             except KeyError:
                 continue
     
@@ -262,6 +296,7 @@ class DailyDataExtractor:
                 return floatnum
         else:
             return floatnum
+
 
 
 obj=DailyDataExtractor(None,{"avg_hfo": [42],"ship_imo": [9591301],"rep_dt": ['23-3-18'],"pwr_dev":[8000],"ext_temp1":[280]},9591301,False,True)
