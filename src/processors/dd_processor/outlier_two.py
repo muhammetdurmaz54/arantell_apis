@@ -1,5 +1,8 @@
 from __future__ import division
+from asyncio import new_event_loop
+from hashlib import new
 from re import escape
+from statistics import stdev
 from typing import List
 from numpy.core.arrayprint import format_float_positional
 
@@ -33,7 +36,6 @@ from datetime import date, timedelta
 #from pysimplelog import Logger
 import string
 from dateutil.relativedelta import relativedelta
-from src.processors.config_extractor.outlier import CheckOutlier
 from src.db.setup_mongo import connect_db
 
 
@@ -84,7 +86,16 @@ class OutlierTwo():
         # print(dataframe)
         # exit()
         if len(dataframe)>=2:
-            dataframe["z_score"]=st.zscore(dataframe[identifier])
+            mean_val=np.mean(dataframe[identifier])
+            standdev=np.std(dataframe[identifier])
+            newlist=[]
+            try:
+                dataframe["z_score"]=st.zscore(dataframe[identifier])
+            except:
+                for i in dataframe[identifier]:
+                    zsc=(i-mean_val)/standdev
+                    newlist.append(zsc)
+                dataframe["z_score"]=newlist
             for i in range(0,len(dataframe['rep_dt'])):
                 if dataframe['rep_dt'][i]==current_date:
                     try:
