@@ -211,16 +211,18 @@ class IndividualProcessors():
             connected_equipment=self.ship_configs['data'][identifier]['Equipment_block']
             if connected_equipment in self.ship_configs['data']:
                 if pandas.isnull(self.ship_configs['data'][connected_equipment]['source_idetifier'])==False and self.ship_configs['data'][connected_equipment]['source_idetifier']=="available":
-                    base_dict['processed']=1
-                    base_dict['reported']=None
-                    base_dict['is_read']=False
-                    base_dict['is_processed']=True
+                    # base_dict['processed']=1
+                    # base_dict['reported']=None
+                    # base_dict['is_read']=False
+                    # base_dict['is_processed']=True
+                    base_dict['param_dummy_val']=1
                     return base_dict
                 else:
-                    base_dict['processed']=0
-                    base_dict['reported']=None
-                    base_dict['is_read']=False
-                    base_dict['is_processed']=True
+                    base_dict['param_dummy_val']=0
+                    # base_dict['processed']=0
+                    # base_dict['reported']=None
+                    # base_dict['is_read']=False
+                    # base_dict['is_processed']=True
                     return base_dict         
         return base_dict        
 
