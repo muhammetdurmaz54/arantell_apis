@@ -1,4 +1,5 @@
 import sys
+from tokenize import group
 from numpy.core.numeric import outer
 from pandas.core.algorithms import factorize
 
@@ -83,9 +84,11 @@ class ConfigExtractor():
         for col in self.grpdict.columns:
             if "Serial" not in col and "serial" not in col and "Unnamed" not in col :
                 grp_list.append(col)
+        group_id=1
         for i in grp_list:
             name_dict=self.get_subgroup_names(i,self.grpdict)
-            self.group_final_dict[i]=name_dict
+            self.group_final_dict["group_"+str(group_id)]=name_dict
+            group_id=group_id+1
         self.temp_grp_dict={}
         for key in list(self.group_final_dict.keys()):
             self.temp_grp_dict[key]=self.group_final_dict[key]
@@ -336,6 +339,7 @@ class ConfigExtractor():
         for i in range(0, len(self.df_variables['Identifier NEW'])):   #Fetches column Identifier_NEW from
             print("kooooooooooooooooooooooooooooooooooooooooo")
             if self.df_variables['Data Type'][i] != 'static':#variables_file checks if type is 'static'   #converts into dictionary
+                # print(self.df_variables['Identifier NEW'][i])
                 self.newList = []
                 # Only add specific groups
                 for elem in self.groupsData:
@@ -470,7 +474,7 @@ class ConfigExtractor():
                 return ship_collection.insert_one(ship)
 
 
-obj=ConfigExtractor(9591363,'F:\Afzal_cs\Internship\ConfiguratorRev_9591363_new.xlsx',True)
+obj=ConfigExtractor(9591301,'F:\Afzal_cs\Internship\ConfiguratorRev_9591301_new.xlsx',True)
 # obj.connect()
 # obj.read_files()
 # obj.anamoly()
