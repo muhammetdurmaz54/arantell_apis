@@ -1,6 +1,7 @@
 from datetime import date
 import sys
 from numpy.core.numeric import identity
+from datetime import datetime
 import pandas
 from pandas.core import base
 from pandas.core.dtypes.missing import isnull 
@@ -226,6 +227,39 @@ class IndividualProcessors():
                     return base_dict         
         return base_dict        
 
+    def convert_string_to_date(self,input_rep_dt):
+        try:
+            try:
+                try:
+                    try:
+                        rep_dt = datetime.strptime(input_rep_dt, '%d/%m/%y %H:%M:%S')
+                        
+                    except:
+                        rep_dt = datetime.strptime(input_rep_dt, '%d/%m/%Y %H:%M:%S')
+                      
+                except:
+                    try:
+                        rep_dt = datetime.strptime(input_rep_dt, '%d/%m/%y')
+                    
+                    except:
+                        rep_dt = datetime.strptime(input_rep_dt, '%d/%m/%Y')
+                       
+            except:
+                try:
+                    rep_dt = datetime.strptime(input_rep_dt, '%d-%m-%y %H:%M:%S')
+                 
+                except:
+                    rep_dt = datetime.strptime(input_rep_dt, '%d-%m-%Y %H:%M:%S')
+                  
+        except:
+            try:
+                rep_dt = datetime.strptime(input_rep_dt, '%d-%m-%y')
+            except:
+                rep_dt = datetime.strptime(input_rep_dt, '%d-%m-%Y')
+        return rep_dt
+     
+        
+
     def base_avg_minmax_evaluator(self,string):
         ext_temp={}
         ext_str=string
@@ -275,6 +309,22 @@ class IndividualProcessors():
     # def w_force_processor(self,base_dict):
     #     return self.base_individual_processor('w_force',base_dict) 
  
+    def eta_processor(self,base_dict):
+        try:
+            base_dict=base_dict
+            base_dict['reported']=self.daily_data['data']['eta']
+            if type(base_dict['reported'])==str:
+                base_dict['processed']=self.convert_string_to_date(str(base_dict['reported']))
+                base_dict['is_read']=True
+                base_dict['is_processed']=True
+            else:
+                base_dict['processed']=base_dict['reported']
+                base_dict['is_read']=True
+                base_dict['is_processed']=False
+        except:
+            base_dict['processed']=None
+        return base_dict  
+
     def w_dir_processor(self,base_dict):
         try:
             base_dict=base_dict
