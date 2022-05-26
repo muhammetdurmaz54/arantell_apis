@@ -350,34 +350,36 @@ class MainDB():
         
     def create_base_dataframe(self,main_dict_list):
         maindb = database.get_collection("Main_db")
-        main_data = maindb.find({"ship_imo": int(self.ship_imo)})
+        # main_data = maindb.find({"ship_imo": int(self.ship_imo)})
+        # mainobject=json_util.dumps(main_data)
+        # self.main_data_list=json_util.loads(mainobject)
         self.main_data_list=[]
-        for i in range(0,main_data.count()):
-            print(i)
-            self.main_data_list.append(main_data[i])
+
+        # for i in range(0,main_data.count()):
+        #     print(i)
+        #     self.main_data_list.append(main_data[i])
+        num=0
+        for doc in maindb.find({"ship_imo": int(self.ship_imo)}):
+            num=num+1
+            print(num)
+            self.main_data_list.append(doc)
         ident_list=[]
         for i in self.ship_configs['data']:
             ident_list.append(i)
-            temp_list=[]
-        for i in ident_list:
-            self.main =maindb.find({"ship_imo":self.ship_imo,"within_good_voyage_limit":True},{"processed_daily_data."+i+".processed":1,"_id":0})
-            mainobject=json_util.dumps(self.main)
-            load=json_util.loads(mainobject)
-            temp_list.append(load)
-            # print(temp_list)
         temp_dict={}
-        for i in range(len(temp_list)):
+        for j in range(0,len(ident_list)):
             temp_list_2=[]
-            for j in range(0,len(temp_list[i])):
-                try:
-                    temp_list_2.append(temp_list[i][j]['processed_daily_data'][ident_list[i]]['processed'])
-                except:
+            for i in range(len(self.main_data_list)):
+                if self.main_data_list[i]['within_good_voyage_limit']==True:
                     try:
-                        temp_list_2.append(temp_list[i][j]['independent_indices'][ident_list[i]]['processed'])
+                        temp_list_2.append(self.main_data_list[i]['processed_daily_data'][ident_list[j]]['processed'])
                     except:
-                        temp_list_2.append(None)
-                
-                temp_dict[ident_list[i]]=temp_list_2    
+                        try:
+                            temp_list_2.append(self.main_data_list[i]['independent_indices'][ident_list[j]]['processed'])
+                        except:
+                            temp_list_2.append(None)
+                    
+                    temp_dict[ident_list[j]]=temp_list_2      
         dataframe=pandas.DataFrame(temp_dict)
         dataframe=dataframe.sort_values(by=['rep_dt'])
         dataframe=dataframe.reset_index(drop=True)
@@ -2119,7 +2121,7 @@ start_time = time.time()
 # maindb = database.get_collection("Main_db")
 
 # maindb.delete_many({"ship_imo": 9591301,"processed_daily_data.rep_dt.processed":datetime(2017,1,1,12)})
-obj=MainDB(9591301,None,datetime.strptime('1/1/17 12:00:00','%d/%m/%y %H:%M:%S'))
+obj=MainDB(9591301,None,datetime.strptime('14/12/16 12:00:00','%d/%m/%y %H:%M:%S'))
 obj.get_ship_configs()
 # obj.get_main_db(0)
 first_maindict=obj.ad_all()
