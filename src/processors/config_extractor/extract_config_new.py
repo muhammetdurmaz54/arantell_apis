@@ -72,20 +72,20 @@ class ConfigExtractor():
         a = self.df_groups.columns.get_level_values(0).to_series()
         b = a.mask(a.str.startswith('Unnamed')).ffill().fillna('')
         self.df_groups.columns = [b, self.df_groups.columns.get_level_values(1)]
-        self.grpnames = pd.read_excel(self.file, sheet_name="GrpDir", engine='openpyxl')
-        self.grpdict = pd.read_excel(self.file, sheet_name="GrpDirTwo", engine='openpyxl')
-        self.mlcontrol=pd.read_excel(self.file, sheet_name='MLcontrol',skiprows = [0, 1, 2], engine='openpyxl')
+        self.grpdict = pd.read_excel(self.file, sheet_name="GrpDir", engine='openpyxl')
+        # self.mlcontrol=pd.read_excel(self.file, sheet_name='MLcontrol',skiprows = [0, 1, 2], engine='openpyxl')
+        self.mlcontrol=self.df_variables.loc[:,'ML_control_begin':'ML_control_end']
         self.anamoly_messages=pd.read_excel(self.file, sheet_name='AnamolyMessages', engine='openpyxl')
-        
+       
 
     def group_dict_create(self):
         self.group_final_dict={}
-        grp_list=[]
+        self.grp_list=[]
         for col in self.grpdict.columns:
             if "Serial" not in col and "serial" not in col and "Unnamed" not in col :
-                grp_list.append(col)
+                self.grp_list.append(col)
         group_id=1
-        for i in grp_list:
+        for i in self.grp_list:
             name_dict=self.get_subgroup_names(i,self.grpdict)
             self.group_final_dict["group_"+str(group_id)]=name_dict
             group_id=group_id+1
@@ -101,7 +101,7 @@ class ConfigExtractor():
                     self.temp_grp_dict[key][used_key]=self.group_final_dict[key][in_key]
                 else:
                     self.temp_grp_dict[key][in_key]=self.group_final_dict[key][in_key]
-        print(self.temp_grp_dict)
+        # print(self.temp_grp_dict)
         return self.temp_grp_dict
 
     def get_subgroup_names(self,groupname,dataframe):
@@ -148,8 +148,21 @@ class ConfigExtractor():
 
 
     def derived(self,identifier_new):
-        identifier_new=identifier_new
+        if type(identifier_new)==str:
+            identifier_new=identifier_new.strip()
+        else:
+            identifier_new=identifier_new
         if identifier_new=="yes" or identifier_new=="YES":
+            return True
+        elif identifier_new==isnull or identifier_new=="NO" or identifier_new=="no":
+            return False
+    
+    def cumulative(self,identifier_new):
+        if type(identifier_new)==str:
+            identifier_new=identifier_new.strip()
+        else:
+            identifier_new=identifier_new
+        if identifier_new=="c" or identifier_new=="C":
             return True
         elif identifier_new==isnull or identifier_new=="NO" or identifier_new=="no":
             return False
@@ -182,7 +195,7 @@ class ConfigExtractor():
                         if self.df_groups[j][i] > 0:
                             newdict = {
                                 'name': self.df_groups[('', 'id_new')][i], #Added for convenience
-                                'groupname': self.grpnames['Name'][new_index],
+                                'groupname': self.grp_list[new_index],
                                 'groupnumber': j[0].replace('Group',''),
                                 'group_availability_code': self.df_groups[j][i],
                                 'block_number': self.df_groups[(j[0], 'BLOCK NO')][i]
@@ -197,13 +210,13 @@ class ConfigExtractor():
         ml_dict={}
         
         for i,row in self.mlcontrol.iterrows():
-            column_list=[]
-            for column in self.mlcontrol.columns:
-                if self.mlcontrol[column][i]==1:
-                    if i>=8:
-                        column_list.append(column)
-            
-                    ml_dict[self.mlcontrol['Identifier New'][i]]=column_list
+            if pd.isnull(self.mlcontrol['ML_control_begin'][i])==False:
+                column_list=[]
+                for column in self.mlcontrol.columns:
+                    if self.mlcontrol[column][i]==1 and pd.isnull(self.mlcontrol[column][0])==False: 
+                        column_list.append(self.mlcontrol[column][0])
+                
+                        ml_dict[self.mlcontrol['ML_control_begin'][i]]=column_list
         return ml_dict
              
                 
@@ -235,7 +248,8 @@ class ConfigExtractor():
                 self.equipment_anamoly[self.anamoly_messages['Type of anamoly'][i]]=self.anamoly_dict(i)
 
             if pd.isnull(self.anamoly_messages['PARAM /EQPT'][i])==True or self.anamoly_messages['PARAM /EQPT'][i]=='':
-                self.outlier_anamoly[self.anamoly_messages['Type of anamoly'][i]]=self.anamoly_dict(i)
+                if pd.isnull(self.anamoly_messages['Type of anamoly'][i])==False:
+                    self.outlier_anamoly[self.anamoly_messages['Type of anamoly'][i]]=self.anamoly_dict(i)
     
 
     def input_output(self,input):
@@ -302,6 +316,7 @@ class ConfigExtractor():
     def process_file(self):
         self.data = {}
         # get group selection
+        self.final_group_dict=self.group_dict_create()
         self.groupsData = self.get_group_selection()
         
 
@@ -337,7 +352,7 @@ class ConfigExtractor():
         
 
         for i in range(0, len(self.df_variables['Identifier NEW'])):   #Fetches column Identifier_NEW from
-            print("kooooooooooooooooooooooooooooooooooooooooo")
+            # print("kooooooooooooooooooooooooooooooooooooooooo")
             if self.df_variables['Data Type'][i] != 'static':#variables_file checks if type is 'static'   #converts into dictionary
                 # print(self.df_variables['Identifier NEW'][i])
                 self.newList = []
@@ -364,6 +379,7 @@ class ConfigExtractor():
                     'var_type':self.df_variables['Param or Eqpt'][i],    #p=parameter, E=equipment, E1=psuedo equipment or notional equipment
                     'identifier_old':self.df_variables['Identifer OLD'][i],
                     'Derived':self.derived(self.df_variables['Derived'][i]),
+                    'cumulative':self.cumulative(self.df_variables['cumulative'][i]),
                     'Daily Availability':self.derived(self.df_variables['Daily Availability'][i]),
                     'availabe_for_groups':self.availability(self.df_variables['AVAILABLE FOR GROUPS'][i]),
                     'dependent':self.availability(self.df_variables['DEPENDENT?'][i]),
@@ -430,10 +446,10 @@ class ConfigExtractor():
             "outlier_anamoly":self.outlier_anamoly,
             "identifier_mapping" : self.identifier_mapping,
             "indices_data":self.create_indices(),
-            "group_dict":self.group_dict_create(),
+            "group_dict":self.final_group_dict,
             "data" : self.data
         }
-      
+        # print(ship)
         if self.ship_imo in ship_imos:
             ship_configs = ship_collection.find({"ship_imo": self.ship_imo})[0]
             ship['t2_limits']=ship_configs['t2_limits']
