@@ -296,11 +296,29 @@ class MainDB():
                         base_dict[key+"_i"]=None
                     try:
                         self.ship_configs['data'][key]
-                        self.processed_daily_data[key] = eval("IP."+key.strip()+"_processor")(base_dict) # IP.rpm_processor(base_dict)
+                        if self.daily_data['Logs']==True and self.ship_configs['data'][key]['cumulative']==True:
+                            if key in self.daily_data['data'] and pandas.isnull(self.daily_data['data'][key])==False:
+                                self.processed_daily_data[key] = eval("IP."+key.strip()+"_processor")(base_dict)
+                            else:
+                                self.processed_daily_data[key] = base_dict
+                        else:
+                            self.processed_daily_data[key] = eval("IP."+key.strip()+"_processor")(base_dict) # IP.rpm_processor(base_dict)
                     except KeyError:
-                        self.processed_daily_data[key] = IP.base_individual_processor(key,base_dict)
+                        if self.daily_data['Logs']==True and self.ship_configs['data'][key]['cumulative']==True:
+                            if key in self.daily_data['data'] and pandas.isnull(self.daily_data['data'][key])==False:
+                                self.processed_daily_data[key] = IP.base_individual_processor(key,base_dict)
+                            else:
+                                self.processed_daily_data[key] = base_dict
+                        else:
+                            self.processed_daily_data[key] = IP.base_individual_processor(key,base_dict)
                     except AttributeError:
-                        self.processed_daily_data[key] = IP.base_individual_processor(key,base_dict)
+                        if self.daily_data['Logs']==True and self.ship_configs['data'][key]['cumulative']==True:
+                            if key in self.daily_data['data'] and pandas.isnull(self.daily_data['data'][key])==False:
+                                self.processed_daily_data[key] = IP.base_individual_processor(key,base_dict)
+                            else:
+                                self.processed_daily_data[key] = base_dict
+                        else:
+                            self.processed_daily_data[key] = IP.base_individual_processor(key,base_dict)
             
     
     def add_calc_i_cp(self,main_dict_list):
@@ -337,10 +355,13 @@ class MainDB():
         for key in self.ship_configs['data']:
             # if key=="i_5":
             if key in processed_daily_data and (pandas.isnull(processed_daily_data[key]['processed']) or processed_daily_data[key]['processed']==0 or processed_daily_data[key]['processed']==1) and self.ship_configs['data'][key]['Derived']==True:
-                # print(key)
-                base_dict=processed_daily_data[key]
-                maindict=IP_two.base_individual_processor(key,base_dict)
-                processed_daily_data[key]=maindict
+                    # print(key)
+                    if main_data['Logs']==True and self.ship_configs['data'][key]['cumulative']==True:
+                        continue
+                    else:
+                        base_dict=processed_daily_data[key]
+                        maindict=IP_two.base_individual_processor(key,base_dict)
+                        processed_daily_data[key]=maindict
         # maindb.update_one(maindb.find({"ship_imo": int(self.ship_imo)})[i],{"$set":{"processed_daily_data":processed_daily_data}})
         main_dict_list['processed_daily_data']=processed_daily_data
         # print(main_dict_list[i]['processed_daily_data']['i_5'])
