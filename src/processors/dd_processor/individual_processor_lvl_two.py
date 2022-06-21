@@ -80,4 +80,5 @@ class IndividualProcessorsTwo():
                     except:
                         base_dict['processed']=None
                         base_dict['is_processed']=False
+        # print(base_dict['processed'])
         return base_dict
