@@ -344,6 +344,39 @@ class MainDB():
         main_dict_list['processed_daily_data']=processed_daily_data
         print("calc_cp doneee")
         return main_dict_list
+
+    
+    def equipment_values(self,main_dict_list):
+        equipment_dict={}
+        equipment_list=[]
+        for key,val in self.ship_configs['data'].items():
+            if (self.ship_configs['data'][key]['var_type']=='E') or (self.ship_configs['data'][key]['var_type']=='E1'): 
+                if pandas.isnull(self.ship_configs['data'][key]['source_idetifier'])==False and self.ship_configs['data'][key]['source_idetifier']=="available":
+                    equipment_list.append(key)
+
+
+        for eqpt_key in equipment_list:
+            temp_list=[]
+            for key in self.ship_configs['data']:
+                if pandas.isnull(self.ship_configs['data'][key]['Equipment_block'])==False and self.ship_configs['data'][key]['Equipment_block']==eqpt_key:
+                    temp_list.append(key)
+            equipment_dict[eqpt_key]=temp_list
+   
+        processed_daily_data=main_dict_list['processed_daily_data']
+        equipment_data=main_dict_list['Equipment']
+        for key in equipment_dict:
+            equipment_val_list=[]
+            for val in equipment_dict[key]:
+                if pandas.isnull(processed_daily_data[val]['processed'])==False:
+                    equipment_val_list.append(1)
+                else:
+                    equipment_val_list.append(0)
+            if 1 in equipment_val_list:
+                equipment_data[key]['processed']=1
+            else:
+                equipment_data[key]['processed']=0
+        main_dict_list['Equipment']=equipment_data     
+        return main_dict_list
                 
 
     def maindb_lvl_two(self,main_dict_list):
@@ -2149,7 +2182,9 @@ first_maindict=obj.ad_all()
 # #initialize maindb with handwritten formulas draftmean=(dft_aft+dt_fwd)/2 (dailydata)
 calc_i_cp_main_dict=obj.add_calc_i_cp(first_maindict)
 # #adding calc _i _cp variable values in respective identifier example:speed_sog_calc=speed_sog{speed_sog_calc:value}
-lvl_two_main_dict=obj.maindb_lvl_two(calc_i_cp_main_dict)
+equipment_values_main_dict=obj.equipment_values(calc_i_cp_main_dict)
+# #updating equipment values 0 or 1 here
+lvl_two_main_dict=obj.maindb_lvl_two(equipment_values_main_dict)
 # #same as ad_all (gets the value from maindb)
 # #initial population done (remove date condition on find  before uploading in aws)
 base_dataframe_one=obj.create_base_dataframe(lvl_two_main_dict)
