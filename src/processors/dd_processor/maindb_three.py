@@ -345,6 +345,40 @@ class MainDB():
         print("calc_cp doneee")
         return main_dict_list
                 
+    def equipment_values(self,main_dict_list):
+        equipment_dict={}
+        equipment_list=[]
+        for key,val in self.ship_configs['data'].items():
+            if (self.ship_configs['data'][key]['var_type']=='E') or (self.ship_configs['data'][key]['var_type']=='E1'): 
+                if pandas.isnull(self.ship_configs['data'][key]['source_idetifier'])==False and self.ship_configs['data'][key]['source_idetifier']=="available":
+                    equipment_list.append(key)
+
+
+        for eqpt_key in equipment_list:
+            temp_list=[]
+            for key in self.ship_configs['data']:
+                if pandas.isnull(self.ship_configs['data'][key]['Equipment_block'])==False and self.ship_configs['data'][key]['Equipment_block']==eqpt_key:
+                    temp_list.append(key)
+            equipment_dict[eqpt_key]=temp_list
+
+        for i in range(0,len(main_dict_list)):
+            processed_daily_data=main_dict_list[i]['processed_daily_data']
+            equipment_data=main_dict_list[i]['Equipment']
+            for key in equipment_dict:
+                equipment_val_list=[]
+                for val in equipment_dict[key]:
+                    if pandas.isnull(processed_daily_data[val]['processed'])==False:
+                        equipment_val_list.append(1)
+                    else:
+                        equipment_val_list.append(0)
+                if 1 in equipment_val_list:
+                    equipment_data[key]['processed']=1
+                else:
+                    equipment_data[key]['processed']=0
+            main_dict_list[i]['Equipment']=equipment_data     
+        return main_dict_list
+        
+
 
     def maindb_lvl_two(self,main_dict_list):
         for i in range(0,len(main_dict_list)):
@@ -365,6 +399,7 @@ class MainDB():
                         processed_daily_data[key]=maindict
             # maindb.update_one(maindb.find({"ship_imo": int(self.ship_imo)})[i],{"$set":{"processed_daily_data":processed_daily_data}})
             main_dict_list[i]['processed_daily_data']=processed_daily_data
+            # exit()
             # print(main_dict_list[i]['processed_daily_data']['i_5'])
             # print(main_dict_list[i]['processed_daily_data']['rep_dt'])
         print("lvltwo doneee")
@@ -389,6 +424,8 @@ class MainDB():
                     
                     temp_dict[ident_list[j]]=temp_list_2    
         dataframe=pandas.DataFrame(temp_dict)
+        # print(dataframe)
+        # dataframe.to_csv("previousdata.csv")
         dataframe=dataframe.sort_values(by=['rep_dt'])
         dataframe=dataframe.reset_index(drop=True)
         # dataframe.to_csv("fulldata.csv")
@@ -397,6 +434,7 @@ class MainDB():
             i=newdatearray.append(i.date())
         dataframe['rep_dt']=newdatearray
         self.base_dataframe=dataframe
+        # self.base_dataframe.to_csv("tempdatafull.csv")
         print(self.base_dataframe)
 
 
@@ -423,7 +461,7 @@ class MainDB():
                     if pandas.isnull(main_data_dict_key['processed'])==False and main_data_dict_key['processed']!=0 and main_data_dict_key['processed']!=1:
                         if (type(main_data_dict_key['processed'])==int or type(main_data_dict_key['processed'])==float) and type(main_data_dict_key['processed'])!=str:
                             try:
-                                print(key)
+                                # print(key)
                             
                                 oplow=self.ship_configs['data'][key]['limits']['oplow'] 
                                 ophigh=self.ship_configs['data'][key]['limits']['ophigh']                                    #rpm with % 
@@ -2115,16 +2153,17 @@ start_time = time.time()
 
 # daily_obj=DailyInsert('F:\Afzal_cs\Internship\Arvind data files\RTM FUEL.xlsx','F:\Afzal_cs\Internship\Arvind data files\RTM ENGINE.xlsx',9591301,True)
 # daily_obj.do_steps()
-obj=MainDB(9591301)
+obj=MainDB(9205926)
 obj.get_ship_configs()
 # obj.get_main_db(0)
 first_maindict=obj.ad_all()
-# #initialize maindb with handwritten formulas draftmean=(dft_aft+dt_fwd)/2 (dailydata)
+# # #initialize maindb with handwritten formulas draftmean=(dft_aft+dt_fwd)/2 (dailydata)
 calc_i_cp_main_dict=obj.add_calc_i_cp(first_maindict)
-# #adding calc _i _cp variable values in respective identifier example:speed_sog_calc=speed_sog{speed_sog_calc:value}
-lvl_two_main_dict=obj.maindb_lvl_two(calc_i_cp_main_dict)
+# # #adding calc _i _cp variable values in respective identifier example:speed_sog_calc=speed_sog{speed_sog_calc:value}
+equipment_values_main_dict=obj.equipment_values(calc_i_cp_main_dict)
+# #updating equipment values 0 or 1 here
+lvl_two_main_dict=obj.maindb_lvl_two(equipment_values_main_dict)
 # #same as ad_all (gets the value from maindb)
-# #initial population done (remove date condition on find  before uploading in aws)
 base_dataframe_one=obj.create_base_dataframe(lvl_two_main_dict)
 # # creates dataframe of all identifiers (currently all good vayage true)
 outlier_main_dict=obj.update_outlier_maindb_alldoc(lvl_two_main_dict)
