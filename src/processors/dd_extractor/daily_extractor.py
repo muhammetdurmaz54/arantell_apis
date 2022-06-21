@@ -41,7 +41,7 @@ class DailyDataExtractor:
         #     return False, str(self.traceback_msg)
         # else:
         #     return True, str(inserted_id)
- 
+
     def connect(self):
         self.db = connect_db()
 
@@ -75,6 +75,14 @@ class DailyDataExtractor:
             data_available_nav=self.ship_configs['data_available_nav']
             data_available_engine=self.ship_configs['data_available_engine']
             identifier_mapping=self.ship_configs['identifier_mapping']
+
+
+            self.common_col=self.ship_configs['common_col']
+            for com_col in self.common_col:
+                if com_col!=identifier_mapping['rep_dt'] and com_col!=identifier_mapping['timestamp'] and com_col!=identifier_mapping["ship_imo"]:
+                    fuel[str(com_col)+"_fuel_file"]=fuel[com_col]
+
+
             input_rep_dt=fuel[identifier_mapping["rep_dt"]][0].strip()
             try:
                 input_timestamp=int(fuel[identifier_mapping['timestamp']][0])
@@ -119,9 +127,12 @@ class DailyDataExtractor:
                         historical=False
                         nav_data_available=True
                         previous_data=daily_data['data']
+                        previous_common_data=daily_data['common_data']
                         data=self.getdata(fuel,data_available_nav,identifier_mapping,previous_data)
+                        previous_common_data.update(self.common_data)
+                        new_common_data=previous_common_data
                         data['rep_dt']=self.dates
-                        daily_data_collection.update_one(daily_data_collection.find({"ship_imo":self.imo,"historical":False,"data.rep_dt":self.dates,"timestamp":input_timestamp})[0],{"$set":{"historical":False,"nav_data_available":True,"data_available_nav":data_available_nav,"data":data}})
+                        daily_data_collection.update_one(daily_data_collection.find({"ship_imo":self.imo,"historical":False,"data.rep_dt":self.dates,"timestamp":input_timestamp})[0],{"$set":{"historical":False,"nav_data_available":True,"data_available_nav":data_available_nav,"data":data,"common_data":new_common_data}})
                         print(data)
                         return input_rep_dt, input_timestamp
 
@@ -132,8 +143,9 @@ class DailyDataExtractor:
                             nav_data_available=True
                             previous_data=daily_data['data']
                             data=self.getdata(fuel,data_available_nav,identifier_mapping,previous_data)
+                            new_common_data=self.common_data
                             data['rep_dt']=self.dates
-                            daily_data_collection.update_one(daily_data_collection.find({"ship_imo":self.imo,"historical":False,"data.rep_dt":self.dates,"timestamp":input_timestamp})[0],{"$set":{"historical":False,"nav_data_available":True,"data_available_nav":data_available_nav,"data":data}})
+                            daily_data_collection.update_one(daily_data_collection.find({"ship_imo":self.imo,"historical":False,"data.rep_dt":self.dates,"timestamp":input_timestamp})[0],{"$set":{"historical":False,"nav_data_available":True,"data_available_nav":data_available_nav,"data":data,"common_data":new_common_data}})
                             return None, None
                         elif self.override==False:
                             return None, None
@@ -154,7 +166,8 @@ class DailyDataExtractor:
                         "engine_data_details":None,
                         "data_available_nav":data_available_nav,
                         "data_available_engine":[],
-                        "data":data
+                        "data":data,
+                        "common_data":self.common_data
                     }
                     try:
                         daily_nav['final_rep_dt']=self.final_rep_dt(daily_nav['data']['rep_dt'],daily_nav['data']['timestamp'])
@@ -177,6 +190,13 @@ class DailyDataExtractor:
             data_available_nav=self.ship_configs['data_available_nav']
             data_available_engine=self.ship_configs['data_available_engine']
             identifier_mapping=self.ship_configs['identifier_mapping']
+
+            self.common_col=self.ship_configs['common_col']
+            for com_col in self.common_col:
+                if com_col!=identifier_mapping['rep_dt'] and com_col!=identifier_mapping['timestamp'] and com_col!=identifier_mapping["ship_imo"]:
+                    eng[str(com_col)+"_eng_file"]=eng[com_col]
+
+
             input_rep_dt=eng[identifier_mapping["rep_dt"]][0].strip()
             try:
                 input_timestamp=int(eng[identifier_mapping['timestamp']][0])
@@ -221,10 +241,15 @@ class DailyDataExtractor:
                         historical=False
                         eng_data_available=True
                         previous_data=daily_data['data']
+                        previous_common_data=daily_data['common_data']
+                        print("PREVIOUS", previous_common_data)
                         data=self.getdata(eng,data_available_engine,identifier_mapping,previous_data)
+                        previous_common_data.update(self.common_data)
+                        new_common_data=previous_common_data
+                        print("NEW", new_common_data)
                         data['rep_dt']=self.dates
                         print(data)
-                        daily_data_collection.update_one(daily_data_collection.find({"ship_imo":self.imo,"historical":False,"data.rep_dt":self.dates,"timestamp":input_timestamp})[0],{"$set":{"historical":False,"engine_data_available":True,"data_available_engine":data_available_engine,"data":data}})
+                        daily_data_collection.update_one(daily_data_collection.find({"ship_imo":self.imo,"historical":False,"data.rep_dt":self.dates,"timestamp":input_timestamp})[0],{"$set":{"historical":False,"engine_data_available":True,"data_available_engine":data_available_engine,"data":data,"common_data":new_common_data}})
                         return input_rep_dt, input_timestamp
                     elif 'data_available_engine' in daily_data and len(daily_data['data_available_engine'])>0 and daily_data['engine_data_available']==True:
                         print("hereeeee")
@@ -233,8 +258,9 @@ class DailyDataExtractor:
                             eng_data_available=True
                             previous_data=daily_data['data']
                             data=self.getdata(eng,data_available_engine,identifier_mapping,previous_data)
+                            new_common_data=self.common_data
                             data['rep_dt']=self.dates
-                            daily_data_collection.update_one(daily_data_collection.find({"ship_imo":self.imo,"historical":False,"data.rep_dt":self.dates,"timestamp":input_timestamp})[0],{"$set":{"historical":False,"engine_data_available":True,"data_available_engine":data_available_engine,"data":data}})
+                            daily_data_collection.update_one(daily_data_collection.find({"ship_imo":self.imo,"historical":False,"data.rep_dt":self.dates,"timestamp":input_timestamp})[0],{"$set":{"historical":False,"engine_data_available":True,"data_available_engine":data_available_engine,"data":data,"common_data":new_common_data}})
                             return None, None
                         else:
                             return None, None
@@ -255,7 +281,8 @@ class DailyDataExtractor:
                         "engine_data_details":{"file_name":"daily_data19June20engine.xlsx","file_url":"aws.s3.xyz.com","uploader_details":{"userid":"xyz","company":"sdf"},},
                         "data_available_nav":[],
                         "data_available_engine":data_available_engine,
-                        "data":data
+                        "data":data,
+                        "common_data":self.common_data
                     }
                     try:
                         daily_nav['final_rep_dt']=self.final_rep_dt(daily_nav['data']['rep_dt'],daily_nav['data']['timestamp'])
@@ -278,6 +305,26 @@ class DailyDataExtractor:
                     dest[w] = None
             except KeyError:
                 continue
+
+        self.common_data={}    
+        for i in row.columns:
+            print("ROW COLUMNS", i)
+            try:
+                if i in self.common_col and i!=identifier_mapping['rep_dt'] and i!=identifier_mapping['timestamp']:
+                    if self.fuel!=None:
+                        print(row[i].iloc[0])
+                        if row[i].iloc[0]== None or pd.isnull(row[i].iloc[0]) == True:
+                            self.common_data[str(i)+"_fuel_file"] = None
+                        else:
+                            self.common_data[str(i)+"_fuel_file"]=self.is_float(str(row[i].iloc[0]))
+                    elif self.eng!=None:
+                        if row[i].iloc[0] == None or pd.isnull(row[i].iloc[0]) == True:
+                            self.common_data[str(i)+"_eng_file"] = None
+                        else:
+                            self.common_data[str(i)+"_eng_file"]=self.is_float(str(row[i].iloc[0]))
+            except:
+                continue
+        print(self.common_data) 
     
         return dest
     
