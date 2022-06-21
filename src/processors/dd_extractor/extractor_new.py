@@ -1,6 +1,8 @@
+from asyncio.windows_events import NULL
 from math import nan
 from os import error
-import sys 
+import sys
+from xmlrpc.client import _datetime_type 
 sys.path.insert(1,"F:\\Afzal_cs\\Internship\\arantell_apis-main")
 from src.db.setup_mongo import connect_db
 from src.configurations.logging_config import CommonLogger
@@ -64,8 +66,21 @@ class DailyInsert:
 
 
         if self.fuel!=None and self.eng!=None:
-            fuel = pd.read_excel(self.fuel,engine='openpyxl').fillna("  ")
-            eng = pd.read_excel(self.eng,engine='openpyxl').fillna("  ")
+            fuel = pd.read_excel(self.fuel,skiprows = [1, 2]).fillna("  ")
+            fuel=fuel[fuel.rep_dt != np.NaN]
+            for column in fuel.columns:
+                if (fuel[column] == "  ").all():
+                    fuel=fuel.drop(columns=column)
+            eng = pd.read_excel(self.eng,skiprows = [1, 2]).fillna("  ")
+            eng=eng[eng.rep_dt != np.NaN]
+            for column in eng.columns:
+                if (eng[column] == "  ").all():
+                    eng=eng.drop(columns=column)
+            
+            # print(fuel)
+            # print(eng)
+            
+            
             
             database=self.db.get_database("aranti")
             ship_configs_collection=database.get_collection("ship")
@@ -74,12 +89,13 @@ class DailyInsert:
             maindb = database.get_collection("Main_db")
             ship_stats=database.get_collection("Ship_stats")
             try:
-                # maindb.delete_many({"ship_imo":self.imo})
+                maindb.delete_many({"ship_imo":self.imo})
                 ship_stats.delete_one({"ship_imo": self.imo})
-                # daily_data_collection.delete_many({"ship_imo":self.imo})
+                daily_data_collection.delete_many({"ship_imo":self.imo})
                 print("deleted maindb")
             except:
                 print("no value for maindb yet")
+            # exit()
             shipstats={"ship_imo":int(self.imo),"updated":0,"stage":"to be started"}
             ship_stats.insert_one(shipstats).inserted_id
             try:
@@ -89,9 +105,20 @@ class DailyInsert:
                     data_available_nav=self.ship_configs['data_available_nav']
                     data_available_engine= self.ship_configs['data_available_engine']
                     identifier_mapping=self.ship_configs['identifier_mapping']
-                    data={}
+                    # mer=pd.merge(fuel,eng,on=[identifier_mapping["rep_dt"],identifier_mapping["timestamp"]])
+                    # data={}
                     common_col = np.intersect1d(fuel.columns, eng.columns)
+
+                    ship_configs_collection.update_one(ship_configs_collection.find({"ship_imo": int(self.imo)})[0],{"$set":{"common_col":list(common_col)}})
+
+                    exit()
+                    for com_col in common_col:
+                        if com_col!=identifier_mapping['rep_dt'] and com_col!=identifier_mapping['timestamp'] and com_col!=identifier_mapping["ship_imo"]:
+                            fuel[str(com_col)+"_fuel_file"]=fuel[com_col]
+                            eng[str(com_col)+"_eng_file"]=eng[com_col]
+
                     
+
                     temp_eng1=eng
                     temp_fuel1=fuel
                     if self.logs==False:
@@ -104,7 +131,10 @@ class DailyInsert:
                             if col!=identifier_mapping["timestamp"] and col!=identifier_mapping["rep_dt"]:
                                 temp_fuel1=temp_fuel1.drop(columns=col)
                                 temp_eng1=temp_eng1.drop(columns=col)
-                            
+                    
+                    # print(common_fuel_data)
+                    # print(common_eng_data)
+                    # exit()
                             
                     
                     # temp_fuel1=fuel.drop([identifier_mapping["rpm"]],axis=1)
@@ -126,15 +156,25 @@ class DailyInsert:
                     # temp_eng1=temp_eng1.drop([identifier_mapping["vsl_load_bal"]],axis=1)
                     
                     
-
-                    temp_fuel=fuel[fuel[identifier_mapping["ship_imo"]]==ship_imo]
-                    temp_eng=eng[eng[identifier_mapping["ship_imo"]]==ship_imo]
+                    if identifier_mapping["ship_imo"] in fuel.columns and identifier_mapping["ship_imo"] in eng.columns:
+                        temp_fuel=fuel[fuel[identifier_mapping["ship_imo"]]==ship_imo]
+                        temp_eng=eng[eng[identifier_mapping["ship_imo"]]==ship_imo]
+                    else:
+                        temp_fuel=fuel
+                        temp_eng=eng
                     if self.logs==False:
-                        mer=pd.merge(temp_fuel,temp_eng1,on=[identifier_mapping["rep_dt"],identifier_mapping["ship_imo"]])
-                        merg1=pd.merge(temp_fuel,temp_eng1,on=[identifier_mapping["rep_dt"],identifier_mapping["ship_imo"]],how="left",indicator="indicator")
-                        merg2=pd.merge(temp_fuel1,temp_eng,on=[identifier_mapping["rep_dt"],identifier_mapping["ship_imo"]],how="right",indicator="indicator")
-                        merg11=merg1[merg1["indicator"]!="both"]    #only fuel data is indicated
-                        merg22=merg2[merg2["indicator"]!="both"]    #only eng data is indicated
+                        try:
+                            mer=pd.merge(temp_fuel,temp_eng1,on=[identifier_mapping["rep_dt"],identifier_mapping["ship_imo"]])
+                            merg1=pd.merge(temp_fuel,temp_eng1,on=[identifier_mapping["rep_dt"],identifier_mapping["ship_imo"]],how="left",indicator="indicator")
+                            merg2=pd.merge(temp_fuel1,temp_eng,on=[identifier_mapping["rep_dt"],identifier_mapping["ship_imo"]],how="right",indicator="indicator")
+                            merg11=merg1[merg1["indicator"]!="both"]    #only fuel data is indicated
+                            merg22=merg2[merg2["indicator"]!="both"]    #only eng data is indicated
+                        except:
+                            mer=pd.merge(temp_fuel,temp_eng1,on=[identifier_mapping["rep_dt"]])
+                            merg1=pd.merge(temp_fuel,temp_eng1,on=[identifier_mapping["rep_dt"]],how="left",indicator="indicator")
+                            merg2=pd.merge(temp_fuel1,temp_eng,on=[identifier_mapping["rep_dt"]],how="right",indicator="indicator")
+                            merg11=merg1[merg1["indicator"]!="both"]    #only fuel data is indicated
+                            merg22=merg2[merg2["indicator"]!="both"]    #only eng data is indicated
 
                     elif self.logs==True:
                         mer=pd.merge(temp_fuel,temp_eng1,on=[identifier_mapping["rep_dt"],identifier_mapping["timestamp"]])
@@ -149,151 +189,163 @@ class DailyInsert:
                     # daily_data_collection=daily_data_db.get_collection("daily_data")
                     ship_imos=daily_data_collection.distinct("ship_imo")
                     rep_dt_col=identifier_mapping['rep_dt']
+
                     # print("hi")
                     # print(len(mer))
                     # mer.to_csv("atm_both_data.csv")
                     # exit()
+                    # print(mer['estLat'])
+                    # print(merg11)
+                    # print(merg22)
+                    # exit()
                     if len(mer)>0:
-                        for j,row in mer.iterrows():                      #for both cases where rept date and imo are common in both files
-                            daily_nav={
-                                "ship_imo":ship_imo,
-                                "ship_name":ship_name,
-                                "historical":True,
-                                "Noon":self.historical_noon,
-                                "Logs":self.logs,
-                                "nav_data_available":True,
-                                "engine_data_available":True,
-                                "nav_data_details":{"file_name":"daily_data19June20.xlsx","file_url":"aws.s3.xyz.com","uploader_details":{"userid":"xyz","company":"sdf"}},
-                                "engine_data_details":{"file_name":"daily_data19June20engine.xlsx","file_url":"aws.s3.xyz.com","uploader_details":{"userid":"xyz","company":"sdf"},},
-                                "data_available_nav":data_available_nav,
-                                "data_available_engine":data_available_engine,
-                                "data":self.getdata(row,temp_alldata,identifier_mapping)
-                            }
-                            try:
-                                daily_nav['final_rep_dt']=self.final_rep_dt(daily_nav['data']['rep_dt'],daily_nav['data']['timestamp'])
-                            except:
-                                daily_nav['final_rep_dt']=self.final_rep_dt(daily_nav['data']['rep_dt'],None)
+                        for j,row in mer.iterrows():  
+                            if type(row[identifier_mapping['rep_dt']])!=str:                    #for both cases where rept date and imo are common in both files
+                                print(j,"noooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo")
+                                daily_nav={
+                                    "ship_imo":ship_imo,
+                                    "ship_name":ship_name,
+                                    "historical":True,
+                                    "Noon":self.historical_noon,
+                                    "Logs":self.logs,
+                                    "nav_data_available":True,
+                                    "engine_data_available":True,
+                                    "nav_data_details":{"file_name":"daily_data19June20.xlsx","file_url":"aws.s3.xyz.com","uploader_details":{"userid":"xyz","company":"sdf"}},
+                                    "engine_data_details":{"file_name":"daily_data19June20engine.xlsx","file_url":"aws.s3.xyz.com","uploader_details":{"userid":"xyz","company":"sdf"},},
+                                    "data_available_nav":data_available_nav,
+                                    "data_available_engine":data_available_engine,
+                                    "data":self.getdata(row,temp_alldata,identifier_mapping),
+                                    "common_data":self.common_data
 
-                            
-                            if self.imo in ship_imos:
-                                daily_data=daily_data_collection.find({"ship_imo": self.imo})
-                                dates_unique=daily_data.distinct("data.rep_dt")
-                                if mer[rep_dt_col][j] in dates_unique:
-                                    if self.override==True:
-                                        print("override true")
-                                        # daily_data_collection.delete_one({"ship_imo": self.imo,"data.rep_dt":mer[rep_dt_col][j]})
-                                        # print("deleted")
-                                        daily_data_collection.insert_one(daily_nav).inserted_id
-                                        print("inserted")
+                                }
+                                try:
+                                    daily_nav['final_rep_dt']=self.final_rep_dt(daily_nav['data']['rep_dt'],daily_nav['data']['timestamp'])
+                                except:
+                                    daily_nav['final_rep_dt']=self.final_rep_dt(daily_nav['data']['rep_dt'],None)
+
+                                
+                                if self.imo in ship_imos:
+                                    daily_data=daily_data_collection.find({"ship_imo": self.imo})
+                                    dates_unique=daily_data.distinct("data.rep_dt")
+                                    if mer[rep_dt_col][j] in dates_unique:
+                                        if self.override==True:
+                                            print("override true")
+                                            # daily_data_collection.delete_one({"ship_imo": self.imo,"data.rep_dt":mer[rep_dt_col][j]})
+                                            # print("deleted")
+                                            daily_data_collection.insert_one(daily_nav).inserted_id
+                                            print("inserted")
+                                        else:
+                                            print("record already exist")
+                                            
                                     else:
-                                        print("record already exist")
-                                        
+                                        print("dates not matchingg")
+                                        try:
+                                            daily_data_collection.insert_one(daily_nav).inserted_id
+                                        except:
+                                            print(self.error)
+                                            continue
+                                        print("inserted")
                                 else:
-                                    print("dates not matchingg")
-                                    try:
-                                        daily_data_collection.insert_one(daily_nav).inserted_id
-                                    except:
-                                        print(self.error)
-                                        continue
-                                    print("inserted")
-                            else:
-                                print("new")
-                                daily_data_collection.insert_one(daily_nav).inserted_id
-                
+                                    print("new")
+                                    daily_data_collection.insert_one(daily_nav).inserted_id
+                    # exit()
+                    # merg11.to_csv("natcsv.csv")
                     if len(merg11)>0:
                         print("koooo")
                         for j,row in merg11.iterrows():                      #for case where rept date and imo are not common in both files and fuel data gets inserted
-                            
-                            daily_nav={
-                                "ship_imo":ship_imo,
-                                "ship_name":ship_name,
-                                "historical":True,
-                                "Noon":self.historical_noon,
-                                "Logs":self.logs,
-                                "nav_data_available":True,
-                                "engine_data_available":False,
-                                "nav_data_details":{"file_name":"daily_data19June20.xlsx","file_url":"aws.s3.xyz.com","uploader_details":{"userid":"xyz","company":"sdf"}},
-                                "engine_data_details":{},
-                                "data_available_nav":data_available_nav,
-                                "data_available_engine":[],
-                                "data":self.getdata(row,data_available_nav,identifier_mapping)
-                                
-                            }
-                            try:
-                                daily_nav['final_rep_dt']=self.final_rep_dt(daily_nav['data']['rep_dt'],daily_nav['data']['timestamp'])
-                            except:
-                                daily_nav['final_rep_dt']=self.final_rep_dt(daily_nav['data']['rep_dt'],None)
-                            if self.imo in ship_imos:
-                                daily_data=daily_data_collection.find({"ship_imo": self.imo})
-                                dates_unique=daily_data.distinct("data.rep_dt")
-                                if merg11[rep_dt_col][j] in dates_unique:
-                                    if self.override==True:
-                                        print("override true")
-                                        # daily_data_collection.delete_one({"ship_imo": self.imo,"data.rep_dt":merg11[rep_dt_col][j]})
-                                        # print("deleted")
-                                        daily_data_collection.insert_one(daily_nav).inserted_id
-                                        print("inserted")
+                            if type(row[identifier_mapping['rep_dt']])!=str:
+                                daily_nav={
+                                    "ship_imo":ship_imo,
+                                    "ship_name":ship_name,
+                                    "historical":True,
+                                    "Noon":self.historical_noon,
+                                    "Logs":self.logs,
+                                    "nav_data_available":True,
+                                    "engine_data_available":False,
+                                    "nav_data_details":{"file_name":"daily_data19June20.xlsx","file_url":"aws.s3.xyz.com","uploader_details":{"userid":"xyz","company":"sdf"}},
+                                    "engine_data_details":{},
+                                    "data_available_nav":data_available_nav,
+                                    "data_available_engine":[],
+                                    "data":self.getdata(row,data_available_nav,identifier_mapping),
+                                    "common_data":self.common_data
+                                    
+                                }
+                                try:
+                                    daily_nav['final_rep_dt']=self.final_rep_dt(daily_nav['data']['rep_dt'],daily_nav['data']['timestamp'])
+                                except:
+                                    daily_nav['final_rep_dt']=self.final_rep_dt(daily_nav['data']['rep_dt'],None)
+                                if self.imo in ship_imos:
+                                    daily_data=daily_data_collection.find({"ship_imo": self.imo})
+                                    dates_unique=daily_data.distinct("data.rep_dt")
+                                    if merg11[rep_dt_col][j] in dates_unique:
+                                        if self.override==True:
+                                            print("override true")
+                                            # daily_data_collection.delete_one({"ship_imo": self.imo,"data.rep_dt":merg11[rep_dt_col][j]})
+                                            # print("deleted")
+                                            daily_data_collection.insert_one(daily_nav).inserted_id
+                                            print("inserted")
+                                        else:
+                                            print("record already exist")
+                                            
                                     else:
-                                        print("record already exist")
-                                        
+                                        print("dates not matched merg11")
+                                        try:
+                                            daily_data_collection.insert_one(daily_nav).inserted_id
+                                        except:
+                                            continue
                                 else:
-                                    print("dates not matched merg11")
-                                    try:
-                                        daily_data_collection.insert_one(daily_nav).inserted_id
-                                    except:
-                                        continue
-                            else:
-                                print("new")
-                                daily_data_collection.insert_one(daily_nav).inserted_id
+                                    print("new")
+                                    daily_data_collection.insert_one(daily_nav).inserted_id
                     
 
                     if len(merg22)>0:
                         print("poooooo")
                         for j,row in merg22.iterrows():                      #for case where rept date and imo are not common in both files and engine data gets inserted
-                            
-                            daily_nav={
-                                "ship_imo":ship_imo,
-                                "ship_name":ship_name,
-                                "historical":True,
-                                "Noon":self.historical_noon,
-                                "Logs":self.logs,
-                                "nav_data_available":False,
-                                "engine_data_available":True,
-                                "nav_data_details":{},
-                                "engine_data_details":{"file_name":"daily_data19June20engine.xlsx","file_url":"aws.s3.xyz.com","uploader_details":{"userid":"xyz","company":"sdf"}},
-                                "data_available_nav":[],
-                                "data_available_engine":data_available_engine,
-                                "data":self.getdata(row,data_available_engine,identifier_mapping)
-                                
-                            }
-                            try:
-                                daily_nav['final_rep_dt']=self.final_rep_dt(daily_nav['data']['rep_dt'],daily_nav['data']['timestamp'])
-                            except:
-                                daily_nav['final_rep_dt']=self.final_rep_dt(daily_nav['data']['rep_dt'],None)
-                            if self.imo in ship_imos:
-                                daily_data=daily_data_collection.find({"ship_imo": self.imo})
-                                dates_unique=daily_data.distinct("data.rep_dt")
-                                if merg22[rep_dt_col][j] in dates_unique:
-                                    if self.override==True:
-                                        print("override true")
-                                        # daily_data_collection.delete_one({"ship_imo": self.imo,"data.rep_dt":merg22[rep_dt_col][j]})
-                                        # print("deleted")
-                                        daily_data_collection.insert_one(daily_nav).inserted_id
-                                        print("inserted")
+                            if type(row[identifier_mapping['rep_dt']])!=str:
+                                daily_nav={
+                                    "ship_imo":ship_imo,
+                                    "ship_name":ship_name,
+                                    "historical":True,
+                                    "Noon":self.historical_noon,
+                                    "Logs":self.logs,
+                                    "nav_data_available":False,
+                                    "engine_data_available":True,
+                                    "nav_data_details":{},
+                                    "engine_data_details":{"file_name":"daily_data19June20engine.xlsx","file_url":"aws.s3.xyz.com","uploader_details":{"userid":"xyz","company":"sdf"}},
+                                    "data_available_nav":[],
+                                    "data_available_engine":data_available_engine,
+                                    "data":self.getdata(row,data_available_engine,identifier_mapping),
+                                    "common_data":self.common_data
+                                    
+                                }
+                                try:
+                                    daily_nav['final_rep_dt']=self.final_rep_dt(daily_nav['data']['rep_dt'],daily_nav['data']['timestamp'])
+                                except:
+                                    daily_nav['final_rep_dt']=self.final_rep_dt(daily_nav['data']['rep_dt'],None)
+                                if self.imo in ship_imos:
+                                    daily_data=daily_data_collection.find({"ship_imo": self.imo})
+                                    dates_unique=daily_data.distinct("data.rep_dt")
+                                    if merg22[rep_dt_col][j] in dates_unique:
+                                        if self.override==True:
+                                            print("override true")
+                                            # daily_data_collection.delete_one({"ship_imo": self.imo,"data.rep_dt":merg22[rep_dt_col][j]})
+                                            # print("deleted")
+                                            daily_data_collection.insert_one(daily_nav).inserted_id
+                                            print("inserted")
+                                        else:
+                                            print("record already exist")
+                                            
                                     else:
-                                        print("record already exist")
-                                        
+                                        print("dates not matched merg22")
+                                        try:
+                                            daily_data_collection.insert_one(daily_nav).inserted_id
+                                        except:
+                                            continue
                                 else:
-                                    print("dates not matched merg22")
-                                    try:
-                                        daily_data_collection.insert_one(daily_nav).inserted_id
-                                    except:
-                                        continue
-                            else:
-                                print("new")
-                                daily_data_collection.insert_one(daily_nav).inserted_id
-                
-                      
+                                    print("new")
+                                    daily_data_collection.insert_one(daily_nav).inserted_id
+                        
+                        
 
             except:
                 return "no data in ship config"
@@ -322,47 +374,48 @@ class DailyInsert:
                     rep_dt_col=identifier_mapping['rep_dt']
                     if len(merg11)>0:
                         for j,row in merg11.iterrows():                      #for case where rept date and imo are not common in both files and fuel data gets inserted
-                            
-                            daily_nav={
-                                "ship_imo":ship_imo,
-                                "ship_name":ship_name,
-                                "historical":True,
-                                "Noon":self.historical_noon,
-                                "Logs":self.logs,
-                                "nav_data_available":True,
-                                "engine_data_available":False,
-                                "nav_data_details":{"file_name":"daily_data19June20.xlsx","file_url":"aws.s3.xyz.com","uploader_details":{"userid":"xyz","company":"sdf"}},
-                                "engine_data_details":{},
-                                "data_available_nav":data_available_nav,
-                                "data_available_engine":[],
-                                "data":self.getdata(row,data_available_nav,identifier_mapping)
-                                
-                            }
-                            try:
-                                daily_nav['final_rep_dt']=self.final_rep_dt(daily_nav['data']['rep_dt'],daily_nav['data']['timestamp'])
-                            except:
-                                daily_nav['final_rep_dt']=self.final_rep_dt(daily_nav['data']['rep_dt'],None)
-                            if self.imo in ship_imos:
-                                daily_data=daily_data_collection.find({"ship_imo": self.imo})
-                                dates_unique=daily_data.distinct("data.rep_dt")
-                                if merg11[rep_dt_col][j] in dates_unique:
-                                    if self.override==True:
-                                        print("override true")
-                                        # daily_data_collection.delete_one({"ship_imo": self.imo,"data.rep_dt":merg11[rep_dt_col][j]})
-                                        # print("deleted")
-                                        daily_data_collection.insert_one(daily_nav).inserted_id
-                                        print("inserted")
+                            if type(row[identifier_mapping['rep_dt']])!=str:
+                                daily_nav={
+                                    "ship_imo":ship_imo,
+                                    "ship_name":ship_name,
+                                    "historical":True,
+                                    "Noon":self.historical_noon,
+                                    "Logs":self.logs,
+                                    "nav_data_available":True,
+                                    "engine_data_available":False,
+                                    "nav_data_details":{"file_name":"daily_data19June20.xlsx","file_url":"aws.s3.xyz.com","uploader_details":{"userid":"xyz","company":"sdf"}},
+                                    "engine_data_details":{},
+                                    "data_available_nav":data_available_nav,
+                                    "data_available_engine":[],
+                                    "data":self.getdata(row,data_available_nav,identifier_mapping),
+                                    "common_data":self.common_data
+                                    
+                                }
+                                try:
+                                    daily_nav['final_rep_dt']=self.final_rep_dt(daily_nav['data']['rep_dt'],daily_nav['data']['timestamp'])
+                                except:
+                                    daily_nav['final_rep_dt']=self.final_rep_dt(daily_nav['data']['rep_dt'],None)
+                                if self.imo in ship_imos:
+                                    daily_data=daily_data_collection.find({"ship_imo": self.imo})
+                                    dates_unique=daily_data.distinct("data.rep_dt")
+                                    if merg11[rep_dt_col][j] in dates_unique:
+                                        if self.override==True:
+                                            print("override true")
+                                            # daily_data_collection.delete_one({"ship_imo": self.imo,"data.rep_dt":merg11[rep_dt_col][j]})
+                                            # print("deleted")
+                                            daily_data_collection.insert_one(daily_nav).inserted_id
+                                            print("inserted")
+                                        else:
+                                            print("record already exist")
                                     else:
-                                        print("record already exist")
+                                        print("dates not matched")
+                                        try:
+                                            daily_data_collection.insert_one(daily_nav).inserted_id
+                                        except:
+                                            continue
                                 else:
-                                    print("dates not matched")
-                                    try:
-                                        daily_data_collection.insert_one(daily_nav).inserted_id
-                                    except:
-                                        continue
-                            else:
-                                print("new")
-                                daily_data_collection.insert_one(daily_nav).inserted_id
+                                    print("new")
+                                    daily_data_collection.insert_one(daily_nav).inserted_id
             except:
                 return "no data in ship config"
         
@@ -387,48 +440,49 @@ class DailyInsert:
                     rep_dt_col=identifier_mapping['rep_dt']
                     if len(merg22)>0:
                         for j,row in merg22.iterrows():                      #for case where rept date and imo are not common in both files and engine data gets inserted
-                            
-                            daily_nav={
-                                "ship_imo":ship_imo,
-                                "ship_name":ship_name,
-                                "historical":True,
-                                "Noon":self.historical_noon,
-                                "Logs":self.logs,
-                                "nav_data_available":False,
-                                "engine_data_available":True,
-                                "nav_data_details":{},
-                                "engine_data_details":{"file_name":"daily_data19June20engine.xlsx","file_url":"aws.s3.xyz.com","uploader_details":{"userid":"xyz","company":"sdf"}},
-                                "data_available_nav":[],
-                                "data_available_engine":data_available_engine,
-                                "data":self.getdata(row,data_available_engine,identifier_mapping)
-                                
-                            }
-                            try:
-                                daily_nav['final_rep_dt']=self.final_rep_dt(daily_nav['data']['rep_dt'],daily_nav['data']['timestamp'])
-                            except:
-                                daily_nav['final_rep_dt']=self.final_rep_dt(daily_nav['data']['rep_dt'],None)
-                            if self.imo in ship_imos:
-                                daily_data=daily_data_collection.find({"ship_imo": self.imo})
-                                dates_unique=daily_data.distinct("data.rep_dt")
-                                if merg22[rep_dt_col][j] in dates_unique:
-                                    if self.override==True:
-                                        print("override true")
-                                        # daily_data_collection.delete_one({"ship_imo": self.imo,"data.rep_dt":merg22[rep_dt_col][j]})
-                                        # print("deleted")
-                                        daily_data_collection.insert_one(daily_nav).inserted_id
-                                        print("inserted")
+                            if type(row[identifier_mapping['rep_dt']])!=str:
+                                daily_nav={
+                                    "ship_imo":ship_imo,
+                                    "ship_name":ship_name,
+                                    "historical":True,
+                                    "Noon":self.historical_noon,
+                                    "Logs":self.logs,
+                                    "nav_data_available":False,
+                                    "engine_data_available":True,
+                                    "nav_data_details":{},
+                                    "engine_data_details":{"file_name":"daily_data19June20engine.xlsx","file_url":"aws.s3.xyz.com","uploader_details":{"userid":"xyz","company":"sdf"}},
+                                    "data_available_nav":[],
+                                    "data_available_engine":data_available_engine,
+                                    "data":self.getdata(row,data_available_engine,identifier_mapping),
+                                    "common_data":self.common_data
+                                    
+                                }
+                                try:
+                                    daily_nav['final_rep_dt']=self.final_rep_dt(daily_nav['data']['rep_dt'],daily_nav['data']['timestamp'])
+                                except:
+                                    daily_nav['final_rep_dt']=self.final_rep_dt(daily_nav['data']['rep_dt'],None)
+                                if self.imo in ship_imos:
+                                    daily_data=daily_data_collection.find({"ship_imo": self.imo})
+                                    dates_unique=daily_data.distinct("data.rep_dt")
+                                    if merg22[rep_dt_col][j] in dates_unique:
+                                        if self.override==True:
+                                            print("override true")
+                                            # daily_data_collection.delete_one({"ship_imo": self.imo,"data.rep_dt":merg22[rep_dt_col][j]})
+                                            # print("deleted")
+                                            daily_data_collection.insert_one(daily_nav).inserted_id
+                                            print("inserted")
+                                        else:
+                                            print("record already exist")
+                                            
                                     else:
-                                        print("record already exist")
-                                        
+                                        print("dates not matched")
+                                        try:
+                                            daily_data_collection.insert_one(daily_nav).inserted_id
+                                        except:
+                                            continue
                                 else:
-                                    print("dates not matched")
-                                    try:
-                                        daily_data_collection.insert_one(daily_nav).inserted_id
-                                    except:
-                                        continue
-                            else:
-                                print("new")
-                                daily_data_collection.insert_one(daily_nav).inserted_id
+                                    print("new")
+                                    daily_data_collection.insert_one(daily_nav).inserted_id
 
             except:
                 return "no data in ship config"
@@ -451,17 +505,50 @@ class DailyInsert:
         for w in data_available_nav:
             try:
                 if w in row:
-                    dest[w]=row[w]
+                    if row[w]=="  ":
+                        dest[w]=None
+                    elif type(row[w])==type(datetime.now().time()):
+                        dest[w]=str(row[w])
+                    elif type(row[w])==type(pd.NaT):
+                        self.common_data[w]=None
+                    else:
+                        dest[w]=row[w]
                 elif identifier_mapping[w].strip() in row:
-                    dest[w]=row[identifier_mapping[w]]
-              
+                    if row[identifier_mapping[w]]=="  ":
+                        dest[w]=None
+                    elif type(row[identifier_mapping[w]])==type(datetime.now().time()):
+                        dest[w]=str(row[identifier_mapping[w]])
+                    elif type(row[identifier_mapping[w]])==type(pd.NaT):
+                        self.common_data[identifier_mapping[w]]=None
+                    else:
+                        dest[w]=row[identifier_mapping[w]]
+                
+                
             except KeyError:
-                continue    
-     
+                continue
+        # for i in dest:
+        #     print(i," ",type(dest[i]),"    ",dest[i])
+        self.common_data={}    
+        for i in row.keys():
+            try:
+                if pd.isnull(i)==False:
+                    if i.endswith("_fuel_file") or i.endswith("_eng_file"):
+                        if row[i]=="  ":
+                            self.common_data[i]=None
+                        elif type(row[i])==type(datetime.now().time()):
+                            self.common_data[i]=str(row[i])
+                        elif type(row[i])==type(pd.NaT):
+                            self.common_data[i]=None
+                        else:
+                            self.common_data[i]=row[i]
+            except AttributeError:
+                continue
+        # for i in self.common_data:
+        #     print(i," ",type(self.common_data[i]),"   ",self.common_data[i])
         return dest
 
 
-obj=DailyInsert('F:\Afzal_cs\Internship\Arvind data files\Rtm_logs_fuel_artificial.xlsx','F:\Afzal_cs\Internship\Arvind data files\Rtm_logs_engine_artificial.xlsx',9591301,True,True)
+obj=DailyInsert('F:\Afzal_cs\Internship\Arvind data files\9205926noonfuel.xlsx','F:\Afzal_cs\Internship\Arvind data files\9205926noonengine.xlsx',9205926,False,True)
 # # obj=DailyInsert('F:\Afzal_cs\Internship\Arvind data files\RTM FUEL.xlsx',None,9591301,True)
 # # obj=DailyInsert(None,'F:\Afzal_cs\Internship\Arvind data files\RTM ENGINE.xlsx',9591301,True)
 obj.do_steps()
