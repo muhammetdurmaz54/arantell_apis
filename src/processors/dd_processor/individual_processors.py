@@ -1,3 +1,5 @@
+from ast import expr_context
+from configparser import NoOptionError
 from datetime import date
 import sys
 from numpy.core.numeric import identity
@@ -1216,40 +1218,60 @@ class IndividualProcessors():
         base_dict=base_dict
         peak_press,me_unit_no=self.base_avg_minmax_evaluator("peak_press")
         if len(peak_press)>0:
-            base_dict['processed'] = sum(peak_press.values())/me_unit_no
-            base_dict['is_read']=False
-            base_dict['is_processed']=True
+            try:
+                base_dict['processed'] = sum(peak_press.values())/me_unit_no
+                base_dict['is_read']=False
+                base_dict['is_processed']=True
+            except:
+                base_dict['processed'] = None
+                base_dict['is_read']=False
+                base_dict['is_processed']=False
         return base_dict
 
     def peak_pressmax_no_processor(self,base_dict):
         base_dict=base_dict
         peak_press,me_unit_no=self.base_avg_minmax_evaluator("peak_press")
         if len(peak_press)>0:
+            try:
             # base_dict['processed'] = max(peak_press,key=peak_press.get)
-            base_dict['processed'] = int(np.argmax(list(peak_press.values()))+1)
-            base_dict['is_read']=False
-            base_dict['is_processed']=True
+                base_dict['processed'] = int(np.argmax(list(peak_press.values()))+1)
+                base_dict['is_read']=False
+                base_dict['is_processed']=True
+            except:
+                base_dict['processed'] = None
+                base_dict['is_read']=False
+                base_dict['is_processed']=False
         return base_dict
 
     def peak_pressmin_no_processor(self,base_dict):
         base_dict=base_dict
         peak_press,me_unit_no=self.base_avg_minmax_evaluator("peak_press")
         if len(peak_press)>0:
+            try:
             # base_dict['processed'] = min(peak_press,key=peak_press.get)
-            base_dict['processed'] = int(np.argmin(list(peak_press.values()))+1)
-            base_dict['is_read']=False
-            base_dict['is_processed']=True
+                base_dict['processed'] = int(np.argmin(list(peak_press.values()))+1)
+                base_dict['is_read']=False
+                base_dict['is_processed']=True
+            except:
+                base_dict['processed'] = None
+                base_dict['is_read']=False
+                base_dict['is_processed']=False
         return base_dict
     
     def peakpress_maxmin_diff_processor(self,base_dict):
         base_dict=base_dict
         peak_press,me_unit_no=self.base_avg_minmax_evaluator("peak_press")
         if len(peak_press)>1:
-            max_val=max(peak_press.values())
-            min_val=min(peak_press.values())
-            base_dict['processed'] = max_val-min_val
-            base_dict['is_read']=False
-            base_dict['is_processed']=True
+            try:
+                max_val=max(peak_press.values())
+                min_val=min(peak_press.values())
+                base_dict['processed'] = max_val-min_val
+                base_dict['is_read']=False
+                base_dict['is_processed']=True
+            except:
+                base_dict['processed'] = None
+                base_dict['is_read']=False
+                base_dict['is_processed']=False
         elif len(peak_press)>0 and len(peak_press)==1 :
             base_dict['processed'] = "only 1 value "
         return base_dict
@@ -1258,40 +1280,60 @@ class IndividualProcessors():
         base_dict=base_dict
         comp_press,me_unit_no=self.base_avg_minmax_evaluator("comp_press")    
         if len(comp_press)>0:
-            base_dict['processed'] = sum(comp_press.values())/me_unit_no
-            base_dict['is_read']=False
-            base_dict['is_processed']=True
+            try:
+                base_dict['processed'] = sum(comp_press.values())/me_unit_no
+                base_dict['is_read']=False
+                base_dict['is_processed']=True
+            except:
+                base_dict['processed'] = None
+                base_dict['is_read']=False
+                base_dict['is_processed']=False
         return base_dict
 
     def comp_pressmax_no_processor(self,base_dict):
         base_dict=base_dict
         comp_press,me_unit_no=self.base_avg_minmax_evaluator("comp_press")         
         if len(comp_press)>0:
+            try:
             # base_dict['processed'] = max(comp_press,key=comp_press.get)
-            base_dict['processed'] = int(np.argmax(list(comp_press.values()))+1)
-            base_dict['is_read']=False
-            base_dict['is_processed']=True
+                base_dict['processed'] = int(np.argmax(list(comp_press.values()))+1)
+                base_dict['is_read']=False
+                base_dict['is_processed']=True
+            except:
+                base_dict['processed'] = None
+                base_dict['is_read']=False
+                base_dict['is_processed']=False
         return base_dict
 
     def comp_pressmin_no_processor(self,base_dict):
         base_dict=base_dict
         comp_press,me_unit_no=self.base_avg_minmax_evaluator("comp_press")         
         if len(comp_press)>0:
+            try:
             # base_dict['processed'] = min(comp_press,key=comp_press.get)
-            base_dict['processed'] = int(np.argmin(list(comp_press.values()))+1)
-            base_dict['is_read']=False
-            base_dict['is_processed']=True
+                base_dict['processed'] = int(np.argmin(list(comp_press.values()))+1)
+                base_dict['is_read']=False
+                base_dict['is_processed']=True
+            except:
+                base_dict['processed'] = None
+                base_dict['is_read']=False
+                base_dict['is_processed']=False
         return base_dict
 
     def comppress_maxmin_diff_processor(self,base_dict):
         base_dict=base_dict
         comp_press,me_unit_no=self.base_avg_minmax_evaluator("comp_press")        
         if len(comp_press)>1:
-            max_val=max(comp_press.values())
-            min_val=min(comp_press.values())
-            base_dict['processed'] = max_val-min_val
-            base_dict['is_read']=False
-            base_dict['is_processed']=True
+            try:
+                max_val=max(comp_press.values())
+                min_val=min(comp_press.values())
+                base_dict['processed'] = max_val-min_val
+                base_dict['is_read']=False
+                base_dict['is_processed']=True
+            except:
+                base_dict['processed'] = None
+                base_dict['is_read']=False
+                base_dict['is_processed']=False
         elif len(comp_press)>0 and len(comp_press)==1 :
             base_dict['processed'] = "only 1 value "
         return base_dict
@@ -1300,9 +1342,14 @@ class IndividualProcessors():
         base_dict=base_dict
         ext_temp,me_unit_no=self.base_avg_minmax_evaluator("ext_temp")
         if len(ext_temp)>0:
-            base_dict['processed'] = sum(ext_temp.values())/me_unit_no
-            base_dict['is_read']=False
-            base_dict['is_processed']=True
+            try:
+                base_dict['processed'] = sum(ext_temp.values())/me_unit_no
+                base_dict['is_read']=False
+                base_dict['is_processed']=True
+            except:
+                base_dict['processed'] = None
+                base_dict['is_read']=False
+                base_dict['is_processed']=False
         return base_dict
 
     def ext_max_no_processor(self,base_dict):
@@ -1310,9 +1357,14 @@ class IndividualProcessors():
         ext_temp,me_unit_no=self.base_avg_minmax_evaluator("ext_temp")
         if len(ext_temp)>0:
             # base_dict['processed'] = max(ext_temp,key=ext_temp.get)
-            base_dict['processed'] = int(np.argmax(list(ext_temp.values()))+1)
-            base_dict['is_read']=False
-            base_dict['is_processed']=True
+            try:
+                base_dict['processed'] = int(np.argmax(list(ext_temp.values()))+1)
+                base_dict['is_read']=False
+                base_dict['is_processed']=True
+            except:
+                base_dict['processed'] = None
+                base_dict['is_read']=False
+                base_dict['is_processed']=False
         return base_dict
 
     def ext_min_no_processor(self,base_dict):
@@ -1320,20 +1372,30 @@ class IndividualProcessors():
         ext_temp,me_unit_no=self.base_avg_minmax_evaluator("ext_temp")
         if len(ext_temp)>0:
             # base_dict['processed'] = min(ext_temp,key=ext_temp.get)
-            base_dict['processed'] = int(np.argmin(list(ext_temp.values()))+1) 
-            base_dict['is_read']=False
-            base_dict['is_processed']=True
+            try:
+                base_dict['processed'] = int(np.argmin(list(ext_temp.values()))+1) 
+                base_dict['is_read']=False
+                base_dict['is_processed']=True
+            except:
+                base_dict['processed'] = None
+                base_dict['is_read']=False
+                base_dict['is_processed']=False
         return base_dict
 
     def ext_maxmin_diff_processor(self,base_dict):
         base_dict=base_dict
         ext_temp,me_unit_no= self.base_avg_minmax_evaluator('ext_temp') 
         if len(ext_temp)>1:
-            max_val=max(ext_temp.values())
-            min_val=min(ext_temp.values())
-            base_dict['processed'] =max_val-min_val
-            base_dict['is_read']=False
-            base_dict['is_processed']=True
+            try:
+                max_val=max(ext_temp.values())
+                min_val=min(ext_temp.values())
+                base_dict['processed'] =max_val-min_val
+                base_dict['is_read']=False
+                base_dict['is_processed']=True
+            except:
+                base_dict['processed'] =None
+                base_dict['is_read']=False
+                base_dict['is_processed']=False
         elif len(ext_temp)>0 and len(ext_temp)==1 :
             base_dict['processed'] = "only 1 value "
         return base_dict
@@ -1342,10 +1404,15 @@ class IndividualProcessors():
         base_dict=base_dict
         ext_temp,me_unit_no= self.base_avg_minmax_evaluator('ext_temp') 
         if len(ext_temp)>0:
-            max_val=max(ext_temp.values())
-            base_dict['processed'] =max_val
-            base_dict['is_read']=False
-            base_dict['is_processed']=True
+            try:
+                max_val=max(ext_temp.values())
+                base_dict['processed'] =max_val
+                base_dict['is_read']=False
+                base_dict['is_processed']=True
+            except:
+                base_dict['processed'] =None
+                base_dict['is_read']=False
+                base_dict['is_processed']=False
         elif len(ext_temp)==0 :
             base_dict['processed'] = "no value "
         return base_dict
@@ -1354,10 +1421,15 @@ class IndividualProcessors():
         base_dict=base_dict
         ext_temp,me_unit_no= self.base_avg_minmax_evaluator('ext_temp') 
         if len(ext_temp)>0:
-            min_val=min(ext_temp.values())
-            base_dict['processed'] =min_val
-            base_dict['is_read']=False
-            base_dict['is_processed']=True
+            try:
+                min_val=min(ext_temp.values())
+                base_dict['processed'] =min_val
+                base_dict['is_read']=False
+                base_dict['is_processed']=True
+            except:
+                base_dict['processed'] =None
+                base_dict['is_read']=False
+                base_dict['is_processed']=False
         elif len(ext_temp)==0:
             base_dict['processed'] = "no value "
         return base_dict
@@ -1510,9 +1582,14 @@ class IndividualProcessors():
         base_dict=base_dict
         jwme_temp,me_unit_no=self.base_avg_minmax_evaluator("jwme_out_temp")
         if len(jwme_temp)>0:
-            base_dict['processed'] = sum(jwme_temp.values())/me_unit_no
-            base_dict['is_read']=False
-            base_dict['is_processed']=True
+            try:
+                base_dict['processed'] = sum(jwme_temp.values())/me_unit_no
+                base_dict['is_read']=False
+                base_dict['is_processed']=True
+            except:
+                base_dict['processed'] = None
+                base_dict['is_read']=False
+                base_dict['is_processed']=False
         return base_dict
 
     def jwme_out_press_processor(self,base_dict):
@@ -1522,20 +1599,30 @@ class IndividualProcessors():
         base_dict=base_dict
         jwme_temp,me_unit_no=self.base_avg_minmax_evaluator("jwme_out_temp")
         if len(jwme_temp)>0:
+            try:
             # base_dict['processed'] = max(jwme_temp,key=jwme_temp.get)
-            base_dict['processed'] = int(np.argmax(list(jwme_temp.values()))+1)
-            base_dict['is_read']=False
-            base_dict['is_processed']=True
+                base_dict['processed'] = int(np.argmax(list(jwme_temp.values()))+1)
+                base_dict['is_read']=False
+                base_dict['is_processed']=True
+            except:
+                base_dict['processed'] = None
+                base_dict['is_read']=False
+                base_dict['is_processed']=False
         return base_dict
 
     def jwme_out_temp_min_no_processor(self,base_dict):
         base_dict=base_dict
         jwme_temp,me_unit_no=self.base_avg_minmax_evaluator("jwme_out_temp")
         if len(jwme_temp)>0:
+            try:
             # base_dict['processed'] = min(jwme_temp,key=jwme_temp.get)
-            base_dict['processed'] = int(np.argmin(list(jwme_temp.values()))+1)
-            base_dict['is_read']=False
-            base_dict['is_processed']=True
+                base_dict['processed'] = int(np.argmin(list(jwme_temp.values()))+1)
+                base_dict['is_read']=False
+                base_dict['is_processed']=True
+            except:
+                base_dict['processed'] = None
+                base_dict['is_read']=False
+                base_dict['is_processed']=False
         return base_dict
     
     # def jwc1_used_no_processor(self,base_dict):
@@ -1602,9 +1689,14 @@ class IndividualProcessors():
         base_dict=base_dict
         pwme_temp,me_unit_no=self.base_avg_minmax_evaluator("pwme_out_temp")
         if len(pwme_temp)>0:
-            base_dict['processed'] = sum(pwme_temp.values())/me_unit_no
-            base_dict['is_read']=False
-            base_dict['is_processed']=True
+            try:
+                base_dict['processed'] = sum(pwme_temp.values())/me_unit_no
+                base_dict['is_read']=False
+                base_dict['is_processed']=True
+            except:
+                base_dict['processed'] = None
+                base_dict['is_read']=False
+                base_dict['is_processed']=False
         return base_dict
 
     def pwme_out_press_processor(self,base_dict):
@@ -1614,20 +1706,30 @@ class IndividualProcessors():
         base_dict=base_dict
         pwme_temp,me_unit_no=self.base_avg_minmax_evaluator("pwme_out_temp")
         if len(pwme_temp)>0:
+            try:
             # base_dict['processed'] = max(pwme_temp,key=pwme_temp.get)
-            base_dict['processed'] = int(np.argmax(list(pwme_temp.values()))+1)
-            base_dict['is_read']=False
-            base_dict['is_processed']=True
+                base_dict['processed'] = int(np.argmax(list(pwme_temp.values()))+1)
+                base_dict['is_read']=False
+                base_dict['is_processed']=True
+            except:
+                base_dict['processed'] = None
+                base_dict['is_read']=False
+                base_dict['is_processed']=False
         return base_dict
 
     def pwme_out_temp_min_no_processor(self,base_dict):
         base_dict=base_dict
         pwme_temp,me_unit_no=self.base_avg_minmax_evaluator("pwme_out_temp")
         if len(pwme_temp)>0:
+            try:
             # base_dict['processed'] = min(pwme_temp,key=pwme_temp.get)
-            base_dict['processed'] = int(np.argmin(list(pwme_temp.values()))+1)
-            base_dict['is_read']=False
-            base_dict['is_processed']=True
+                base_dict['processed'] = int(np.argmin(list(pwme_temp.values()))+1)
+                base_dict['is_read']=False
+                base_dict['is_processed']=True
+            except:
+                base_dict['processed'] = None
+                base_dict['is_read']=False
+                base_dict['is_processed']=False
         return base_dict
 
 #     def pwc1_used_no_processor(self,base_dict):
