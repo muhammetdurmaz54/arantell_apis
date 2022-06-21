@@ -2,7 +2,12 @@ import sys
 from tokenize import group
 from numpy.core.numeric import outer
 from pandas.core.algorithms import factorize
-
+import smtplib
+from email.message import EmailMessage
+import random
+import base64
+import secrets
+import string
 from pandas.core.dtypes.missing import isnull 
 sys.path.insert(1,"F:\\Afzal_cs\\Internship\\arantell_apis-main")
 from src.db.setup_mongo import connect_db
@@ -65,18 +70,19 @@ class ConfigExtractor():
     
     @check_status
     def read_files(self):
-        self.df_configurations = pd.read_excel(self.file, sheet_name='Configurations', engine='openpyxl')
-        self.df_variables = pd.read_excel(self.file, sheet_name='N&E', engine='openpyxl')
-        self.df_groups = pd.read_excel(self.file, sheet_name="Groups", header=[0, 1], engine='openpyxl')
+        self.df_configurations = pd.read_excel(self.file, sheet_name='Configurations')
+        self.df_variables = pd.read_excel(self.file, sheet_name='N&E')
+        self.df_groups = pd.read_excel(self.file, sheet_name="Groups", header=[0, 1])
         # Convert the headers and sub-headers in the dataframe to MultiIndex headers of the form ('Header', 'SubHeader')
         a = self.df_groups.columns.get_level_values(0).to_series()
         b = a.mask(a.str.startswith('Unnamed')).ffill().fillna('')
         self.df_groups.columns = [b, self.df_groups.columns.get_level_values(1)]
-        self.grpdict = pd.read_excel(self.file, sheet_name="GrpDir", engine='openpyxl')
+        self.grpdict = pd.read_excel(self.file, sheet_name="GrpDir", skiprows=[0])
         # self.mlcontrol=pd.read_excel(self.file, sheet_name='MLcontrol',skiprows = [0, 1, 2], engine='openpyxl')
         self.mlcontrol=self.df_variables.loc[:,'ML_control_begin':'ML_control_end']
-        self.anamoly_messages=pd.read_excel(self.file, sheet_name='AnamolyMessages', engine='openpyxl')
-       
+        self.anamoly_messages=pd.read_excel(self.file, sheet_name='AnamolyMessages')
+        # print(self.anamoly_messages)
+        # print(self.mlcontrol)
 
     def group_dict_create(self):
         self.group_final_dict={}
@@ -119,6 +125,9 @@ class ConfigExtractor():
 
         subgroup_names = subgroup_dict_names[groupname]
         index_of_sub_group_column = list(subgroup_dict_names.keys()).index(groupname)
+        print(dataframe)
+        print(index_of_sub_group_column)
+        print(subgroup_dict_labels)
         name_of_corresponding_column = list(subgroup_dict_labels.keys())[index_of_sub_group_column]
         subgroup_labels = subgroup_dict_labels[name_of_corresponding_column]
 
@@ -240,7 +249,9 @@ class ConfigExtractor():
         self.parameter_anamoly={}
         self.equipment_anamoly={}
         self.outlier_anamoly={}
+        # print(self.anamoly_messages)
         for i in range(0,len(self.anamoly_messages['PARAM /EQPT'])):
+            # print(i)
             if self.anamoly_messages['PARAM /EQPT'][i]=='P' or self.anamoly_messages['PARAM /EQPT'][i]=='p':
                 self.parameter_anamoly[self.anamoly_messages['Type of anamoly'][i]]=self.anamoly_dict(i)
             
@@ -260,11 +271,13 @@ class ConfigExtractor():
         return spl
     
     def sister_list(self,input):
+        # print(input)
         spl=None
         if pd.isnull(input)==False:
             input=input.replace(',','  ')
             spl=input.split()
         for i in range(0,len(spl)):
+            # print(spl[i])
             spl[i]=int(spl[i])
         return spl
         #     for i in spl:
@@ -325,7 +338,8 @@ class ConfigExtractor():
         self.ship_description = self.df_configurations['Value'][2]
         self.sister_vessel_list=self.sister_list(self.df_configurations['Value'][3])
         self.similar_vessel_list=self.sister_list(self.df_configurations['Value'][4])
-        
+        login_cred=self.login_info()
+        self.organization_id=self.org_id
     
         self.data_available_nav = list(self.df_variables[self.df_variables['Data Type']=='N']['Identifier NEW'].str.strip())
         self.data_available_nav=self.data_available_nav.__add__(list(self.df_variables[self.df_variables['Data Type']=='N+E']['Identifier NEW']))
@@ -435,6 +449,7 @@ class ConfigExtractor():
             "ship_description" : self.ship_description,
             "sister_vessel_list":self.sister_vessel_list,
             "similar_vessel_list":self.similar_vessel_list,
+            "organization_id":self.organization_id,
             "static_data":self.stat(self.static),
             "data_available_nav" :self.data_available_nav,
             "data_available_engine": self.data_available_engine,
@@ -473,6 +488,7 @@ class ConfigExtractor():
         #         return "Record already exists!"
         if self.override==True:
             if self.ship_imo in ship_imos:
+                print(self.ship_imo)
                 print("yes")
                 ship_collection.delete_one({"ship_imo": self.ship_imo})
                 print("deleteddd")
@@ -488,9 +504,65 @@ class ConfigExtractor():
                 return "Record already exists!"
             else:
                 return ship_collection.insert_one(ship)
+        
+
+    
 
 
-obj=ConfigExtractor(9591301,'F:\Afzal_cs\Internship\ConfiguratorRev_9591301_new.xlsx',True)
+    def email_alert(self,subject,body,to):
+        msg=EmailMessage()
+        msg.set_content(body)
+        msg['subject']=subject
+        msg['to']=to
+
+        user="dorodoro790@gmail.com"
+        msg['from']=user
+        password="owdlpmhjtoazzhpc"
+
+        server=smtplib.SMTP("smtp.gmail.com",587)
+        server.starttls()
+        server.login(user,password)
+        server.send_message(msg)
+        server.quit()
+
+
+    def id_gen(self):
+        database=self.db.get_database("aranti")
+        login_collection=database.get_collection("login_info")
+        login_org_id=login_collection.distinct("organization_id")
+        temp_id=random.randint(10000, 99999)
+        if temp_id in login_org_id:
+            self.id_gen()
+        return temp_id
+
+    def login_info(self):
+        self.organization_name = self.df_configurations['Value'][5]
+        self.organization_email = self.df_configurations['Value'][6]
+        # print(self.organization_email)
+        database=self.db.get_database("aranti")
+        login_collection=database.get_collection("login_info")
+        login_org_email=login_collection.distinct("organization_email")
+        if self.organization_email in login_org_email:
+            login_dict=login_collection.find({"organization_email": self.organization_email})[0]
+            self.org_id=login_dict['organization_id']
+        else:
+            alphabet = string.ascii_letters + string.digits
+            password = ''.join(secrets.choice(alphabet) for i in range(20))
+            enc_pass=password.encode("utf-8")
+            final_enc_pass=base64.b64encode(enc_pass)
+            self.org_id=self.id_gen()
+            login_dict={
+                "organization_id":self.org_id,
+                "organization_name":self.organization_name,
+                "organization_email":self.organization_email,
+                "password":final_enc_pass
+            }
+            login_collection.insert_one(login_dict)
+            self.email_alert("Your login creadentianls for Oceanintel pte ltd.","\n username = {} \n password= {}".format(str(self.organization_email),password), format(str(self.organization_email)))
+        
+        
+
+obj=ConfigExtractor(9205926,'F:\Afzal_cs\Internship\Configurator_9205926.xlsx',True)
 # obj.connect()
 # obj.read_files()
 # obj.anamoly()
