@@ -100,10 +100,10 @@ class ConfigExtractor():
             self.temp_grp_dict[key]=self.group_final_dict[key]
             for in_key in list(self.group_final_dict[key].keys()):
                 if "." in in_key:
-                    print(key)
+                    # print(key)
                     final_key=key.split()
                     used_key=final_key[0]
-                    print(used_key)
+                    # print(used_key)
                     self.temp_grp_dict[key][used_key]=self.group_final_dict[key][in_key]
                 else:
                     self.temp_grp_dict[key][in_key]=self.group_final_dict[key][in_key]
@@ -125,9 +125,9 @@ class ConfigExtractor():
 
         subgroup_names = subgroup_dict_names[groupname]
         index_of_sub_group_column = list(subgroup_dict_names.keys()).index(groupname)
-        print(dataframe)
-        print(index_of_sub_group_column)
-        print(subgroup_dict_labels)
+        # print(dataframe)
+        # print(index_of_sub_group_column)
+        # print(subgroup_dict_labels)
         name_of_corresponding_column = list(subgroup_dict_labels.keys())[index_of_sub_group_column]
         subgroup_labels = subgroup_dict_labels[name_of_corresponding_column]
 
@@ -465,14 +465,18 @@ class ConfigExtractor():
             "data" : self.data
         }
         # print(ship)
-        if self.ship_imo in ship_imos:
-            ship_configs = ship_collection.find({"ship_imo": self.ship_imo})[0]
-            ship['t2_limits']=ship_configs['t2_limits']
-            ship['t2_limits_indices']=ship_configs['t2_limits_indices']
-            ship['ewma_limits']=ship_configs['ewma_limits']
-            ship['spe_limits']=ship_configs['spe_limits']
-            ship['mewma_limits']=ship_configs['mewma_limits']
-            ship['spe_limits_indices']=ship_configs['spe_limits_indices']
+        try:
+            if self.ship_imo in ship_imos:
+                ship_configs = ship_collection.find({"ship_imo": self.ship_imo})[0]
+                ship['t2_limits']=ship_configs['t2_limits']
+                ship['t2_limits_indices']=ship_configs['t2_limits_indices']
+                ship['ewma_limits']=ship_configs['ewma_limits']
+                ship['spe_limits']=ship_configs['spe_limits']
+                ship['mewma_limits']=ship_configs['mewma_limits']
+                ship['spe_limits_indices']=ship_configs['spe_limits_indices']
+        except:
+            pass
+
 
         
         # if self.override:
@@ -558,7 +562,7 @@ class ConfigExtractor():
                 "password":final_enc_pass
             }
             login_collection.insert_one(login_dict)
-            self.email_alert("Your login creadentianls for Oceanintel pte ltd.","\n username = {} \n password= {}".format(str(self.organization_email),password), format(str(self.organization_email)))
+            # self.email_alert("Your login creadentianls for Oceanintel pte ltd.","\n username = {} \n password= {}".format(str(self.organization_email),password),str(self.organization_email))
         
         
 
