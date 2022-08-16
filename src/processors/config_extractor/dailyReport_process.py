@@ -16,9 +16,10 @@ log = CommonLogger(__name__,debug=True).setup_logger()
 
 
 class DailyReportExtractor():
-    def __init__(self, ship_imo, dateString=''):
+    def __init__(self, ship_imo, id, dateString=''):
         self.ship_imo = int(ship_imo)
         self.dateString = dateString
+        self.id = id
         
     
     ''' Uncomment later
@@ -48,26 +49,28 @@ class DailyReportExtractor():
             },
             {
                 'processed_daily_data.rep_dt.processed': 1,
+                'final_rep_dt': 1,
                 '_id': 0
             }
         ).sort('processed_daily_data.rep_dt.processed', ASCENDING)
         res = loads(dumps(res))
 
         for i in res:
-            newdate = i['processed_daily_data']['rep_dt']['processed'].strftime('%Y-%m-%d, %H:%M:%S')
+            # newdate = i['processed_daily_data']['rep_dt']['processed'].strftime('%Y-%m-%d, %H:%M:%S')
+            newdate = i['final_rep_dt'].strftime('%Y-%m-%d, %H:%M:%S')
             dateList.append(newdate)
 
         if self.dateString != '':
             latestResult = self.read_data_for_specific_date(self.dateString)
             latestRes = self.configuration.check_for_nan_and_replace(latestResult)
-            issues = self.configuration.get_category_and_subcategory_with_issues(dateString=self.dateString)
+            issues = self.configuration.get_category_and_subcategory_with_issues(self.dateString, self.id)
             charter_party_values, charter_party_prediction_values = self.configuration.get_daily_charter_party_values(dateString=self.dateString)
             compliance_messages = self.configuration.create_dict_of_compliance_messages(dateString=self.dateString)
         else:
             # tempDateList = dateList.reverse()[0]
             latestResult = self.read_data_for_specific_date(dateList[len(dateList) - 1])
             latestRes = self.configuration.check_for_nan_and_replace(latestResult)
-            issues = self.configuration.get_category_and_subcategory_with_issues("")
+            issues = self.configuration.get_category_and_subcategory_with_issues("", self.id)
             charter_party_values, charter_party_prediction_values = self.configuration.get_daily_charter_party_values('')
             compliance_messages = self.configuration.create_dict_of_compliance_messages('')
             
@@ -90,7 +93,8 @@ class DailyReportExtractor():
                             # typeDict = {'var_type': 'E'}
                             # latestRes['processed_daily_data'][i].update(typeDict)
                             temp.append(latestRes['Equipment'][i])
-            subcategoryDictData[j] = temp
+            if len(temp) > 0:
+                subcategoryDictData[j] = temp
         subcategoryDictDataDecimal = self.configuration.get_decimal_control_on_daily_values(subcategoryDictData)
 
         for key in categoryDict['data'][0].keys():
@@ -100,7 +104,8 @@ class DailyReportExtractor():
                     if categoryDict['data'][0][key][i] == keyName:
                         tempDict = { keyName: subcategoryDictDataDecimal[keyName]}
                         tempList.append(tempDict)
-            categoryDictData[key] = tempList
+            if len(tempList) > 0:
+                categoryDictData[key] = tempList
         newVesselParticulars={}
         for key in subcategoryDict['Vessel Particulars'].keys():
             if subcategoryDict['Vessel Particulars'][key]['name'] != "" and subcategoryDict['Vessel Particulars'][key]['value'] != "":
@@ -112,8 +117,10 @@ class DailyReportExtractor():
         # anomalyList = self.getAnomalyList(categoryDictData)
         
         # categoryDictDataDecimal = self.configuration.get_decimal_control_on_daily_values(categoryDictData)
+        new_category_dict = self.get_corrected_daily_data(categoryDict=categoryDict, categoryDictData=categoryDictData)
+        # print(new_category_dict)
         
-        return categoryList, categoryDict, column_headers, subcategoryDict, dateList, categoryDictData, issues, static_data_for_charter_party, charter_party_values, charter_party_prediction_values, compliance_messages, listOfVesselParticularKeys
+        return categoryList, new_category_dict, column_headers, subcategoryDict, dateList, categoryDictData, issues, static_data_for_charter_party, charter_party_values, charter_party_prediction_values, compliance_messages, listOfVesselParticularKeys
 
 
         # return categoryDict, column_headers, subcategoryDict, dateList, latestRes
@@ -123,7 +130,8 @@ class DailyReportExtractor():
         res = self.main_db.find_one(
             {
                 'ship_imo': self.ship_imo,
-                'processed_daily_data.rep_dt.processed': findDate
+                # 'processed_daily_data.rep_dt.processed': findDate
+                'final_rep_dt': findDate
             },
             {
                 '_id': 0
@@ -146,6 +154,25 @@ class DailyReportExtractor():
                             continue
         
         return result
+
+    def get_corrected_daily_data(self, categoryDict, categoryDictData):
+        ''' Returns category dictionary after removing all the categories and
+            subcategories that don't have values.
+        '''
+        new_category_dict={'data': []}
+        category_dict={}
+        for category in categoryDictData.keys():
+            subcategory_list=[]
+            for subcategory_dict_list in categoryDictData[category]:
+                tempKeyList = list(subcategory_dict_list.keys())
+                subcategory_list.extend(tempKeyList)
+                # tempDict = {category: subcategory_list}
+            category_dict[category] = subcategory_list
+            # new_category_dict['data'].append({category: subcategory_list})
+        
+        new_category_dict['data'].append(category_dict)
+
+        return new_category_dict
 
 
 
