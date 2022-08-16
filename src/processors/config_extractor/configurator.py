@@ -1,31 +1,34 @@
-from math import isfinite, isnan
+from decimal import DivisionByZero
+# from math import isfinite, isnan
 import sys
 import os
 from dotenv import load_dotenv
-import re
-from numpy.core.numeric import NaN
+# import re
+# from numpy.core.numeric import NaN
 import pandas as pd
-sys.path.insert(1,"D:\\Internship\\Repository\\Aranti\\arantell_apis")
+# sys.path.insert(1,"D:\\Internship\\Repository\\Aranti\\arantell_apis")
 from src.db.setup_mongo import connect_db
-from src.configurations.logging_config import CommonLogger
+# from src.configurations.logging_config import CommonLogger
 from datetime import datetime, timedelta
-from dateutil.relativedelta import relativedelta
+# from dateutil.relativedelta import relativedelta
 import numpy as np
 from pymongo import MongoClient
 from bson.json_util import dumps, loads
-from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import LinearRegression, Ridge
 from sklearn.preprocessing import PolynomialFeatures
-from src.processors.config_extractor.prediction_interval import LRPI
+# from src.processors.config_extractor.prediction_interval import LRPI
 from pymongo import ASCENDING, DESCENDING
 import math
+import random
+# import base64
 
 load_dotenv()
 
 # client = MongoClient("mongodb://localhost:27017/")
 # db=client.get_database("aranti")
 client = MongoClient(os.getenv('MONGODB_ATLAS'))
-# client = MongoClient("mongodb://iamuser:iamuser@democluster.lw5i0.mongodb.net/myFirstDatabase?retryWrites=true&w=majority")
 db=client.get_database("aranti")
+# db=client.get_database("aranti_copy")
 database = db
 
 # Constants
@@ -33,19 +36,19 @@ height_per_block = 300
 height_per_block_after_double_click = height_per_block * 2.5
 default_height = 650
 default_Y_position = -0.05
-common_header = ['Name', "Unit", 'Reported', 'Expected', 'Statement', 'Cause', 'Probability']
+common_header = ['Name', "Unit", 'Reported', 'Expected', 'Statement', 'Cause', 'P']
 daily_report_column_headers = {
     'VESSEL PARTICULARS': ["Name", "Constant"],
-    'VESSEL STATUS': ["Name", "Unit", "Reported", "Expected", "API_DATA", "Statement"],
+    'VESSEL STATUS': ["Name", "Unit", "Reported", "Expected", "Charter Pty", "Statement"],
     'CHANGE IN SPEED': ["Name", "Unit", "Reported", "Expected", "Statement"],
-    'WEATHER PARAMETERS': ["Name", "Unit", "Reported", "API_DATA"],
-    'DISTANCE AND TIME': ["Name", "Unit", "Reported", "Expected", "API_DATA"],
+    'WEATHER PARAMETERS': ["Name", "Unit", "Reported", "Statement", "API_DATA"],
+    'DISTANCE AND TIME': ["Name", "Unit", "Reported", "Expected", "Statement", "API_DATA"],
     'VESSEL POSITION': ["Name", "Reported", "Expected"],
     'FUEL OIL CONSUMPTION': common_header,
     'MAIN ENGINE': common_header,
     'GENERATOR': common_header,
     'AUXILLIARIES': common_header,
-    'INDICES': common_header
+    'INDICES': ['Name', "Unit", 'Calculated', 'Expected', 'Threshold', 'Statement', 'Cause', 'Feedback']
 }
 position_of_collapsible_category = {
     'VESSEL PARTICULARS': 0,
@@ -65,6 +68,8 @@ duration_mapping = {
     '90Days': 180,
     '1Year': 52
 }
+# TEMPORARY UNTIL m3 ADDED IN DB
+# temporaryDurationActual = 'm6'
 
 class Configurator():
 
@@ -84,12 +89,31 @@ class Configurator():
         maindb_collection = database.get_collection("Main_db")
         self.maindb = maindb_collection.find({"ship_imo": self.ship_imo}).sort('processed_daily_data.rep_dt.processed', ASCENDING)
         return maindb_collection # Use this variable in any file configurator object exists.
+    
+    def get_login_data(self):
+        login_info = database.get_collection("login_info")
+        return login_info
 
     def static_lists(self):
         self.stat_var_list=[]
         for i,j in self.ship_configs['static_data'].items():
             self.stat_var_list.append(str(i))
         return self.stat_var_list
+    
+    def get_static_data(self):
+        ship_config_collection = self.get_ship_configs()
+
+        for doc in ship_config_collection.find({'ship_imo': self.ship_imo}).sort('ship_imo', ASCENDING):
+            result = doc['static_data']
+        return result
+    
+    def get_identifier_mapping(self):
+        ship_collection = self.get_ship_configs()
+        result = {}
+        for doc in ship_collection.find({'ship_imo': self.ship_imo}).sort('ship_imo', ASCENDING):
+            result = doc['identifier_mapping']
+        
+        return result
 
     def engine_var_list(self):
         self.engine_var_list=[]
@@ -118,6 +142,37 @@ class Configurator():
             if type(self.ship_configs['calculated_var'][i])==str:
                 self.calculated_var_list.append(self.ship_configs['calculated_var'][i])
         return self.calculated_var_list
+    
+    def ewma_divide(self, ewma_val,ewma_limit):
+        if pd.isnull(ewma_val)==False and pd.isnull(ewma_limit)==False:
+            try:
+                new_ewma_val=ewma_val/ewma_limit
+            except DivisionByZero:
+                new_ewma_val = ewma_val
+            return new_ewma_val
+        else:
+            return None
+
+
+    def spe_divide(self, spe_val,spe_limit):
+        if pd.isnull(spe_val)==False and pd.isnull(spe_limit)==False:
+            try:
+                new_spe_val=spe_val/(spe_limit*0.8)
+            except DivisionByZero:
+                new_spe_val = spe_val
+            return new_spe_val
+        else:
+            return None
+
+    def t2_divide(self, t2_val,t2_limit):
+        if pd.isnull(t2_val)==False and pd.isnull(t2_limit)==False:
+            try:
+                new_t2_val=t2_val/(t2_limit*0.65)
+            except DivisionByZero:
+                new_t2_val = t2_val
+            return new_t2_val
+        else:
+            return None
 
     def makeDecimal(self, number, sliderRange=False):
         ''' Returns the number rounded to required decimal places. Also used to create slider marks numbers.'''
@@ -161,6 +216,7 @@ class Configurator():
     def create_current_duration(self, duration):
         ''' Returns the actual duration as in database.'''
         if duration == '30Days':
+            # Currently m3 unavailable. Change back when it is.
             durationActual = 'm3'
         elif duration == '90Days':
             durationActual = 'm6'
@@ -174,45 +230,56 @@ class Configurator():
             durationActual = 'ly_m12'
         return durationActual
     
-    def get_dict_for_ships(self):
+    def get_dict_for_ships(self, id):
         ''' Returns list of dictionaries with the ship imo as key and the ship name as values'''
         ship_collection = self.get_ship_configs()
         result=[]
-        for doc in ship_collection.find({}).sort('ship_imo', ASCENDING):
-            ship_imo = doc['ship_imo']
-            ship_name = doc['static_data']['ship_name']['value'].strip()
-            temp = {'value': ship_imo, 'label': ship_name}
-            result.append(temp)
+        if id == "":
+            for doc in ship_collection.find().sort('ship_imo', ASCENDING):
+                ship_imo = doc['ship_imo']
+                ship_name = doc['static_data']['ship_name']['value'].strip()
+                temp = {'value': ship_imo, 'label': ship_name}
+                result.append(temp)
+        else:
+            for doc in ship_collection.find({'organization_id': {"$in": [id, 'default']}}).sort('ship_imo', ASCENDING):
+                ship_imo = doc['ship_imo']
+                ship_name = doc['static_data']['ship_name']['value'].strip()
+                temp = {'value': ship_imo, 'label': ship_name}
+                result.append(temp)
         
         return result
     
-    def get_dependent_parameters(self):
-        ''' Returns dictionary containing list of dependent parameters according to ship_imo.'''
-        result = {}
-        var_list = []
-        var_list2 = []
-        # ship_collection = self.get_ship_configs()
-        maindb_collection = self.get_main_data()
-        # for doc in ship_collection.find({}).sort('ship_imo', ASCENDING):
-        #     singledata = doc['data']
-        #     for var in singledata.keys():
-        #         # print(doc)
-        #         if singledata[var]['dependent'] == True:
-        #             var_list.append(var)
-        #         else:
-        #             continue
-        #     result[int(doc['ship_imo'])] = var_list
-        
-        # for var in result[self.ship_imo]:
-        for doc in maindb_collection.find({'ship_imo': self.ship_imo}, {'processed_daily_data': 1, '_id': 0}):
-            for var in doc['processed_daily_data'].keys():
-                if 'SPEy' in doc['processed_daily_data'][var] and 'Q_y' in doc['processed_daily_data'][var]:
-                    if doc['processed_daily_data'][var]['SPEy'] != None and doc['processed_daily_data'][var]['Q_y'] != None:
-                        if var not in var_list2:
-                            var_list2.append(var)
-            break
-        
-        return var_list2
+    def get_dependent_parameters(self, id):
+        ''' Returns the list of dependent parameters.'''
+        result = []
+        ship_collection = self.get_ship_configs()
+
+        for doc in ship_collection.find({'ship_imo': self.ship_imo}, {'data': 1}):
+            for key in doc['data'].keys():
+                if doc['data'][key]['dependent'] == True:
+                    if pd.isnull(doc['data'][key]['source_idetifier']) == False:
+                        temp = {'id': id, 'value': key, 'label': doc['data'][key]['short_names']}
+                        result.append(temp)
+                    elif pd.isnull(doc['data'][key]['static_data']) == False:
+                        temp = {'id': id, 'value': key, 'label': doc['data'][key]['short_names']}
+                        result.append(temp)
+        result.append({'id': id, 'value': 'speed_sog_calc', 'label': 'Speed SOG'})
+        result.append({'id': id, 'value': 'speed_stw_calc', 'label': 'Speed STW (Calc)'})
+        return result
+    
+    def get_independent_parameters(self, id):
+        ''' Returns the list of independent parameters.'''
+        result = []
+        ship_collection = self.get_ship_configs()
+
+        for doc in ship_collection.find({'ship_imo': self.ship_imo}, {'data': 1}):
+            for key in doc['data'].keys():
+                if key != 'rep_dt' and key != 'rep_time' and key != 'vsl_load_bal':
+                    if doc['data'][key]['dependent'] == False:
+                        temp = {'id': id, 'value': key, 'label': doc['data'][key]['short_names']}
+                        result.append(temp)
+        # result.append({'id': id, 'value': 'None', 'label': 'None'})
+        return result
     
     def get_params_and_their_unit(self):
         ''' Returns dictionary for unit of each parameter as value and the parameter name as key.'''
@@ -236,14 +303,46 @@ class Configurator():
         
         return result
     
+    def check_if_param_in_spe_subgroup(self, group, spekeylist, param):
+        ''' Returns if the "param" belongs to the subgroup which has a spe parameter.'''
+        block_number_of_param=None
+        param_in_spe_subgroup = False
+
+        if 'spe_' in param:
+            param_in_spe_subgroup = False
+        else:
+            for i in range(len(group)):
+                if group[i]['name'] == param:
+                    block_number_of_param = group[i]['block_number']
+            for i in range(len(group)):
+                if 'spe_' + group[i]['name'] in spekeylist and group[i]['block_number'] == block_number_of_param:
+                    param_in_spe_subgroup = True
+        return param_in_spe_subgroup
+
+        
+    
     def get_sister_vessel(self):
         ''' Returns the list of all the sister vessels of a particular ship.'''
         ship_collection = self.get_ship_configs()
-        # result = []
+        result = []
 
         for doc in ship_collection.find({'ship_imo': self.ship_imo}).sort('ship_imo', ASCENDING):
-            result = doc['sister_vessel_list']
+            for vessel in doc['sister_vessel_list']:
+                temp = {'label': vessel, 'value': vessel}
+                result.append(temp)
         return result
+    
+    def get_similar_vessel(self):
+        ''' Returns the list of all the vessels similar to a particular ship.'''
+        ship_collection = self.get_ship_configs()
+        result = []
+
+        for doc in ship_collection.find({'ship_imo': self.ship_imo}).sort('ship_imo', ASCENDING):
+            for vessel in doc['similar_vessel_list']:
+                temp = {'label': vessel, 'value': vessel}
+                result.append(temp)
+        return result
+
 
 
     ''' Functions for Trends processing '''
@@ -254,7 +353,8 @@ class Configurator():
         for var in singledata.keys():            
             groups = singledata[var]['group_selection']
             for group in groups:
-                if group['groupname'] == groupname:
+                # if group['groupname'] == groupname:
+                if group['groupnumber'] == groupname:
                     tempName = self.text_wrapping(var) if type(singledata[var]['short_names']) == float else self.text_wrapping(singledata[var]['short_names'])
                     temp = {'short_names': tempName}
                     group.update(temp)
@@ -308,67 +408,17 @@ class Configurator():
     
     def get_corrected_group_selection(self, oldgroup):
         ''' Returns the corrected groups list by excluding the parameters that don't have values. Also corrects the block numbers'''
-        # newgroup=[]
-        # datadictList = list(datadict.keys())
-        # spedictList = list(spedict.keys())
-        # if spe == False:
-        # for i in range(len(oldgroup)):
-        #     # for j in datadict.keys():
-        #     if oldgroup[i]['name'] in datadictList or oldgroup[i]['name'] in spedictList:
-        #         # if j == oldgroup[i]['name']:
-        #         newgroup.append(oldgroup[i])
-        # print("NEW GROUP BEFORE !!!!!", newgroup)
-        block = self.get_number_of_blocks('', oldgroup)
+        block = self.get_number_of_blocks('', oldgroup) if oldgroup[0]['groupname'] == 'COMBUSTION PROCESS' or oldgroup[0]['groupname'] == 'Main Enginev JCW System' else []
+        # name_and_block_dict = self.create_dict_for_params_and_their_blocknos(oldgroup)
+        # legendNames = ['ME Scav Press & Combst-Compr Press', 'SPE ME Scav Press', 'Combst-Peak Press', 'ME Exh Temp', 'SPE ME Exh Temp', 'Air Temp B4 Cooler & ME Scav Temp', 'SPE Air Temp B4 Cooler & SPE ME Scav Temp', 'Air Cooler Pres Drop', 'SPE Air Cooler Pres Drop', 'Air Cooler SW In/Out Temp & Air Cooler Water Sep']
         print("BLOCK WITH NEWGROUP", block)
-        # for i in range(len(newgroup)):
-        #     block_number = newgroup[i]['block_number']
-        #     print(block_number)
-        #     for j in range(len(block)):
-        #         print(j+1)
-        #         if newgroup[i]['block_number'] == block[j]:
-        #             newgroup[i]['block_number'] = j+1
-        for i in range(len(block)):#1, 2, 9, 10, 11, 12, 13
-            for j in range(len(oldgroup)):
-                if oldgroup[j]['block_number'] == block[i]:
-                    oldgroup[j]['block_number'] = i + 1
-                # if newgroup[j]['block_number'] == 1:
-                #     newgroup[j]['block_number'] = 1
-                # else:
-                #     if newgroup[j]['block_number'] == block[i]:
-                #         if newgroup[j]['block_number'] == i:
-                #             newgroup[i]['block_number'] = i
-                #         if newgroup[j]['block_number'] < i:
-                #             continue
-                #         if newgroup[j]['block_number'] > i:
-                #             newgroup[j]['block_number'] = i+1
-        # block = self.get_number_of_blocks('', newgroup)
-        # sorted_group = []
-        # for i in block:
-        #     for j in range(len(newgroup)):
-        #         if newgroup[j]['block_number'] == i:
-        #             sorted_group.append(newgroup[j])
-        # if spe == True:
-        #     datadictList = list(datadict.keys())
-        #     # for i in range(len(oldgroup)):
-        #     #     for j in datadict.keys():
-        #     #         if 'spe_' in oldgroup[i]['name'] and j == oldgroup[i]['name']:
-        #     #             newgroup.append(oldgroup[i])
-        #     for i in range(len(oldgroup)):
-        #         if oldgroup[i]['name'] in datadictList:
-        #             newgroup.append(oldgroup[i])
-        #     for i in range(len(oldgroup)):
-        #         if 'spe_' not in oldgroup[i]['name']:
-        #             newgroup.append(oldgroup[i])
-        #     print("NEW GROUP BEFORE !!!!!", newgroup)
-        #     block = self.get_number_of_blocks('', newgroup)
-        #     print("BLOCK WITH NEWGROUP", block)
-        #     for i in range(len(newgroup)):
-        #         block_number = newgroup[i]['block_number']
-        #         print(block_number)
-        #         for j in range(len(block)):
-        #             print(j+1)
-        #             if newgroup[i]['block_number'] == block[j]:
-        #                 newgroup[i]['block_number'] = j+1
+        # newgroup = []
+        if len(block) > 0:
+            for i in range(len(block)):#1, 2, 9, 10, 11, 12, 13
+                for j in range(len(oldgroup)):
+                    if oldgroup[j]['block_number'] == block[i]:
+                        oldgroup[j]['block_number'] = i + 1
+
         return oldgroup
     
     def get_group_selection_including_spe(self, group, datadict, spedict):
@@ -388,18 +438,21 @@ class Configurator():
             tempname = 'spe_' + group[i]['name']
             if group[i]['name'] in datakeylist or tempname in spekeylist:
                 group_of_only_params_with_values.append(group[i])
-        print("GROUP OF PARAMS WITH VALUES", group_of_only_params_with_values)
         block = self.get_number_of_blocks('', group_of_only_params_with_values)
         print("START SORT GROUP")
         for i in block:
             for j in range(len(group_of_only_params_with_values)):
                 if group_of_only_params_with_values[j]['block_number'] == i:
                     sorted_group.append(group_of_only_params_with_values[j])
+        print("SORTED GROUP", sorted_group)
         print("END SORT GROUP")
+        # param_in_spe_subgroup_dict = self.check_if_param_in_spe_subgroup(sorted_group, spekeylist, '')
+        # print("SPE SUBGROUP DICT!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!", param_in_spe_subgroup_dict)
         print("START SPE INSIDE")
+        check_list=[]
         for i in range(len(sorted_group)):
             tempName = 'spe_' + sorted_group[i]['name']
-            
+
             if tempName in spekeylist:
                 if sorted_group[i]['block_number'] == 1:
                     newgroup.append(sorted_group[i])
@@ -410,182 +463,256 @@ class Configurator():
                     temp['short_names'] = 'SPE ' + sorted_group[i]['short_names']
                     newgroup.append(temp)
                 else:
-                    try:
-                        if newgroup[-1]['name'] in spekeylist:
-                            if name_and_block_dict[newgroup[-2]['name']] == name_and_block_dict[sorted_group[i]['name']]:
-                                sorted_group[i]['block_number'] = newgroup[-2]['block_number']
-                                newgroup.append(sorted_group[i])
-                                temp = {}
-                                temp['name'] = 'spe_' + sorted_group[i]['name']
-                                temp['group_availability_code'] = sorted_group[i]['group_availability_code']
-                                temp['block_number'] = newgroup[-1]['block_number'] + 1
-                                temp['short_names'] = 'SPE ' + sorted_group[i]['short_names']
-                                newgroup.append(temp)
-                            else:
-                                sorted_group[i]['block_number'] = newgroup[-1]['block_number'] + 1
-                                newgroup.append(sorted_group[i])
-                                temp = {}
-                                temp['name'] = 'spe_' + sorted_group[i]['name']
-                                temp['group_availability_code'] = sorted_group[i]['group_availability_code']
-                                temp['block_number'] = newgroup[-1]['block_number'] + 1#
-                                temp['short_names'] = 'SPE ' + sorted_group[i]['short_names']
-                                newgroup.append(temp)
+                    if 'spe_' in newgroup[-1]['name']:
+                        if name_and_block_dict[sorted_group[i]['name']] == name_and_block_dict[newgroup[-2]['name']]:
+                            sorted_group[i]['block_number'] = newgroup[-2]['block_number']
+                            newgroup.append(sorted_group[i])
+                            temp = {}
+                            temp['name'] = 'spe_' + sorted_group[i]['name']
+                            temp['group_availability_code'] = sorted_group[i]['group_availability_code']
+                            # temp['block_number'] = sorted_group[i]['block_number'] + 1
+                            temp['block_number'] = newgroup[-1]['block_number'] + 1
+                            temp['short_names'] = 'SPE ' + sorted_group[i]['short_names']
+                            newgroup.append(temp)
                         else:
-                            if name_and_block_dict[newgroup[-1]['name']] == name_and_block_dict[sorted_group[i]['name']]:
-                                sorted_group[i]['block_number'] = newgroup[-1]['block_number']
-                                newgroup.append(sorted_group[i])
-                                temp = {}
-                                temp['name'] = 'spe_' + sorted_group[i]['name']
-                                temp['group_availability_code'] = sorted_group[i]['group_availability_code']
-                                temp['block_number'] = newgroup[-1]['block_number'] + 1#
-                                temp['short_names'] = 'SPE ' + sorted_group[i]['short_names']
-                                newgroup.append(temp)
-                            else:
-                                sorted_group[i]['block_number'] = newgroup[-1]['block_number'] + 1
-                                newgroup.append(sorted_group[i])
-                                temp = {}
-                                temp['name'] = 'spe_' + sorted_group[i]['name']
-                                temp['group_availability_code'] = sorted_group[i]['group_availability_code']
-                                temp['block_number'] = newgroup[-1]['block_number'] + 1#
-                                temp['short_names'] = 'SPE ' + sorted_group[i]['short_names']
-                                newgroup.append(temp)
-                    except IndexError:
-                        newgroup.append(sorted_group[i])
-                        temp = {}
-                        temp['name'] = 'spe_' + sorted_group[i]['name']
-                        temp['group_availability_code'] = sorted_group[i]['group_availability_code']
-                        temp['block_number'] = newgroup[-1]['block_number'] + 1
-                        temp['short_names'] = 'SPE ' + sorted_group[i]['short_names']
-                        newgroup.append(temp)
-                    # else:
-                    #     if name_and_block_dict[newgroup[-1]['name']] == name_and_block_dict[sorted_group[i]['name']]:
-                    #         sorted_group[i]['block_number'] = newgroup[-1]['block_number']
-                    #         newgroup.append(sorted_group[i])
-                    #         temp = {}
-                    #         temp['name'] = 'spe_' + sorted_group[i]['name']
-                    #         temp['group_availability_code'] = sorted_group[i]['group_availability_code']
-                    #         temp['block_number'] = newgroup[-1]['block_number'] + 1#
-                    #         temp['short_names'] = 'SPE ' + sorted_group[i]['short_names']
-                    #         newgroup.append(temp)
-                    #     else:
-                    #         sorted_group[i]['block_number'] = newgroup[-1]['block_number'] + 1
-                    #         newgroup.append(sorted_group[i])
-                    #         temp = {}
-                    #         temp['name'] = 'spe_' + sorted_group[i]['name']
-                    #         temp['group_availability_code'] = sorted_group[i]['group_availability_code']
-                    #         temp['block_number'] = newgroup[-1]['block_number'] + 1#
-                    #         temp['short_names'] = 'SPE ' + sorted_group[i]['short_names']
-                    #         newgroup.append(temp)
-                # if sorted_group[i]['name'] in spe_list:
-                
-                '''works for FO CONS, Main Engine Air Cooler, Main Engine Controls, partially for BASIC'''
-                # try:
-                    # if sorted_group[i+1]['block_number'] != sorted_group[i]['block_number']:
-                    #     if temp['name'] not in spekeylist:
-                    #         sorted_group[i+1]['block_number'] = temp['block_number']
-                    #     if temp['name'] in spekeylist:
-                    #         sorted_group[i+1]['block_number'] = temp['block_number'] + 1
-                    # else:
-                    #     if name_and_block_dict[sorted_group[i+1]['name']] != name_and_block_dict[sorted_group[i]['name']]:
-                    #         print("YES",sorted_group[i]['name'])
-                    #         if temp['name'] in spekeylist:
-                    #             sorted_group[i+1]['block_number'] = temp['block_number'] + 1
-                    #         if temp['name'] not in spekeylist:
-                    #             sorted_group[i+1]['block_number'] = temp['block_number']
-                    #     else:
-                    #         sorted_group[i+1]['block_number'] = sorted_group[i]['block_number']
-
-
-                    # if temp['name'] in spekeylist:
-                    #     if sorted_group[i+1]['group_availability_code'] % 10 == sorted_group[i]['group_availability_code']:
-                    #         sorted_group[i+1]['block_number'] = sorted_group[i]['block_number']
-                    #     if sorted_group[i+1]['block_number'] + 2 == temp['block_number']:
-                    #         sorted_group[i+1]['block_number'] = temp['block_number'] + 1
-                    #     elif sorted_group[i+1]['block_number'] + 2 == sorted_group[i]['block_number']:
-                    #         sorted_group[i+1]['block_number'] = temp['block_number'] + 1
-                    #     else:
-                    #         sorted_group[i+1]['block_number'] = sorted_group[i+1]['block_number'] + 2
-                    # elif temp['name'] not in spekeylist and sorted_group[i]['block_number'] != sorted_group[i+1]['block_number']:
-                    #     sorted_group[i+1]['block_number'] = temp['block_number']
-                    # elif temp['name'] not in spekeylist and sorted_group[i]['block_number'] == sorted_group[i+1]['block_number']:
-                    #     sorted_group[i+1]['block_number'] = sorted_group[i]['block_number']
-                    # else:
-                    #     sorted_group[i+1]['block_number'] = sorted_group[i+1]['block_number'] + 1
-                # except IndexError:
-                #     continue
+                            sorted_group[i]['block_number'] = newgroup[-1]['block_number'] + 1
+                            newgroup.append(sorted_group[i])
+                            temp = {}
+                            temp['name'] = 'spe_' + sorted_group[i]['name']
+                            temp['group_availability_code'] = sorted_group[i]['group_availability_code']
+                            # temp['block_number'] = sorted_group[i]['block_number'] + 1
+                            temp['block_number'] = newgroup[-1]['block_number'] + 1
+                            temp['short_names'] = 'SPE ' + sorted_group[i]['short_names']
+                            newgroup.append(temp)
+                    else:
+                        spe_subgroup_check = self.check_if_param_in_spe_subgroup(sorted_group, spekeylist, newgroup[-1]['name'])
+                        if name_and_block_dict[sorted_group[i]['name']] == name_and_block_dict[newgroup[-1]['name']]:
+                            sorted_group[i]['block_number'] = newgroup[-1]['block_number']
+                            newgroup.append(sorted_group[i])
+                            temp = {}
+                            temp['name'] = 'spe_' + sorted_group[i]['name']
+                            temp['group_availability_code'] = sorted_group[i]['group_availability_code']
+                            # temp['block_number'] = sorted_group[i]['block_number'] + 1
+                            temp['block_number'] = newgroup[-1]['block_number'] + 1
+                            temp['short_names'] = 'SPE ' + sorted_group[i]['short_names']
+                            newgroup.append(temp)
+                        elif spe_subgroup_check == True:
+                        # elif newgroup[-1]['name'] in param_in_spe_subgroup_dict.keys() and param_in_spe_subgroup_dict[newgroup[-1]['name']] == True:
+                            sorted_group[i]['block_number'] = newgroup[-1]['block_number'] + 2
+                            newgroup.append(sorted_group[i])
+                            temp = {}
+                            temp['name'] = 'spe_' + sorted_group[i]['name']
+                            temp['group_availability_code'] = sorted_group[i]['group_availability_code']
+                            # temp['block_number'] = sorted_group[i]['block_number'] + 1
+                            temp['block_number'] = newgroup[-1]['block_number'] + 1
+                            temp['short_names'] = 'SPE ' + sorted_group[i]['short_names']
+                            newgroup.append(temp)
+                        else:
+                            sorted_group[i]['block_number'] = newgroup[-1]['block_number'] + 1
+                            newgroup.append(sorted_group[i])
+                            temp = {}
+                            temp['name'] = 'spe_' + sorted_group[i]['name']
+                            temp['group_availability_code'] = sorted_group[i]['group_availability_code']
+                            # temp['block_number'] = sorted_group[i]['block_number'] + 1
+                            temp['block_number'] = newgroup[-1]['block_number'] + 1
+                            temp['short_names'] = 'SPE ' + sorted_group[i]['short_names']
+                            newgroup.append(temp)
             else:
                 if sorted_group[i]['block_number'] == 1:
                     newgroup.append(sorted_group[i])
                 else:
                     try:
-                        if newgroup[-1]['name'] in spekeylist:
-                            if name_and_block_dict[newgroup[-2]['name']] == name_and_block_dict[sorted_group[i]['name']]:
+                        if 'spe_' in newgroup[-1]['name']:
+                            if name_and_block_dict[sorted_group[i]['name']] == name_and_block_dict[newgroup[-2]['name']]:
                                 sorted_group[i]['block_number'] = newgroup[-2]['block_number']
                                 newgroup.append(sorted_group[i])
                             else:
                                 sorted_group[i]['block_number'] = newgroup[-1]['block_number'] + 1
                                 newgroup.append(sorted_group[i])
                         else:
-                            if name_and_block_dict[newgroup[-1]['name']] == name_and_block_dict[sorted_group[i]['name']]:
+                            spe_subgroup_check = self.check_if_param_in_spe_subgroup(sorted_group, spekeylist, newgroup[-1]['name'])
+                            if name_and_block_dict[sorted_group[i]['name']] == name_and_block_dict[newgroup[-1]['name']]:
                                 sorted_group[i]['block_number'] = newgroup[-1]['block_number']
+                                newgroup.append(sorted_group[i])
+                            elif spe_subgroup_check == True:
+                            # elif newgroup[-1]['name'] in param_in_spe_subgroup_dict.keys() and param_in_spe_subgroup_dict[newgroup[-1]['name']] == True:
+                                sorted_group[i]['block_number'] = newgroup[-1]['block_number'] + 2
                                 newgroup.append(sorted_group[i])
                             else:
                                 sorted_group[i]['block_number'] = newgroup[-1]['block_number'] + 1
                                 newgroup.append(sorted_group[i])
                     except IndexError:
                         newgroup.append(sorted_group[i])
-                    # if name_and_block_dict[sorted_group[i-1]['name']] == name_and_block_dict[sorted_group[i]['name']]:
-                    #     sorted_group[i]['block_number'] = sorted_group[i-1]['block_number']
-                    #     newgroup.append(sorted_group[i])
-                    # else:
-                    #     tempName2 = 'spe_' + sorted_group[i-1]['name']
-                    #     if tempName2 in spekeylist:
-                    #         sorted_group[i]['block_number'] = newgroup[-1]['block_number'] + 1
-                    #         newgroup.append(sorted_group[i])
-                    #     else:
-                    #         sorted_group[i]['block_number'] = sorted_group[i-1]['block_number'] + 1
-                    #         newgroup.append(sorted_group[i])
-            # else:
-            #     continue
+        #     if tempName in spekeylist:
+        #         print("SPE PARAMETERS NAME!!!!!!!!", sorted_group[i]['name'])
+        #         if sorted_group[i]['block_number'] == 1:
+        #             newgroup.append(sorted_group[i])
+        #             check_list.append(sorted_group[i]['name'])
+        #             temp = {}
+        #             temp['name'] = 'spe_' + sorted_group[i]['name']
+        #             temp['group_availability_code'] = sorted_group[i]['group_availability_code']
+        #             temp['block_number'] = sorted_group[i]['block_number'] + 1
+        #             temp['short_names'] = 'SPE ' + sorted_group[i]['short_names']
+        #             newgroup.append(temp)
+        #             check_list.append('spe_' + sorted_group[i]['name'])
+        #         else:
+        #             try:
+        #                 if newgroup[-1]['name'] in spekeylist:
+        #                     try:
+        #                         if name_and_block_dict[newgroup[-2]['name']] == name_and_block_dict[sorted_group[i]['name']]:
+        #                             sorted_group[i]['block_number'] = newgroup[-2]['block_number']
+        #                             newgroup.insert(-1, sorted_group[i])
+        #                             check_list.insert(-1, sorted_group[i]['name'])
+        #                             temp = {}
+        #                             temp['name'] = 'spe_' + sorted_group[i]['name']
+        #                             temp['group_availability_code'] = sorted_group[i]['group_availability_code']
+        #                             temp['block_number'] = newgroup[-1]['block_number']
+        #                             temp['short_names'] = 'SPE ' + sorted_group[i]['short_names']
+        #                             newgroup.append(temp)
+        #                             check_list.append('spe_' + sorted_group[i]['name'])
+        #                         elif name_and_block_dict[newgroup[-3]['name']] == name_and_block_dict[sorted_group[i]['name']]:
+        #                             sorted_group[i]['block_number'] = newgroup[-3]['block_number']
+        #                             newgroup.insert(-1, sorted_group[i])
+        #                             check_list.insert(-1, sorted_group[i]['name'])
+        #                             temp = {}
+        #                             temp['name'] = 'spe_' + sorted_group[i]['name']
+        #                             temp['group_availability_code'] = sorted_group[i]['group_availability_code']
+        #                             temp['block_number'] = newgroup[-2]['block_number']
+        #                             temp['short_names'] = 'SPE ' + sorted_group[i]['short_names']
+        #                             newgroup.append(temp)
+        #                             check_list.append('spe_' + sorted_group[i]['name'])
+        #                         else:
+        #                             sorted_group[i]['block_number'] = newgroup[-1]['block_number'] + 1
+        #                             newgroup.append(sorted_group[i])
+        #                             check_list.append(sorted_group[i]['name'])
+        #                             temp = {}
+        #                             temp['name'] = 'spe_' + sorted_group[i]['name']
+        #                             temp['group_availability_code'] = sorted_group[i]['group_availability_code']
+        #                             temp['block_number'] = newgroup[-1]['block_number'] + 1#
+        #                             temp['short_names'] = 'SPE ' + sorted_group[i]['short_names']
+        #                             newgroup.append(temp)
+        #                             check_list.append('spe_' + sorted_group[i]['name'])
+        #                     except KeyError:
+        #                         # print("IN CASE OF KEY ERROR!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+        #                         if name_and_block_dict[newgroup[-1]['name'].replace('spe_', '')] == name_and_block_dict[sorted_group[i]['name']]:
+        #                             sorted_group[i]['block_number'] = newgroup[-3]['block_number']
+        #                             newgroup.insert(-1, sorted_group[i])
+        #                             check_list.insert(-1, sorted_group[i]['name'])
+        #                             temp = {}
+        #                             temp['name'] = 'spe_' + sorted_group[i]['name']
+        #                             temp['group_availability_code'] = sorted_group[i]['group_availability_code']
+        #                             temp['block_number'] = newgroup[-3]['block_number'] + 1
+        #                             temp['short_names'] = 'SPE ' + sorted_group[i]['short_names']
+        #                             newgroup.append(temp)
+        #                             check_list.append('spe_' + sorted_group[i]['name'])
+        #                         elif name_and_block_dict[newgroup[-2]['name'].replace('spe_', '')] == name_and_block_dict[sorted_group[i]['name']]:
+        #                             sorted_group[i]['block_number'] = newgroup[-2]['block_number']
+        #                             newgroup.insert(-1, sorted_group[i])
+        #                             check_list.insert(-1, sorted_group[i]['name'])
+        #                             temp = {}
+        #                             temp['name'] = 'spe_' + sorted_group[i]['name']
+        #                             temp['group_availability_code'] = sorted_group[i]['group_availability_code']
+        #                             temp['block_number'] = newgroup[-1]['block_number']
+        #                             temp['short_names'] = 'SPE ' + sorted_group[i]['short_names']
+        #                             newgroup.append(temp)
+        #                         else:
+        #                             sorted_group[i]['block_number'] = newgroup[-1]['block_number'] + 1
+        #                             newgroup.append(sorted_group[i])
+        #                             check_list.append(sorted_group[i]['name'])
+        #                             temp = {}
+        #                             temp['name'] = 'spe_' + sorted_group[i]['name']
+        #                             temp['group_availability_code'] = sorted_group[i]['group_availability_code']
+        #                             temp['block_number'] = newgroup[-1]['block_number'] + 1#
+        #                             temp['short_names'] = 'SPE ' + sorted_group[i]['short_names']
+        #                             newgroup.append(temp)
+        #                             check_list.append('spe_' + sorted_group[i]['name'])
+        #                 else:
+        #                     try:
+        #                         if name_and_block_dict[newgroup[-1]['name']] == name_and_block_dict[sorted_group[i]['name']]:
+        #                             sorted_group[i]['block_number'] = newgroup[-1]['block_number']
+        #                             newgroup.insert(-1, sorted_group[i])
+        #                             check_list.insert(-1, sorted_group[i]['name'])
+        #                             temp = {}
+        #                             temp['name'] = 'spe_' + sorted_group[i]['name']
+        #                             temp['group_availability_code'] = sorted_group[i]['group_availability_code']
+        #                             temp['block_number'] = newgroup[-1]['block_number'] + 1#
+        #                             temp['short_names'] = 'SPE ' + sorted_group[i]['short_names']
+        #                             newgroup.append(temp)
+        #                             check_list.append('spe_' + sorted_group[i]['name'])
+        #                         else:
+        #                             sorted_group[i]['block_number'] = newgroup[-1]['block_number'] + 1
+        #                             newgroup.append(sorted_group[i])
+        #                             check_list.append(sorted_group[i]['name'])
+        #                             temp = {}
+        #                             temp['name'] = 'spe_' + sorted_group[i]['name']
+        #                             temp['group_availability_code'] = sorted_group[i]['group_availability_code']
+        #                             temp['block_number'] = newgroup[-1]['block_number'] + 1#
+        #                             temp['short_names'] = 'SPE ' + sorted_group[i]['short_names']
+        #                             newgroup.append(temp)
+        #                             check_list.append('spe_' + sorted_group[i]['name'])
+        #                     except KeyError:
+        #                         sorted_group[i]['block_number'] = newgroup[-1]['block_number'] + 1
+        #                         newgroup.append(sorted_group[i])
+        #                         # print("IN CASE OF KEY ERROR PART 2!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+        #                         check_list.append(sorted_group[i]['name'])
+        #                         temp = {}
+        #                         temp['name'] = 'spe_' + sorted_group[i]['name']
+        #                         temp['group_availability_code'] = sorted_group[i]['group_availability_code']
+        #                         temp['block_number'] = newgroup[-1]['block_number'] + 1#
+        #                         temp['short_names'] = 'SPE ' + sorted_group[i]['short_names']
+        #                         newgroup.append(temp)
+        #                         check_list.append('spe_' + sorted_group[i]['name'])
+        #             except IndexError:
+        #                 newgroup.append(sorted_group[i])
+        #                 # print("IN CASE OF INDEX ERROR!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+        #                 check_list.append(sorted_group[i]['name'])
+        #                 temp = {}
+        #                 temp['name'] = 'spe_' + sorted_group[i]['name']
+        #                 temp['group_availability_code'] = sorted_group[i]['group_availability_code']
+        #                 temp['block_number'] = newgroup[-1]['block_number'] + 1
+        #                 temp['short_names'] = 'SPE ' + sorted_group[i]['short_names']
+        #                 newgroup.append(temp)
+        #                 check_list.append('spe_' + sorted_group[i]['name'])
+        #     else:
+        #         print("NON SPE PARAMETERS NAME!!!!!!!!", sorted_group[i]['name'])
+        #         if sorted_group[i]['block_number'] == 1:
+        #             newgroup.append(sorted_group[i])
+        #             check_list.append(sorted_group[i]['name'])
+        #         else:
+        #             try:
+        #                 if newgroup[-1]['name'] in spekeylist:
+        #                     if name_and_block_dict[newgroup[-2]['name']] == name_and_block_dict[sorted_group[i]['name']]:
+        #                         sorted_group[i]['block_number'] = newgroup[-2]['block_number']
+        #                         newgroup.insert(-1,sorted_group[i])
+        #                         check_list.insert(-1, sorted_group[i]['name'])
+        #                     else:
+        #                         sorted_group[i]['block_number'] = newgroup[-1]['block_number'] + 1
+        #                         newgroup.append(sorted_group[i])
+        #                         check_list.append(sorted_group[i]['name'])
+        #                 else:
+        #                     # print("PREVIOUS NON SPE PARAMETER!!!!", newgroup[-1]['name'])
+        #                     # spe_subgroup_check = self.check_if_param_in_spe_subgroup(sorted_group, newgroup[-1]['name'])
+        #                     # print("SPE SUBGROUP CHECK!!!!", spe_subgroup_check)
+        #                     if name_and_block_dict[newgroup[-1]['name']] == name_and_block_dict[sorted_group[i]['name']]:
+        #                         sorted_group[i]['block_number'] = newgroup[-1]['block_number']
+        #                         newgroup.append(sorted_group[i])
+        #                         check_list.append(sorted_group[i]['name'])
+        #                     # elif name_and_block_dict[newgroup[-1]['name']] != name_and_block_dict[sorted_group[i]['name']] and spe_subgroup_check == True:
+        #                     #     print("ENTERED THE IF CONDITION OF NON SPE PARAMETERS!!!!!!!!!!!!!!")
+        #                     #     sorted_group[i]['block_number'] = newgroup[-1]['block_number'] + 2
+        #                     #     newgroup.append(sorted_group[i])
+        #                     else:
+        #                         sorted_group[i]['block_number'] = newgroup[-1]['block_number'] + 1
+        #                         newgroup.append(sorted_group[i])
+        #                         check_list.append(sorted_group[i]['name'])
+        #             except IndexError:
+        #                 newgroup.append(sorted_group[i])
+        #                 # print("IN CASE OF INDEX ERROR PART 2 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+        #                 check_list.append(sorted_group[i]['name'])
+        # print("CHECK LIST OF ALL THE PARAMETERS BY THE ORDER OF APPEND!!!!!!!!!!!!!!!!!!!!!!", check_list)
         print("END SPE INSIDE")
         ''' Completely works for BASIC'''
         ''' List of block numbers of parameters with substring SPE in their names.'''
-        # blocklist = []
-        # for i in range(len(newgroup)):
-        #     if 'spe_' in newgroup[i]['name']:
-        #         blocklist.append(newgroup[i]['block_number'])
-        
-        # block_params = []
-        # for i in blocklist:
-        #     for j in range(len(newgroup)):
-        #         if 'spe_' not in newgroup[j]['name'] and newgroup[j]['block_number'] == i:
-        #             if newgroup[j]['block_number'] not in block_params:
-        #                 block_params.append(newgroup[j]['block_number'])
-        # print("BLOCK PARAMS !!!!!", block_params)
-        
-        # ''' Adding 1 to all those block numbers that are same as the ones in block_list'''
-        # for i in block_params:
-        #     # print("BLOCK!!!!!!",i)
-        #     # temp = i + 1
-        #     for group in newgroup:
-        #         if group['block_number'] == i and 'spe_' in group['name']:
-        #             continue
-        #         if group['block_number'] >= i:
-        #             group['block_number'] = group['block_number'] + 1
-        
-        # ''' List of block numbers of parameters with substring spe and without.'''
-        # block_params = []
-        # for i in blocklist:
-        #     for j in range(len(newgroup)):
-        #         if ('spe_' not in newgroup[j]['name'] or 'spe_' in newgroup[j]['name']) and newgroup[j]['block_number'] == i:
-        #             block_params.append(newgroup[j]['block_number'])
-        # ''' Adding 1 to block numbers that are same as the ones in block_params'''
-        # for i in block_params:
-        #     for j in range(len(newgroup)):
-        #         if newgroup[j]['block_number'] == i and 'spe_' in newgroup[j]['name']:
-        #             continue
-        #         if newgroup[j]['block_number'] >= i:
-        #             newgroup[j]['block_number'] = newgroup[j]['block_number'] + 1
 
         print("NEWGROUP!!!!",newgroup)
         
@@ -594,20 +721,24 @@ class Configurator():
 
 
 
-    def temporary_group_selection_for_11(self, groupname):
+    def temporary_group_selection_for_multi_axis(self, unit_number):
         ''' Temporary group selection for multi-axis'''
         result = []
         singledata = self.ship_configs['data']
         for var in singledata.keys():            
             groups = singledata[var]['group_selection']
             for group in groups:
-                if group['groupname'] == 'COMBUSTION PROCESS':
-                    if 'Combst' in singledata[var]['short_names'] and '1' in singledata[var]['short_names']:
-                        temp = {'short_names': singledata[var]['short_names']}
+                if pd.isnull(singledata[var]['short_names']) == False:
+                    if 'Compr' in singledata[var]['short_names'] and unit_number in singledata[var]['short_names']:
+                        temp = {'short_names': singledata[var]['short_names'], 'unit': singledata[var]['unit']}
                         group.update(temp)
                         result.append(group)
-                    if 'ME Exh Temp' in singledata[var]['short_names'] and '2' in singledata[var]['short_names']:
-                        temp = {'short_names': singledata[var]['short_names']}
+                    if 'Peak' in singledata[var]['short_names'] and unit_number in singledata[var]['short_names']:
+                        temp = {'short_names': singledata[var]['short_names'], 'unit': singledata[var]['unit']}
+                        group.update(temp)
+                        result.append(group)
+                    if 'ME Exh Temp' in singledata[var]['short_names'] and unit_number in singledata[var]['short_names']:
+                        temp = {'short_names': singledata[var]['short_names'], 'unit': singledata[var]['unit']}
                         group.update(temp)
                         result.append(group)
         # if len(result) >= 3:
@@ -629,9 +760,9 @@ class Configurator():
         result.insert(0, 'rep_dt')
         return result
     
-    def get_short_names_list_for_multi_axis(self, groupname):
+    def get_short_names_list_for_multi_axis(self, unit_number):
         ''' Returns the list of short names from the group selection of multi axis'''
-        groupList = self.temporary_group_selection_for_11('MultiAxis') # Only passing hard set groupname because
+        groupList = self.temporary_group_selection_for_multi_axis(unit_number) # Only passing hard set groupname because
         # currently only the temporary function exists. Replace with the "groupname" argument later.
         namesList = []
         for i in groupList:
@@ -720,7 +851,7 @@ class Configurator():
                 for var in singledata.keys():
                     groups = singledata[var]['group_selection']
                     for group in groups:
-                        if group['block_number'] == j and group['groupname'] == i:
+                        if group['block_number'] == j and group['groupnumber'] == i:
                             temp_list.append(singledata[var]['short_names'])
                 temp_dict['Sub-Group '+ str(int(j))] = temp_list
             # blocks.append(temp_dict)
@@ -734,22 +865,28 @@ class Configurator():
             and values as empty lists.
         '''
         grpnames=self.get_list_of_groupnames()
+        ship_collection = self.get_ship_configs()
 
         generic_dict={}
         for i in grpnames:
             generic_dict[i] = []
+            # for doc in ship_collection.find({'ship_imo': self.ship_imo}).sort('ship_imo', ASCENDING):
+            #     for key in doc['data'].keys():
+            #         for group in doc['data'][key]['group_selection']:
+            #             if group['groupnumber'] == i:
+            #                 generic_dict[group['groupname']] = []
 
         return generic_dict
     
     def get_list_of_groupnames(self):
-        ''' Returns list of all the groupnames'''
+        ''' Returns list of all the groupnumbers'''
         singledata = self.ship_configs['data']
         grpnames=[]
         for var in singledata.keys():
             groups = singledata[var]['group_selection']
             for group in groups:
-                if group['groupname'] not in grpnames:
-                    grpnames.append(group['groupname'])
+                if group['groupnumber'] not in grpnames:
+                    grpnames.append(group['groupnumber'])
         return grpnames
         
     
@@ -761,7 +898,8 @@ class Configurator():
             for var in singledata.keys():
                 groups = singledata[var]['group_selection']
                 for group in groups:
-                    if group['groupname'] == groupname:
+                    # if group['groupname'] == groupname:
+                    if group['groupnumber'] == groupname:
                         if group['block_number'] not in block_number:
                             block_number.append(group['block_number'])
         else:
@@ -828,28 +966,28 @@ class Configurator():
         for i in range(len(groupsList)):
             names.append(groupsList[i]['name'])
         names.insert(0,'rep_dt')
-        return res1, res2, names
+        return names
     
     def get_dict_and_list_according_to_groups(self, groupsList):
         ''' Returns a dictionary with the name of the parameters (as per the group selection)
             as keys and empty lists as values.
             Also returns a list of parameter names.
         '''
-        res1 = {}
-        res2 = {}
+        maindb_collection = self.get_main_data()
         names=[]
-        # group = self.get_group_selection(groupname)
-        # count = self.get_number_of_group_members(groupname)
-        # for i in range(0, count):
-        #     temp = {group[i]['name']: []}
-        #     res1.update(temp)
-        #     res2.update(temp)
-        # res1.update(rep_dt = [])
-        # res2.update(rep_dt = [])
+        paramList=[]
+        indicesList=[]
         for i in range(len(groupsList)):
             names.append(groupsList[i]['name'])
         names.insert(0,'rep_dt')
-        return names
+
+        for doc in maindb_collection.find({'ship_imo': self.ship_imo}).sort('processed_daily_data.rep_dt.processed', DESCENDING).limit(1):
+            for name in names:
+                if name in doc['processed_daily_data'].keys():
+                    paramList.append(name)
+                elif name in doc['independent_indices'].keys():
+                    indicesList.append(name)
+        return paramList, indicesList
     
     def get_overall_min_and_max(self, groupsList, datadict):
         ''' Returns a dictionary with the block numbers as keys and a dictionary containing
@@ -899,62 +1037,118 @@ class Configurator():
         
         return block_wise_datadict
     
-    def get_shapes_for_loaded_ballast_data(self):
+    def get_shapes_for_loaded_ballast_data(self, noonorlogs='noon'):
         maindbcollection = self.get_main_data()
         loaded_ballast_list=[]
         res_data={'Ballast': [], 'Loaded': [], 'Engine': [], 'Nav': []}
         
-        tempList=[]
-        for doc in maindbcollection.find({'ship_imo': self.ship_imo}, {'ship_imo': 1, 'vessel_loaded_check': 1, 'data_available_engine': 1, 'data_available_nav': 1, 'processed_daily_data.rep_dt.processed': 1, '_id': 0}).sort('processed_daily_data.rep_dt.processed', ASCENDING):
-            newdate = doc['processed_daily_data']['rep_dt']['processed'].strftime('%Y-%m-%d')
-            if doc['vessel_loaded_check'] == "Ballast":
-                tempList.append(newdate)
-                # if doc['data_available_engine'] == True and doc['data_available_nav'] == True:
-                #     if tempList not in res_data['Ballast']:
-                #         res_data['Ballast'].append(tempList)
-                # else:
-                #     tempList = []
-            else:
-                tempList=[]
-            if doc['data_available_engine'] == True and doc['data_available_nav'] == True:
-                if tempList not in res_data['Ballast']:
-                    res_data['Ballast'].append(tempList)
-            else:
-                tempList = []
-        tempList = []
-        for doc in maindbcollection.find({'ship_imo': self.ship_imo}, {'ship_imo': 1, 'vessel_loaded_check': 1, 'data_available_engine': 1, 'data_available_nav': 1, 'processed_daily_data.rep_dt.processed': 1, '_id': 0}).sort('processed_daily_data.rep_dt.processed', ASCENDING):
-            newdate = doc['processed_daily_data']['rep_dt']['processed'].strftime('%Y-%m-%d')
-            if doc['vessel_loaded_check'] == "Loaded":
-                tempList.append(newdate)
-                # if doc['data_available_engine'] == True and doc['data_available_nav'] == True:
-                #     if tempList not in res_data['Loaded']:
-                #         res_data['Loaded'].append(tempList)
-                # else:
-                #     tempList = []
-            else:
-                tempList=[]
-            if doc['data_available_engine'] == True and doc['data_available_nav'] == True:
-                if tempList not in res_data['Loaded']:
-                    res_data['Loaded'].append(tempList)
-            else:
-                tempList = []
-        tempList = []
-        for doc in maindbcollection.find({'ship_imo': self.ship_imo}, {'ship_imo': 1, 'data_available_engine': 1, 'data_available_nav': 1, 'processed_daily_data.rep_dt.processed': 1, '_id': 0}).sort('processed_daily_data.rep_dt.processed', ASCENDING):
-            newdate = doc['processed_daily_data']['rep_dt']['processed'].strftime('%Y-%m-%d')
-            if doc['data_available_engine'] == False and doc['data_available_nav'] == True:
-                if tempList not in res_data['Nav']:
-                    tempList.append(newdate)
-                    res_data['Nav'].append(tempList)
-            elif doc['data_available_engine'] == True and doc['data_available_nav'] == False:
-                tempList.append(newdate)
-                if tempList not in res_data['Engine']:
-                    res_data['Engine'].append(tempList)
-            else:
-                tempList=[]
-        # print("RES NO DATA!!!!!!!!", res_data['No Data'])
+        if noonorlogs == 'noon':
+            tempList=[]
+            for doc in maindbcollection.find({'ship_imo': self.ship_imo}, {'ship_imo': 1, 'Logs': 1, 'vessel_loaded_check': 1, 'data_available_engine': 1, 'data_available_nav': 1, 'processed_daily_data.rep_dt.processed': 1, '_id': 0}).sort('processed_daily_data.rep_dt.processed', ASCENDING):
+                newdate = doc['processed_daily_data']['rep_dt']['processed'].strftime('%Y-%m-%d')
+                if doc['Logs'] == False:
+                    if doc['vessel_loaded_check'] == "Ballast":
+                        tempList.append(newdate)
+                        # if doc['data_available_engine'] == True and doc['data_available_nav'] == True:
+                        #     if tempList not in res_data['Ballast']:
+                        #         res_data['Ballast'].append(tempList)
+                        # else:
+                        #     tempList = []
+                    else:
+                        tempList=[]
+                    if doc['data_available_engine'] == True and doc['data_available_nav'] == True:
+                        if tempList not in res_data['Ballast']:
+                            res_data['Ballast'].append(tempList)
+                    else:
+                        tempList = []
+            tempList = []
+            for doc in maindbcollection.find({'ship_imo': self.ship_imo}, {'ship_imo': 1, 'Logs': 1, 'vessel_loaded_check': 1, 'data_available_engine': 1, 'data_available_nav': 1, 'processed_daily_data.rep_dt.processed': 1, '_id': 0}).sort('processed_daily_data.rep_dt.processed', ASCENDING):
+                newdate = doc['processed_daily_data']['rep_dt']['processed'].strftime('%Y-%m-%d')
+                if doc['Logs'] == False:
+                    if doc['vessel_loaded_check'] == "Loaded":
+                        tempList.append(newdate)
+                        # if doc['data_available_engine'] == True and doc['data_available_nav'] == True:
+                        #     if tempList not in res_data['Loaded']:
+                        #         res_data['Loaded'].append(tempList)
+                        # else:
+                        #     tempList = []
+                    else:
+                        tempList=[]
+                    if doc['data_available_engine'] == True and doc['data_available_nav'] == True:
+                        if tempList not in res_data['Loaded']:
+                            res_data['Loaded'].append(tempList)
+                    else:
+                        tempList = []
+            tempList = []
+            for doc in maindbcollection.find({'ship_imo': self.ship_imo}, {'ship_imo': 1, 'Logs': 1, 'data_available_engine': 1, 'data_available_nav': 1, 'processed_daily_data.rep_dt.processed': 1, '_id': 0}).sort('processed_daily_data.rep_dt.processed', ASCENDING):
+                newdate = doc['processed_daily_data']['rep_dt']['processed'].strftime('%Y-%m-%d')
+                if doc['Logs'] == False:
+                    if doc['data_available_engine'] == False and doc['data_available_nav'] == True:
+                        if tempList not in res_data['Nav']:
+                            tempList.append(newdate)
+                            res_data['Nav'].append(tempList)
+                    elif doc['data_available_engine'] == True and doc['data_available_nav'] == False:
+                        tempList.append(newdate)
+                        if tempList not in res_data['Engine']:
+                            res_data['Engine'].append(tempList)
+                    else:
+                        tempList=[]
+            # print("RES NO DATA!!!!!!!!", res_data['No Data'])
+        if noonorlogs == 'logs':
+            tempList=[]
+            for doc in maindbcollection.find({'ship_imo': self.ship_imo}, {'ship_imo': 1, 'Logs': 1, 'vessel_loaded_check': 1, 'data_available_engine': 1, 'data_available_nav': 1, 'processed_daily_data.rep_dt.processed': 1, '_id': 0}).sort('processed_daily_data.rep_dt.processed', ASCENDING):
+                newdate = doc['processed_daily_data']['rep_dt']['processed'].strftime('%Y-%m-%d')
+                if doc['Logs'] == True:
+                    if doc['vessel_loaded_check'] == "Ballast":
+                        tempList.append(newdate)
+                        # if doc['data_available_engine'] == True and doc['data_available_nav'] == True:
+                        #     if tempList not in res_data['Ballast']:
+                        #         res_data['Ballast'].append(tempList)
+                        # else:
+                        #     tempList = []
+                    else:
+                        tempList=[]
+                    if doc['data_available_engine'] == True and doc['data_available_nav'] == True:
+                        if tempList not in res_data['Ballast']:
+                            res_data['Ballast'].append(tempList)
+                    else:
+                        tempList = []
+            tempList = []
+            for doc in maindbcollection.find({'ship_imo': self.ship_imo}, {'ship_imo': 1, 'Logs': 1, 'vessel_loaded_check': 1, 'data_available_engine': 1, 'data_available_nav': 1, 'processed_daily_data.rep_dt.processed': 1, '_id': 0}).sort('processed_daily_data.rep_dt.processed', ASCENDING):
+                newdate = doc['processed_daily_data']['rep_dt']['processed'].strftime('%Y-%m-%d')
+                if doc['Logs'] == True:
+                    if doc['vessel_loaded_check'] == "Loaded":
+                        tempList.append(newdate)
+                        # if doc['data_available_engine'] == True and doc['data_available_nav'] == True:
+                        #     if tempList not in res_data['Loaded']:
+                        #         res_data['Loaded'].append(tempList)
+                        # else:
+                        #     tempList = []
+                    else:
+                        tempList=[]
+                    if doc['data_available_engine'] == True and doc['data_available_nav'] == True:
+                        if tempList not in res_data['Loaded']:
+                            res_data['Loaded'].append(tempList)
+                    else:
+                        tempList = []
+            tempList = []
+            for doc in maindbcollection.find({'ship_imo': self.ship_imo}, {'ship_imo': 1, 'Logs': 1, 'data_available_engine': 1, 'data_available_nav': 1, 'processed_daily_data.rep_dt.processed': 1, '_id': 0}).sort('processed_daily_data.rep_dt.processed', ASCENDING):
+                newdate = doc['processed_daily_data']['rep_dt']['processed'].strftime('%Y-%m-%d')
+                if doc['Logs'] == True:
+                    if doc['data_available_engine'] == False and doc['data_available_nav'] == True:
+                        if tempList not in res_data['Nav']:
+                            tempList.append(newdate)
+                            res_data['Nav'].append(tempList)
+                    elif doc['data_available_engine'] == True and doc['data_available_nav'] == False:
+                        tempList.append(newdate)
+                        if tempList not in res_data['Engine']:
+                            res_data['Engine'].append(tempList)
+                    else:
+                        tempList=[]
         
         for i in res_data['Ballast']:
             print(i)
+            #lightpink
             tempballast={'type': 'rect','xref': 'x','yref': 'paper','y0': 0,'y1': 1,'fillcolor': 'rgb(249, 226, 226)','opacity': 0.4,'line': {'width': 0}}
             try:
                 # tempOne = datetime.strptime(i[0], '%Y-%m-%d')
@@ -972,6 +1166,7 @@ class Configurator():
             except IndexError:
                 continue
         for i in res_data['Loaded']:
+            #gray
             temploaded={'type': 'rect','xref': 'x','yref': 'paper','y0': 0,'y1': 1,'fillcolor': 'rgb(196, 192, 192)','opacity': 0.4,'line': {'width': 0}}
             try:
                 # tempOne = datetime.strptime(i[0], '%Y-%m-%d')
@@ -1083,6 +1278,61 @@ class Configurator():
 
         return result, block_wise_datadict
     
+    def get_subgroup_names(self, groupname):
+        ''' Returns a dictionary for sub-group names.'''
+        ship_collection = self.get_ship_configs()
+        subgroup_dict={}
+
+        for doc in ship_collection.find({'ship_imo': self.ship_imo}, {'group_dict': 1}):
+            try:
+                subgroup_dict = doc['group_dict'][groupname]
+            except KeyError:
+                subgroup_dict = None
+        
+        return subgroup_dict
+    
+    def get_subgroup_names_for_custom_groups(self, subgroup_dict=None, groupname="", group_selection=None):
+        ''' Returns a dictionary for sub-group names. Also includes the individual parameters added by user.
+            If groupname is empty, iterates over the group_selection and creates the dictionary.
+        '''
+        if subgroup_dict != None:
+            index_of_last_key = 0
+            block_number_of_last_key = int(list(subgroup_dict.keys())[-1].replace('Sub-Group ', '').replace('_i', ''))
+            name_of_last_value = list(subgroup_dict.values())[-1]
+            for i in range(len(group_selection)):
+                if block_number_of_last_key == group_selection[i]['block_number']:
+                    index_of_last_key = i
+            
+            for i in range(index_of_last_key+1, len(group_selection)):
+                temp_key = 'Sub-Group '
+                if 'spe_' not in group_selection[i]['name']:
+                    block_number_of_last_key = block_number_of_last_key + 1
+                    key_for_subgroup_dict = temp_key + str(block_number_of_last_key)
+                    subgroup_dict[key_for_subgroup_dict] = group_selection[i]['short_names']
+                else:
+                    block_number_of_last_key = block_number_of_last_key
+                    key_for_subgroup_dict = temp_key + str(block_number_of_last_key) + '_i'
+                    subgroup_dict[key_for_subgroup_dict] = group_selection[i]['short_names']
+            return subgroup_dict
+        else:
+            list_of_block_numbers = []
+            result={}
+            for i in range(len(group_selection)):
+                temp_key = 'Sub-Group '
+                if group_selection[i]['block_number'] not in list_of_block_numbers:
+                    if 'spe_' not in group_selection[i]['name']:
+                        key_for_subgroup_dict = temp_key + str(group_selection[i]['block_number'])
+                        result[key_for_subgroup_dict] = group_selection[i]['short_names']
+                    else:
+                        key_for_subgroup_dict = temp_key + str(group_selection[i]['block_number']) + '_i'
+                        result[key_for_subgroup_dict] = group_selection[i]['short_names']
+            return result
+
+
+
+
+        
+    
     ''' Functions for Daily Report processing '''
     def get_category_dict(self):
         ''' Returns a dictionary containing category as the key and the list of subcategories in that category as the value'''
@@ -1181,11 +1431,25 @@ class Configurator():
         parameter_list = []
 
         for var in singledata.keys():
-            if pd.isnull(singledata[var]['var_type']) != True:
-                if 'E' in singledata[var]['var_type'] and '1' not in singledata[var]['var_type'] and singledata[var]['source_idetifier'] == 'available':
+            if singledata[var]['override'] == 1:
+                # if pd.isnull(singledata[var]['var_type']) == False:
+                if 'E' in singledata[var]['var_type'] and '1' not in singledata[var]['var_type']:
                     equipment_list.append(var)
                 if 'P' in singledata[var]['var_type']:
                     parameter_list.append(var)
+            elif singledata[var]['override'] != -1 and singledata[var]['override'] != 1:
+                if pd.isnull(singledata[var]['var_type']) == False:
+                    if 'E' in singledata[var]['var_type'] and '1' not in singledata[var]['var_type'] and pd.isnull(singledata[var]['source_idetifier']) == False:
+                        equipment_list.append(var)
+                    if 'P' in singledata[var]['var_type'] and (pd.isnull(singledata[var]['source_idetifier']) == False or singledata[var]['Derived'] == True):
+                        parameter_list.append(var)
+            else:
+                continue
+            # if pd.isnull(singledata[var]['var_type']) != True:
+            #     if 'E' in singledata[var]['var_type'] and '1' not in singledata[var]['var_type'] and singledata[var]['source_idetifier'] == 'available':
+            #         equipment_list.append(var)
+            #     if 'P' in singledata[var]['var_type']:
+            #         parameter_list.append(var)
         # for var in singledata.keys():
         #     if singledata[var]['var_type'] == 'E':
         #         print(singledata[var])
@@ -1201,6 +1465,7 @@ class Configurator():
                     for i in range(0, 3):
                         try:
                             try:
+                                # UNCOMMENT WHEN m3 ADDED IN DB
                                 if pd.isnull(dupli_data['processed_daily_data'][var][subvar]['m3'][i]) == True or dupli_data['processed_daily_data'][var][subvar]['m3'][i] == -np.inf or dupli_data['processed_daily_data'][var][subvar]['m3'][i] == np.inf:
                                     dupli_data['processed_daily_data'][var][subvar]['m3'].pop(i)
                                     dupli_data['processed_daily_data'][var][subvar]['m3'].insert(i, 'null')
@@ -1212,6 +1477,7 @@ class Configurator():
                                     dupli_data['processed_daily_data'][var][subvar]['m12'].insert(i, 'null')
                             except IndexError:
                                 continue
+                            # UNCOMMENT WHEN m3 ADDED IN DB
                             try:
                                 if pd.isnull(dupli_data['processed_daily_data'][var][subvar]['ly_m3'][i]) == True or dupli_data['processed_daily_data'][var][subvar]['ly_m3'][i] == -np.inf or dupli_data['processed_daily_data'][var][subvar]['ly_m3'][i] == np.inf:
                                     dupli_data['processed_daily_data'][var][subvar]['ly_m3'].pop(i)
@@ -1228,12 +1494,14 @@ class Configurator():
                             continue
                 if subvar == 'z_score':
                     try:
+                        # UNCOMMENT WHEN m3 ADDED IN DB
                         if pd.isnull(dupli_data['processed_daily_data'][var][subvar]['m3']) == True:
                             dupli_data['processed_daily_data'][var][subvar]['m3'] = 'null'
                         if pd.isnull(dupli_data['processed_daily_data'][var][subvar]['m6']) == True:
                             dupli_data['processed_daily_data'][var][subvar]['m6'] = 'null'
                         if pd.isnull(dupli_data['processed_daily_data'][var][subvar]['m12']) == True:
                             dupli_data['processed_daily_data'][var][subvar]['m12'] = 'null'
+                        # UNCOMMENT WHEN m3 ADDED IN DB
                         if pd.isnull(dupli_data['processed_daily_data'][var][subvar]['ly_m3']) == True:
                             dupli_data['processed_daily_data'][var][subvar]['ly_m3'] = 'null'
                         if pd.isnull(dupli_data['processed_daily_data'][var][subvar]['ly_m6']) == True:
@@ -1244,12 +1512,14 @@ class Configurator():
                         continue
                 if subvar == 'crit_val_dynamic':
                     try:
+                        # UNCOMMENT WHEN m3 ADDED IN DB
                         if pd.isnull(dupli_data['processed_daily_data'][var][subvar]['m3']) == True:
                             dupli_data['processed_daily_data'][var][subvar]['m3'] = 'null'
                         if pd.isnull(dupli_data['processed_daily_data'][var][subvar]['m6']) == True:
                             dupli_data['processed_daily_data'][var][subvar]['m6'] = 'null'
                         if pd.isnull(dupli_data['processed_daily_data'][var][subvar]['m12']) == True:
                             dupli_data['processed_daily_data'][var][subvar]['m12'] = 'null'
+                        # UNCOMMENT WHEN m3 ADDED IN DB
                         if pd.isnull(dupli_data['processed_daily_data'][var][subvar]['ly_m3']) == True:
                             dupli_data['processed_daily_data'][var][subvar]['ly_m3'] = 'null'
                         if pd.isnull(dupli_data['processed_daily_data'][var][subvar]['ly_m6']) == True:
@@ -1260,12 +1530,14 @@ class Configurator():
                         continue
                 if subvar == 'ucl_crit_fcrit':
                     try:
+                        # UNCOMMENT WHEN m3 ADDED IN DB
                         if pd.isnull(dupli_data['processed_daily_data'][var][subvar]['m3']) == True:
                             dupli_data['processed_daily_data'][var][subvar]['m3'] = 'null'
                         if pd.isnull(dupli_data['processed_daily_data'][var][subvar]['m6']) == True:
                             dupli_data['processed_daily_data'][var][subvar]['m6'] = 'null'
                         if pd.isnull(dupli_data['processed_daily_data'][var][subvar]['m12']) == True:
                             dupli_data['processed_daily_data'][var][subvar]['m12'] = 'null'
+                        # UNCOMMENT WHEN m3 ADDED IN DB
                         if pd.isnull(dupli_data['processed_daily_data'][var][subvar]['ly_m3']) == True:
                             dupli_data['processed_daily_data'][var][subvar]['ly_m3'] = 'null'
                         if pd.isnull(dupli_data['processed_daily_data'][var][subvar]['ly_m6']) == True:
@@ -1296,24 +1568,50 @@ class Configurator():
                     continue
         return subcategoryDictData
     
-    def get_category_and_subcategory_with_issues(self, dateString):
+    def get_category_and_subcategory_with_issues(self, dateString, id):
         ''' Returns all the categories and the subcategories that have outlier parameters.'''
         result={}
         ship_collection = self.get_ship_configs()
-        issues, issuesCount = self.create_dict_of_issues(dateString=dateString) if dateString != "" else self.create_dict_of_issues("")
+        issues, issuesCount = self.create_dict_of_issues(id, dateString=dateString) if dateString != "" else self.create_dict_of_issues(id, "")
         for doc in ship_collection.find({'ship_imo': self.ship_imo}):
             for key in doc['data'].keys():
-                for var in issues[str(self.ship_imo)]:
-                    if pd.isnull(doc['data'][key]['short_names']) == False and doc['data'][key]['short_names'].strip() == var:
-                        tempList=[]
-                        if doc['data'][key]['subcategory'].strip() not in tempList:
-                            tempList.append(doc['data'][key]['subcategory'].strip())
-                            print(tempList)
-                        if doc['data'][key]['category'].strip() not in result.keys():
-                            result[doc['data'][key]['category'].strip()] = tempList
-                            print(tempList)
-                        else:
-                            result[doc['data'][key]['category'].strip()].extend(tempList)
+                if str(self.ship_imo) in issues:
+                    for var in issues[str(self.ship_imo)]:
+                        if pd.isnull(doc['data'][key]['short_names']) == False and doc['data'][key]['short_names'].strip() == var:
+                            tempList=[]
+                            if pd.isnull(doc['data'][key]['subcategory']) == False and doc['data'][key]['subcategory'].strip() not in tempList:
+                                tempList.append(doc['data'][key]['subcategory'].strip())
+                                print(tempList)
+                            if pd.isnull(doc['data'][key]['category']) == False and doc['data'][key]['category'].strip() not in result.keys():
+                                result[doc['data'][key]['category'].strip()] = tempList
+                                print(tempList)
+                            else:
+                                if pd.isnull(doc['data'][key]['category']) == False:
+                                    result[doc['data'][key]['category'].strip()].extend(tempList)
+                        if pd.isnull(doc['data'][key]['short_names']) == False and doc['data'][key]['short_names'].strip() == var.replace('_OP', ''):
+                            tempList=[]
+                            if pd.isnull(doc['data'][key]['subcategory']) == False and doc['data'][key]['subcategory'].strip() not in tempList:
+                                tempList.append(doc['data'][key]['subcategory'].strip()+'_OP')
+                                print(tempList)
+                            if pd.isnull(doc['data'][key]['category']) == False and doc['data'][key]['category'].strip() not in result.keys():
+                                result[doc['data'][key]['category'].strip()] = tempList
+                                print(tempList)
+                            else:
+                                if pd.isnull(doc['data'][key]['category']) == False:
+                                    result[doc['data'][key]['category'].strip()].extend(tempList)
+                        if pd.isnull(doc['data'][key]['short_names']) == False and doc['data'][key]['short_names'].strip() == var.replace('_SPE', ''):
+                            tempList=[]
+                            if pd.isnull(doc['data'][key]['subcategory']) == False and doc['data'][key]['subcategory'].strip() not in tempList:
+                                tempList.append(doc['data'][key]['subcategory'].strip()+'_SPE')
+                                print(tempList)
+                            if pd.isnull(doc['data'][key]['category']) == False and doc['data'][key]['category'].strip() not in result.keys():
+                                result[doc['data'][key]['category'].strip()] = tempList
+                                print(tempList)
+                            else:
+                                if pd.isnull(doc['data'][key]['category']) == False:
+                                    result[doc['data'][key]['category'].strip()].extend(tempList)
+                else:
+                    result = {}
         print(result)
         return result
     
@@ -1325,7 +1623,7 @@ class Configurator():
         for doc in ship_collection.find({'ship_imo': self.ship_imo}):
             for key in doc['data'].keys():
                 if doc['data'][key]['subcategory'] == 'Charter party':
-                    result[key] = doc['data'][key]['static_data'] if pd.isnull(doc['data'][key]['static_data']) == False else None
+                    result[doc['data'][key]['source_idetifier']] = doc['data'][key]['static_data'] if pd.isnull(doc['data'][key]['static_data']) == False else None
         
         return result
     
@@ -1347,6 +1645,7 @@ class Configurator():
         maindb_collection = self.get_main_data()
         charter_party_dict = self.get_charter_party_list()
         result = {}
+        prediction_result = {}
 
         if dateString != '':
             findDate = datetime.strptime(dateString,"%Y-%m-%d, %H:%M:%S")
@@ -1354,15 +1653,37 @@ class Configurator():
                 for doc in maindb_collection.find({'ship_imo': self.ship_imo, 'processed_daily_data.rep_dt.processed': findDate}):
                     for key in doc['processed_daily_data'].keys():
                         if key == charter_party_dict[cp]:
-                            result[cp] = self.makeDecimal(doc['processed_daily_data'][key]['processed'])
-            return result
+                            try:
+                                result[cp] = self.makeDecimal(doc['processed_daily_data'][key]['processed'])
+                            except TypeError:
+                                result[cp] = None
+                            try:
+                                prediction_result[cp] = self.makeDecimal(doc['processed_daily_data'][key]['predictions']['m3'][1])
+                            except TypeError:
+                                prediction_result[cp] = None
+                            except KeyError:
+                                prediction_result[cp] = None
+                            except IndexError:
+                                prediction_result[cp] = None
+            return result, prediction_result
         else:
             for cp in charter_party_dict.keys():
                 for doc in maindb_collection.find({'ship_imo': self.ship_imo}).sort('processed_daily_data.rep_dt.processed', DESCENDING).limit(1):
                     for key in doc['processed_daily_data'].keys():
                         if key == charter_party_dict[cp]:
-                            result[cp] = self.makeDecimal(doc['processed_daily_data'][key]['processed'])
-        return result
+                            try:
+                                result[cp] = self.makeDecimal(doc['processed_daily_data'][key]['processed'])
+                            except TypeError:
+                                result[cp] = None
+                            try:
+                                prediction_result[cp] = self.makeDecimal(doc['processed_daily_data'][key]['predictions']['m3'][1])
+                            except TypeError:
+                                prediction_result[cp] = None
+                            except KeyError:
+                                prediction_result[cp] = None
+                            except IndexError:
+                                prediction_result[cp] = None
+        return result, prediction_result
 
 
 
@@ -1373,56 +1694,77 @@ class Configurator():
             function for prediction by changing 1 x dimension and keeping other dimensios contant
             data=dataframe,x1=the x dimension to be changed,y= y dimension(to be predicted),otherx=other x dimensions constant values
         '''
+        # data.to_csv("ActualValues.csv")
         x_list=[]
         temp_data={}
         if z is not None:
             for column in data:
-                if column!=z:
+                if column!=y:
                     x_list.append(str(column))  
                     temp_data[column]=[]
             for key in other_x:
-                for key_2 in temp_data:
-                    if key==key_2:
-                        temp_data[key]=other_x[key]
-
+                if key in temp_data.keys():
+                    temp_data[key]=[other_x[key]]
+            # print("DATAFRAME!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!", data)
+            # for i in range(len(data)):
+            #     print(data.loc[[i]])
             x1_min = data[x1].min()
             x1_max = data[x1].max()
-            y_min = data[y].min()
-            y_max = data[y].max()
-            x1_list=np.arange(x1_min, x1_max, 0.1)
-            # lenx1 = len(x1_list) - 1
-            y_list=np.arange(y_min, y_max, 0.1)
-            # print(y_min, y_max, y_list)
-            # y_list = y_list[0:lenx1]
-            # reg=LinearRegression()
-            reg = LRPI()
+            z_min = data[z].min()
+            z_max = data[z].max()
+            # x1_list=np.arange(x1_min, x1_max, 0.1)
+            x1_list=np.linspace(x1_min, x1_max, len(data[x1]))
+
+            z_list=np.linspace(z_min, z_max, len(data[x1]))
+            
+            reg=Ridge(alpha=2)
+            # reg = LRPI()
             poly = PolynomialFeatures(degree = 3)
             if not (np.any(pd.isnull(data[x_list])) and np.all(pd.isfinite(data[x_list]))):
-                if not (np.any(pd.isnull(data[z])) and np.all(np.isfinite(data[z]))):
+                if not (np.any(pd.isnull(data[y])) and np.all(np.isfinite(data[y]))):
                     X_poly = poly.fit_transform(data[x_list])
+                    # print("VALUES!!!!!!!!!!", X_poly, data[x_list], data[y])
                     # X_poly = pd.DataFrame(poly.fit_transform(data[x_list]), x_list)
-                    poly.fit(X_poly, data[z])
-                    reg.fit(X_poly, data[z])
+                    poly.fit(X_poly, data[y])
+                    reg.fit(X_poly, data[y])
             else:
                 return "x_list or y has nan or infinite"
             # print(reg.predict(X_poly))
             pred_list=[]
             # pls_dataframe = pd.DataFrame(columns = ['lower', 'Pred', 'upper'])
             # print("EMPTY DATAFRAME", pls_dataframe)
-            for i in x1_list:
-                # x1_list.append(i)
-                temp_data[x1]=[i]
-            
-            for i in y_list:
+            # for i in x1_list:
+            # # for i in data[x1]:
+            #     # x1_list.append(i)
+            #     temp_data[x1]=[i]
+            # temp_data = x1_list
+            # final_df = pd.DataFrame({})
+            # final_df[x1] = x1_list
+            # final_df[z] = z_list
+            for i in range(len(z_list)):
+            # for i in data[z]:
                 # y_list.append(i)
-                print(i)
-                i = i.round(1)
-                temp_data[y] = [i]
+                print(z_list[i])
+                j = z_list[i].round(1)
+                k = x1_list[i].round(1)
+                temp_data[x1] = [k]
+                temp_data[z] = [j]
+                print("TEMP DATA!!!!!!!!!!!!", temp_data)
                 temp_dataframe=pd.DataFrame(temp_data)
                 pred=reg.predict(poly.fit_transform(temp_dataframe))
-                pred_list.append(pred['Pred'][0])
+                # pred=reg.predict(temp_dataframe)
+                # pred_list.append(pred['Pred'][0])
+                # print("PREDICTION!!!!!!", pred)
+                pred_list.append(pred[0])
             # new_pred_list = self.create_2D_array(pred_list)
-            return x1_list.tolist(), y_list.tolist(), pred_list
+            # final_df['pred'] = pred_list
+            # final_df.to_csv("PredDF.csv")
+            return x1_list.tolist(), z_list.tolist(), pred_list
+            # x_new = list(data[x1])
+            # z_new = list(data[z])
+            # x_new.sort()
+            # z_new.sort()
+            # return x_new, z_new, pred_list
         else:
             for column in data:
                 if column!=y:
@@ -1440,12 +1782,14 @@ class Configurator():
             x1_list = np.linspace(minValue, maxValue, len(data[x1]))
             # data[x1] = x1_list
             
-            reg=LinearRegression()
+            # reg=LinearRegression()
+            reg=Ridge(alpha=2)
             poly = PolynomialFeatures(degree = 2)
             # pls_dataframe = pd.DataFrame(columns = ['lower', 'Pred', 'upper'])
             # print("EMPTY DATAFRAME", pls_dataframe)
             # if not (np.any(pd.isnull(data[x_list])) and np.all(pd.isfinite(data[x_list]))):
             #     if not (np.any(pd.isnull(data[y])) and np.all(np.isfinite(data[y]))):
+            print("DATA OF X_LIST!!!!!", data[x_list])
             X_poly = poly.fit_transform(data[x_list])
             poly.fit(X_poly, data[y])
             reg.fit(X_poly, data[y])
@@ -1458,65 +1802,286 @@ class Configurator():
                 temp_data[x1]=[i.round(1)]
                 temp_dataframe=pd.DataFrame(temp_data)
                 pred=reg.predict(poly.fit_transform(temp_dataframe))
+                # pred=reg.predict(temp_dataframe)
                 pred_list.append(pred[0])
             return x1_list.tolist(), pred_list
     print("END CREATE REGRESSION")
     
     print("START CREATE DATAFRAME")
-    def create_dataframe(self, X, Y, duration, Z=None, **other_X):
+    def create_dataframe(self, X, Y, duration, load, Z=None, **other_X):
         maindb_collection = database.get_collection("Main_db")
         print("START SHORT NAME DICT")
         shortNameDict = self.create_short_names_dictionary()
         print("END SHORT NAME DICT")
         get_close_by_date = self.create_maindb_according_to_duration(duration)
+        # keys_of_other_X = list(other_X.keys())
         X_list = []
         Y_list = []
         Z_list = []
         dict_for_dataframe = {}
         print("START READ DATA AND CREATE LISTS")
-        for doc in maindb_collection.find({'ship_imo': self.ship_imo}).sort('processed_daily_data.rep_dt.processed', DESCENDING):
-            if doc['processed_daily_data']['rep_dt']['processed'] != get_close_by_date:
-                for key in doc['processed_daily_data'].keys():
-                    if doc['processed_daily_data'][key]['identifier'].strip() == X:
-                        if pd.isnull(doc['processed_daily_data'][key]['processed']):
-                            X_list.append(0)
+        if load == 'any':
+            for doc in maindb_collection.find({'ship_imo': self.ship_imo}, {'processed_daily_data.rep_dt.processed': 1, 'processed_daily_data.'+X: 1, 'processed_daily_data.'+Y: 1, '_id': 0}).sort('processed_daily_data.rep_dt.processed', DESCENDING):
+                if doc['processed_daily_data']['rep_dt']['processed'] != get_close_by_date:
+                    # tempListForOtherX=[]
+                    # for key in doc['processed_daily_data'].keys():
+                        # if doc['processed_daily_data'][key]['identifier'].strip() == X:
+                    if X in doc['processed_daily_data']:
+                        if pd.isnull(doc['processed_daily_data'][X]['processed']):
+                            X_list.append(None)
+                            # continue
                         else:
-                            X_list.append(doc['processed_daily_data'][key]['processed'])
-                    if doc['processed_daily_data'][key]['identifier'].strip() == Y:
-                        if pd.isnull(doc['processed_daily_data'][key]['processed']):
-                            Y_list.append(0)
+                            X_list.append(doc['processed_daily_data'][X]['processed'])
+                    # if doc['processed_daily_data'][key]['identifier'].strip() == Y:
+                    if Y in doc['processed_daily_data']:
+                        if pd.isnull(doc['processed_daily_data'][Y]['processed']):
+                            Y_list.append(None)
+                            # continue
                         else:
-                            Y_list.append(doc['processed_daily_data'][key]['processed'])
-                    if Z is not None:
-                        if doc['processed_daily_data'][key]['identifier'].strip() == Z:
-                            if pd.isnull(doc['processed_daily_data'][key]['processed']):
-                                Z_list.append(0)
+                            Y_list.append(doc['processed_daily_data'][Y]['processed'])
+                    # if doc['processed_daily_data'][key]['identifier'].strip() in keys_of_other_X:
+                    #     if pd.isnull(doc['processed_daily_data'][key]['processed']):
+                    #         # Y_list.append(0)
+                    #         continue
+                    #     else:
+                    #         tempListForOtherX.append(doc['processed_daily_data'][key]['processed'])
+                    # if Z is not None:
+                    #     # if doc['processed_daily_data'][key]['identifier'].strip() == Z:
+                    #     if Z in doc['processed_daily_data']:
+                    #         if pd.isnull(doc['processed_daily_data'][Z]['processed']):
+                    #             # Z_list.append(0)
+                    #             continue
+                    #         else:
+                    #             Z_list.append(doc['processed_daily_data'][Z]['processed'])
+                else:
+                    break
+            
+            if Z is not None:
+                for doc in maindb_collection.find({'ship_imo': self.ship_imo}, {'processed_daily_data.rep_dt.processed': 1, 'processed_daily_data.'+Z: 1, '_id': 0}).sort('processed_daily_data.rep_dt.processed', DESCENDING):
+                    if doc['processed_daily_data']['rep_dt']['processed'] != get_close_by_date:
+                        # if doc['processed_daily_data'][key]['identifier'].strip() == Z:
+                        if Z in doc['processed_daily_data']:
+                            if pd.isnull(doc['processed_daily_data'][Z]['processed']):
+                                Z_list.append(None)
+                                # continue
                             else:
-                                Z_list.append(doc['processed_daily_data'][key]['processed'])
-            else:
-                break
-        print("END READ DATA AND CREATE LISTS")
-        print("START CREATE OTHER LISTS")
-        for key in other_X:
-            if key != 'None':
-                tempList = []
-                for i in range(len(X_list)):
-                    tempList.append(other_X[key])
-                dict_for_dataframe[key] = tempList
+                                Z_list.append(doc['processed_daily_data'][Z]['processed'])
+                    else:
+                        break
+            print("END READ DATA AND CREATE LISTS")
+            print("START CREATE OTHER LISTS")
+            print("OTHER X", other_X)
+            for key in other_X:
+                if key != 'None':
+                    tempList = []
+                    # for i in range(len(X_list)):
+                    #     tempList.append(other_X[key])
+                    # dict_for_dataframe[key] = tempList
+                    for doc in maindb_collection.find({'ship_imo': self.ship_imo}, {'_id': 0, 'processed_daily_data.'+key: 1, 'processed_daily_data.rep_dt.processed': 1}).sort('processed_daily_data.rep_dt.processed', DESCENDING):
+                        if doc['processed_daily_data']['rep_dt']['processed'] != get_close_by_date:
+                            if key in doc['processed_daily_data']:
+                                if pd.isnull(doc['processed_daily_data'][key]['processed']):
+                                    # Y_list.append(0)
+                                    # continue
+                                    tempList.append(None)
+                                else:
+                                    tempList.append(doc['processed_daily_data'][key]['processed'])
+                        else:
+                            break
+                    dict_for_dataframe[key] = tempList
+        elif load == 'loaded':
+            for doc in maindb_collection.find({'ship_imo': self.ship_imo}, {'processed_daily_data.rep_dt.processed': 1, 'processed_daily_data.'+X: 1, 'processed_daily_data.'+Y: 1, 'vessel_loaded_check': 1, '_id': 0}).sort('processed_daily_data.rep_dt.processed', DESCENDING):
+                if doc['vessel_loaded_check'] == "Loaded":
+                    if doc['processed_daily_data']['rep_dt']['processed'] != get_close_by_date:
+                        # tempListForOtherX=[]
+                        # for key in doc['processed_daily_data'].keys():
+                            # if doc['processed_daily_data'][key]['identifier'].strip() == X:
+                        if X in doc['processed_daily_data']:
+                            if pd.isnull(doc['processed_daily_data'][X]['processed']):
+                                X_list.append(None)
+                                # continue
+                            else:
+                                X_list.append(doc['processed_daily_data'][X]['processed'])
+                        # if doc['processed_daily_data'][key]['identifier'].strip() == Y:
+                        if Y in doc['processed_daily_data']:
+                            if pd.isnull(doc['processed_daily_data'][Y]['processed']):
+                                Y_list.append(None)
+                                # continue
+                            else:
+                                Y_list.append(doc['processed_daily_data'][Y]['processed'])
+                        # if doc['processed_daily_data'][key]['identifier'].strip() in keys_of_other_X:
+                        #     if pd.isnull(doc['processed_daily_data'][key]['processed']):
+                        #         # Y_list.append(0)
+                        #         continue
+                        #     else:
+                        #         tempListForOtherX.append(doc['processed_daily_data'][key]['processed'])
+                        # if Z is not None:
+                        #     # if doc['processed_daily_data'][key]['identifier'].strip() == Z:
+                        #     if Z in doc['processed_daily_data']:
+                        #         if pd.isnull(doc['processed_daily_data'][Z]['processed']):
+                        #             # Z_list.append(0)
+                        #             continue
+                        #         else:
+                        #             Z_list.append(doc['processed_daily_data'][Z]['processed'])
+                    else:
+                        break
+            
+            if Z is not None:
+                for doc in maindb_collection.find({'ship_imo': self.ship_imo}, {'processed_daily_data.rep_dt.processed': 1, 'processed_daily_data.'+Z: 1, 'vessel_loaded_check': 1, '_id': 0}).sort('processed_daily_data.rep_dt.processed', DESCENDING):
+                    if doc['vessel_loaded_check'] == "Loaded":
+                        if doc['processed_daily_data']['rep_dt']['processed'] != get_close_by_date:
+                            # if doc['processed_daily_data'][key]['identifier'].strip() == Z:
+                            if Z in doc['processed_daily_data']:
+                                if pd.isnull(doc['processed_daily_data'][Z]['processed']):
+                                    Z_list.append(None)
+                                    # continue
+                                else:
+                                    Z_list.append(doc['processed_daily_data'][Z]['processed'])
+                        else:
+                            break
+            print("END READ DATA AND CREATE LISTS")
+            print("START CREATE OTHER LISTS")
+            print("OTHER X", other_X)
+            for key in other_X:
+                if key != 'None':
+                    tempList = []
+                    # for i in range(len(X_list)):
+                    #     tempList.append(other_X[key])
+                    # dict_for_dataframe[key] = tempList
+                    for doc in maindb_collection.find({'ship_imo': self.ship_imo}, {'_id': 0, 'processed_daily_data.'+key: 1, 'processed_daily_data.rep_dt.processed': 1, 'vessel_loaded_check': 1}).sort('processed_daily_data.rep_dt.processed', DESCENDING):
+                        if doc['vessel_loaded_check'] == "Loaded":
+                            if doc['processed_daily_data']['rep_dt']['processed'] != get_close_by_date:
+                                if key in doc['processed_daily_data']:
+                                    if pd.isnull(doc['processed_daily_data'][key]['processed']):
+                                        # Y_list.append(0)
+                                        # continue
+                                        tempList.append(None)
+                                    else:
+                                        tempList.append(doc['processed_daily_data'][key]['processed'])
+                            else:
+                                break
+                    dict_for_dataframe[key] = tempList
+        elif load == 'ballast':
+            for doc in maindb_collection.find({'ship_imo': self.ship_imo}, {'processed_daily_data.rep_dt.processed': 1, 'processed_daily_data.'+X: 1, 'processed_daily_data.'+Y: 1, 'vessel_loaded_check': 1, '_id': 0}).sort('processed_daily_data.rep_dt.processed', DESCENDING):
+                if doc['vessel_loaded_check'] == "Ballast":
+                    if doc['processed_daily_data']['rep_dt']['processed'] != get_close_by_date:
+                        # tempListForOtherX=[]
+                        # for key in doc['processed_daily_data'].keys():
+                            # if doc['processed_daily_data'][key]['identifier'].strip() == X:
+                        if X in doc['processed_daily_data']:
+                            if pd.isnull(doc['processed_daily_data'][X]['processed']):
+                                X_list.append(None)
+                                # continue
+                            else:
+                                X_list.append(doc['processed_daily_data'][X]['processed'])
+                        # if doc['processed_daily_data'][key]['identifier'].strip() == Y:
+                        if Y in doc['processed_daily_data']:
+                            if pd.isnull(doc['processed_daily_data'][Y]['processed']):
+                                Y_list.append(None)
+                                # continue
+                            else:
+                                Y_list.append(doc['processed_daily_data'][Y]['processed'])
+                        # if doc['processed_daily_data'][key]['identifier'].strip() in keys_of_other_X:
+                        #     if pd.isnull(doc['processed_daily_data'][key]['processed']):
+                        #         # Y_list.append(0)
+                        #         continue
+                        #     else:
+                        #         tempListForOtherX.append(doc['processed_daily_data'][key]['processed'])
+                        # if Z is not None:
+                        #     # if doc['processed_daily_data'][key]['identifier'].strip() == Z:
+                        #     if Z in doc['processed_daily_data']:
+                        #         if pd.isnull(doc['processed_daily_data'][Z]['processed']):
+                        #             # Z_list.append(0)
+                        #             continue
+                        #         else:
+                        #             Z_list.append(doc['processed_daily_data'][Z]['processed'])
+                    else:
+                        break
+            
+            if Z is not None:
+                for doc in maindb_collection.find({'ship_imo': self.ship_imo}, {'processed_daily_data.rep_dt.processed': 1, 'processed_daily_data.'+Z: 1, 'vessel_loaded_check': 1, '_id': 0}).sort('processed_daily_data.rep_dt.processed', DESCENDING):
+                    if doc['vessel_loaded_check'] == "Ballast":
+                        if doc['processed_daily_data']['rep_dt']['processed'] != get_close_by_date:
+                            # if doc['processed_daily_data'][key]['identifier'].strip() == Z:
+                            if Z in doc['processed_daily_data']:
+                                if pd.isnull(doc['processed_daily_data'][Z]['processed']):
+                                    Z_list.append(None)
+                                    # continue
+                                else:
+                                    Z_list.append(doc['processed_daily_data'][Z]['processed'])
+                        else:
+                            break
+            print("END READ DATA AND CREATE LISTS")
+            print("START CREATE OTHER LISTS")
+            print("OTHER X", other_X)
+            for key in other_X:
+                if key != 'None':
+                    tempList = []
+                    # for i in range(len(X_list)):
+                    #     tempList.append(other_X[key])
+                    # dict_for_dataframe[key] = tempList
+                    for doc in maindb_collection.find({'ship_imo': self.ship_imo}, {'_id': 0, 'processed_daily_data.'+key: 1, 'processed_daily_data.rep_dt.processed': 1, 'vessel_loaded_check': 1}).sort('processed_daily_data.rep_dt.processed', DESCENDING):
+                        if doc['vessel_loaded_check'] == "Ballast":
+                            if doc['processed_daily_data']['rep_dt']['processed'] != get_close_by_date:
+                                if key in doc['processed_daily_data']:
+                                    if pd.isnull(doc['processed_daily_data'][key]['processed']):
+                                        # Y_list.append(0)
+                                        # continue
+                                        tempList.append(None)
+                                    else:
+                                        tempList.append(doc['processed_daily_data'][key]['processed'])
+                            else:
+                                break
+                    dict_for_dataframe[key] = tempList
+        print("DICT FOR DATAFRAME!!!", dict_for_dataframe)
+        for key in dict_for_dataframe.keys():
+            print("LENGTHS OF INDI ", len(dict_for_dataframe[key]))
         print("END CREATE OTHER LISTS")
         
         dict_for_dataframe[X] = X_list
         dict_for_dataframe[Y] = Y_list
         X_name = shortNameDict[X]
         Y_name = shortNameDict[Y]
+        print("X LIST", X_list)
+        if len(X_list) > len(Y_list):
+            avg = sum(Y_list) / len(Y_list)
+            for i in range(len(X_list)-len(Y_list)):
+                Y_list.append(avg)
+        elif len(X_list) < len(Y_list):
+            for i in range(len(Y_list)-len(X_list)):
+                Y_list.pop()
         
+        if Z is not None and len(Z_list) != 0:
+            if len(X_list) > len(Z_list):
+                avg = sum(Z_list) / len(Z_list)
+                for i in range(len(X_list)-len(Z_list)):
+                    Z_list.append(avg)
+            elif len(X_list) < len(Z_list):
+                for i in range(len(Z_list)-len(X_list)):
+                    Z_list.pop()
+        print("LENGTHS!!!!!!!!!!!!!", len(Z_list), len(Y_list), len(X_list))
+        # empty_column_list = []
         if Z is not None and len(Z_list) != 0:
             dict_for_dataframe[Z] = Z_list
             Z_name = shortNameDict[Z]
             dataframe = pd.DataFrame(dict_for_dataframe)
+            for col in dataframe.columns:
+                if pd.isnull(dataframe[col]).all():
+                    # empty_column_list.append(col)
+                    dataframe=dataframe.drop(columns=col)
+            dataframe=dataframe.dropna()
+            dataframe=dataframe.reset_index(drop=True)
+            print("DATAFRAME BEFORE", dataframe)
             return dataframe, X_name, Y_name, Z_name, X_list, Y_list, Z_list
         else:
             dataframe = pd.DataFrame(dict_for_dataframe)
+            for col in dataframe.columns:
+                if pd.isnull(dataframe[col]).all():
+                    # empty_column_list.append(col)
+                    dataframe=dataframe.drop(columns=col)
+            dataframe=dataframe.dropna()
+            dataframe=dataframe.reset_index(drop=True)
+            print("DATAFRAME BEFORE", dataframe)
             return dataframe, X_name, Y_name, X_list, Y_list
         # self.maindb = maindb_collection.find({"ship_imo": self.ship_imo}).sort('processed_daily_data.rep_dt.processed', ASCENDING)
         # full_maindb = loads(dumps(self.maindb))
@@ -1560,6 +2125,145 @@ class Configurator():
         #     Y_name = shortNameDict[Y]
         #     return dataframe, X_name, Y_name, X_list, Y_list
     print("START CREATE ACC TO DURATION")
+
+    def create_surface_data(self, X, Y, duration, Z, load, **other_X):
+        # maindb_collection = database.get_collection("Main_db")
+        # print("START SHORT NAME DICT")
+        # shortNameDict = self.create_short_names_dictionary()
+        # print("END SHORT NAME DICT")
+        # get_close_by_date = self.create_maindb_according_to_duration(duration)
+        # X_list = []
+        # Y_list = []
+        # Z_list = []
+        # dict_for_dataframe = {}
+        # print("START READ DATA AND CREATE LISTS")
+        # for doc in maindb_collection.find({'ship_imo': self.ship_imo}).sort('processed_daily_data.rep_dt.processed', DESCENDING):
+        #     if doc['processed_daily_data']['rep_dt']['processed'] != get_close_by_date:
+        #         for key in doc['processed_daily_data'].keys():
+        #             if doc['processed_daily_data'][key]['identifier'].strip() == X:
+        #                 if pd.isnull(doc['processed_daily_data'][key]['processed']):
+        #                     # X_list.append(0)
+        #                     continue
+        #                 else:
+        #                     X_list.append(doc['processed_daily_data'][key]['processed'])
+        #             if doc['processed_daily_data'][key]['identifier'].strip() == Y:
+        #                 if pd.isnull(doc['processed_daily_data'][key]['processed']):
+        #                     # Y_list.append(0)
+        #                     continue
+        #                 else:
+        #                     Y_list.append(doc['processed_daily_data'][key]['processed'])
+        #             if doc['processed_daily_data'][key]['identifier'].strip() == Z:
+        #                 if pd.isnull(doc['processed_daily_data'][key]['processed']):
+        #                     # Z_list.append(0)
+        #                     continue
+        #                 else:
+        #                     Z_list.append(doc['processed_daily_data'][key]['processed'])
+        #     else:
+        #         break
+        # print("END READ DATA AND CREATE LISTS")
+
+        # # new_Z_list = [min(Z_list)]
+        # # for i in range(len(X_list)):
+        # #     numToPush = 100 + new_Z_list[len(new_Z_list) - 1] * 1.5
+        # #     new_Z_list.append(numToPush)
+        # new_X_list = np.linspace(min(X_list), max(X_list), len(X_list))
+        # new_Z_list = np.linspace(min(Z_list), max(Z_list), len(X_list))
+        # new_Y_list = np.linspace(min(Y_list), max(Y_list), len(X_list))
+        # # Y_list_2d = [new_Y_list.tolist() for i in range(int(len(X_list)/2))]
+        # Y_list_2d = [Y_list for i in range(int(len(X_list)/2))]
+        # ####################################################
+        # ''' Taking care of list length imbalance'''
+        # # if len(X_list) == len(Z_list):
+        # #     Y_list_new = self.createY(X_list, Z_list)
+        # # elif len(X_list) > len(Z_list):
+        # #     if len(X_list) - len(Z_list) == 1:
+        # #         Z_list.append(min(Z_list))
+        # #         Y_list_new = self.createY(X_list, Z_list)
+        # #     elif len(X_list) - len(Z_list) > 1:
+        # #         diff = len(X_list) - len(Z_list)
+        # #         for i in range(0, diff):
+        # #             random_index = random.randint(0, len(Z_list)-1)
+        # #             Z_list.append(Z_list[random_index])
+        # #         Y_list_new = self.createY(X_list, Z_list)
+        # # elif len(X_list) < len(Z_list):
+        # #     if len(Z_list) - len(X_list) == 1:
+        # #         Z_list.pop()
+        # #         Y_list_new = self.createY(X_list, Z_list)
+        # #     elif len(Z_list) - len(X_list) > 1:
+        # #         diff = len(Z_list) - len(X_list)
+        # #         for i in range(0, diff):
+        # #             Z_list.pop()
+        # #         Y_list_new = self.createY(X_list, Z_list)
+        # if len(X_list) > len(Y_list):
+        #     avg = sum(Y_list) / len(Y_list)
+        #     for i in range(len(X_list)-len(Y_list)):
+        #         Y_list.append(avg)
+        # elif len(X_list) < len(Y_list):
+        #     for i in range(len(Y_list)-len(X_list)):
+        #         Y_list.pop()
+
+        # if len(X_list) > len(Z_list):
+        #     avg = sum(Z_list) / len(Z_list)
+        #     for i in range(len(X_list)-len(Z_list)):
+        #         Z_list.append(avg)
+        # elif len(X_list) < len(Z_list):
+        #     for i in range(len(Z_list)-len(X_list)):
+        #         Z_list.pop()
+
+
+        
+        # print("START CREATE OTHER LISTS")
+        # # for key in other_X:
+        # #     if key != 'None':
+        # #         tempList = []
+        # #         for i in range(len(X_list)):
+        # #             tempList.append(other_X[key])
+        # #         dict_for_dataframe[key] = tempList
+        # print("END CREATE OTHER LISTS")
+        
+        # # dict_for_dataframe[X] = X_list
+        # # dict_for_dataframe[Y] = Y_list
+        # X_name = shortNameDict[X]
+        # Y_name = shortNameDict[Y]
+        # # dict_for_dataframe[Z] = Z_list
+        # Z_name = shortNameDict[Z]
+        #########################################################
+        empty_x_constant_list = []
+        dataframe, X_name, Y_name, Z_name, X_list, Y_list, Z_list = self.create_dataframe(X, Y, duration, load, Z, **other_X)
+        if len(set(X_list)) == 1 or len(set(X_list)) == 0:
+            X_empty = "{} (X variable) does not have values. Hence, a prediction cannot be made.".format(X_name)
+            return X_empty
+        elif len(set(Y_list)) == 1 or len(set(Y_list)) == 0:
+            Y_empty = "{} (Y variable) does not have values. Hence, a prediction cannot be made.".format(Y_name)
+            return Y_empty
+        elif len(set(Z_list)) == 1 or len(set(Z_list)) == 0:
+            Z_empty = "{} (Z variable) does not have values. Hence, a prediction cannot be made.".format(Z_name)
+            return Z_empty
+        else:
+            for col in dataframe.columns:
+                if col not in list(other_X.keys()):
+                    empty_x_constant_list.append(col)
+        X1, Y1, pred_list = self.regress_for_constant_x(dataframe, X, Y, Z, **other_X)
+        # Y1.extend(Y_list)
+        # pred_list.append(max(Y1))
+        # temp_pred_list=[5119.2, 11638.7]
+        pred_list.sort()
+        # equispaced_pred_list = np.linspace(min(pred_list), max(pred_list), len(X1))
+        # equispaced_pred_list.tolist()
+        # print(type(equispaced_pred_list))
+        X1.sort()
+        Y1.sort()
+        X_list.sort(key=lambda e: (e is None, e))
+        Y_list.sort(key=lambda e: (e is None, e))
+        Z_list.sort(key=lambda e: (e is None, e))
+        new_pred_list = []
+        for i in range(int(len(X_list))):
+            # new_pred_list.append(equispaced_pred_list.tolist())
+            new_pred_list.append(pred_list)
+        print(type(new_pred_list))
+        return X_name, Y_name, Z_name, X1, new_pred_list, Y1, X_list, Y_list, Z_list
+        # return X_name, Y_name, Z_name, new_X_list.tolist(), Y_list_2d, new_Z_list.tolist(), X_list, Y_list, Z_list
+
     def create_maindb_according_to_duration(self, duration, main_db=[]):
         # print("\n",main_db)
         # if main_db is not []:
@@ -1571,24 +2275,26 @@ class Configurator():
         dateList=[]
         maindb_collection = database.get_collection("Main_db")
         print("START CREATE DATE LIST")
-        maindb = maindb_collection.find({'ship_imo': self.ship_imo})
-        for index, item in enumerate(maindb):
-            dateList.append(item['processed_daily_data']['rep_dt']['processed'])
+        for doc in maindb_collection.find({'ship_imo': self.ship_imo}, {'processed_daily_data.rep_dt.processed': 1}).sort('processed_daily_data.rep_dt.processed', ASCENDING):
+            dateList.append(doc['processed_daily_data']['rep_dt']['processed'])
+        # for index, item in enumerate(maindb):
+        #     dateList.append(item['processed_daily_data']['rep_dt']['processed'])
         # for doc in maindb_collection.find({'ship_imo': self.ship_imo}):
         #     dateList.append(doc['processed_daily_data']['rep_dt']['processed'])
         print("END CREATE DATE LIST")
         print("START SORT")
-        dateList.sort()
+        # dateList.sort()
         print("END SORT")
         current_date = dateList[-1]
-        number_of_days = self.get_duration(duration)
+        number_of_days = self.get_duration(duration) if 'Days' in duration or 'Year' in duration else duration
+        print("NUMBER OF DAYS", number_of_days)
         if 'Year' in duration:
             days_to_subtract = timedelta(weeks = 52)
         else:
-            days_to_subtract = timedelta(days = number_of_days)
-        
+            days_to_subtract = timedelta(days = int(number_of_days))
+        print("DAYS TO SUBTRACT", days_to_subtract)
         to_date = current_date - days_to_subtract
-
+        print("TO DATE", to_date)
         # get_close_by_date = self.get_nearest_date(dateList, to_date)
         if to_date in dateList:
             return to_date
@@ -1641,25 +2347,18 @@ class Configurator():
         else:
             return min(dateList, key=lambda x: abs(x - compareDate))
     
-    def create_2D_array(self, array):
-        new_2D_array = np.reshape(array, (8,8))
+    def createY(self, list1, list2):
+        ''' Creates the list for the dependent parameter i.e., Y'''
+        new_list=[]
+        for i in range(len(list1)):
+            temp1 = list1[i] * 20
+            temp2 = list2[i] * 6
+            temp3 = (list1[i] ** 2) * 0.05 + random.randint(1, 10)
+            numToPush = temp1 + temp2 - temp3
+            new_list.append(numToPush)
         
-        return new_2D_array.tolist()
-    
-    # def get_ship_stats(self, data, *variables):
-    #     stats_dict={}
-    #     tempList=[]
-    #     for i in variables:
-    #         for val_dict in range(len(data)):
-    #             for key in data[val_dict]['processed_daily_data'].keys():
-    #                 keyName = data[val_dict]['processed_daily_data'][key]['name'].strip()
-    #                 if i == keyName:
-    #                     tempList.append(data[val_dict]['processed_daily_data'][key]['processed'])
-    #         mintemp = min(tempList)
-    #         maxtemp = max(tempList)
-    #         stats_dict[i] = {'Min': mintemp, 'Max': maxtemp}
-    #     print(stats_dict)
-    #     return stats_dict
+        return new_list
+        
     
     def get_ship_stats_2(self, data, *variables):
         data_dict={}
@@ -1668,12 +2367,19 @@ class Configurator():
         # maindb = maindb_collection.find({'ship_imo': self.ship_imo}).sort('processed_daily_data.rep_dt.processed', DESCENDING)
         for i in variables:
             tempList=[]
-            for doc in maindb_collection.find({'ship_imo': self.ship_imo}).sort('processed_daily_data.rep_dt.processed', DESCENDING):
+            print("VARIABLES!!!!!!!", i)
+            for doc in maindb_collection.find({'ship_imo': self.ship_imo}, {'processed_daily_data.'+i: 1, 'processed_daily_data.rep_dt.processed': 1}).sort('processed_daily_data.rep_dt.processed', DESCENDING):
                 if doc['processed_daily_data']['rep_dt']['processed'] != data:
-                    tempList.append(doc['processed_daily_data'][i]['processed'])
+                    if i in doc['processed_daily_data'] and pd.isnull(doc['processed_daily_data'][i]['processed']) == False:
+                        tempList.append(doc['processed_daily_data'][i]['processed'])
                 else:
                     break
-            data_dict[i] = tempList
+            try:
+                data_dict[i] = {"Min": math.floor(min(tempList)), "Max": math.ceil(max(tempList))}
+            except ValueError:
+                continue
+            except TypeError:
+                continue
         # for i in variables:
         #     tempList=[]
         #     for val_dict in range(len(data)):
@@ -1682,17 +2388,17 @@ class Configurator():
         #                 tempList.append(data[val_dict]['processed_daily_data'][key]['processed'])
         #     data_dict[i] = tempList
         
-        for key in data_dict.keys():
-            try:
-                minValue = min(data_dict[key])
-                maxValue = max(data_dict[key])
-                stats_dict[key] = {"Min": math.floor(minValue), "Max": math.ceil(maxValue)}
-            except TypeError:
-                continue
-            except ValueError:
-                continue
+        # for key in data_dict.keys():
+        #     try:
+        #         minValue = min(data_dict[key])
+        #         maxValue = max(data_dict[key])
+        #         stats_dict[key] = {"Min": math.floor(minValue), "Max": math.ceil(maxValue)}
+        #     except TypeError:
+        #         continue
+        #     except ValueError:
+        #         continue
         # print(stats_dict)
-        return stats_dict
+        return data_dict
     
     def get_individual_parameters(self, equip=False, index=False):
         ''' Gets all the parameters from the ship collection. Returns a list of dictionary created for react-select dropdown.
@@ -1733,54 +2439,84 @@ class Configurator():
         return optionsList
     
     ''' Functions for Overview Processing'''
-    def create_imo_and_name_strings(self):
+    def create_imo_and_name_strings(self, id):
         ''' Returns the list of strings of the ships.
             Strings format: imo<br />name
         '''
         ship_collection = self.get_ship_configs()
         result=[]
 
-        for doc in ship_collection.find({}).sort('ship_imo', ASCENDING):
-            ship_imo = doc['ship_imo']
-            ship_name = doc['static_data']['ship_name']['value'].strip()
-            new_string = str(ship_imo) + '-' + ship_name
-            result.append(new_string)
+        if id == "":
+            for doc in ship_collection.find().sort('ship_imo', ASCENDING):
+                ship_imo = doc['ship_imo']
+                ship_name = doc['static_data']['ship_name']['value'].strip()
+                new_string = str(ship_imo) + '-' + ship_name
+                result.append(new_string)
+        else:
+            for doc in ship_collection.find({'organization_id': {"$in": [id, 'default']}}).sort('ship_imo', ASCENDING):
+                ship_imo = doc['ship_imo']
+                ship_name = doc['static_data']['ship_name']['value'].strip()
+                new_string = str(ship_imo) + '-' + ship_name
+                result.append(new_string)
         
         return result
     
-    def get_list_of_ship_imos(self):
+    def get_list_of_ship_imos(self, id):
         ''' Returns a list of ship imos'''
         ship_collection = self.get_ship_configs()
         result=[]
 
-        for doc in ship_collection.find({}).sort('ship_imo', ASCENDING):
-            result.append(doc['ship_imo'])
-        
+        if id == "":
+            for doc in ship_collection.find().sort('ship_imo', ASCENDING):
+                result.append(doc['ship_imo'])
+        else:
+            for doc in ship_collection.find({'organization_id': {"$in": [id, 'default']}}).sort('ship_imo', ASCENDING):
+                result.append(doc['ship_imo'])
         return result
     
-    def create_vessel_load_list(self):
-        ''' Returns the vessel load of each ship in a list.'''
+    def create_vessel_load_list(self, id):
+        ''' Returns the vessel load of each ship in a dictionary.'''
         maindb_collection = self.get_main_data()
-        ship_imo_list = self.get_list_of_ship_imos()
-        result = []
+        ship_imo_list = self.get_list_of_ship_imos(id)
+        result = {}
         for imo in ship_imo_list:
-            for doc in maindb_collection.find({'ship_imo': imo}, {'vessel_loaded_check': 1, '_id': 0}).sort('processed_daily_data.rep_dt.processed', DESCENDING):
-                result.append(doc['vessel_loaded_check'])
-                break
+            print("IMO!!!!!!!!!!!!!", imo)
+            for doc in maindb_collection.find({'ship_imo': imo}, {'vessel_loaded_check': 1, '_id': 0}).sort('processed_daily_data.rep_dt.processed', DESCENDING).limit(1):
+                if 'vessel_loaded_check' in doc:
+                    result[imo] = doc['vessel_loaded_check']
+                    # result.append(doc['vessel_loaded_check'])
+                else:
+                    result[imo] = ""
+                    # result.append("")
+                # print("VESSEL LOADED CHECK!", doc['vessel_loaded_check']) if imo == 9591375 else print("VESSEL LOADED CHECK!", doc['vessel_loaded_check'])
         
         return result
     
-    def create_eta_list(self):
-        ''' Returns the eta of each ship in a list.'''
+    def create_eta_list(self, id):
+        ''' Returns the eta of each ship in a dictionary.'''
         maindb_collection = self.get_main_data()
-        ship_imo_list = self.get_list_of_ship_imos()
-        result = []
+        ship_imo_list = self.get_list_of_ship_imos(id)
+        result = {}
 
         for imo in ship_imo_list:
-            for doc in maindb_collection.find({'ship_imo': imo}, {'processed_daily_data.eta.processed': 1, '_id': 0}).sort('processed_daily_data.rep_dt.processed', DESCENDING):
-                newdate = doc['processed_daily_data']['eta']['processed'].strftime('%Y-%m-%d')
-                result.append(newdate)
-                break
+            for doc in maindb_collection.find({'ship_imo': imo, "processed_daily_data.eta": {"$exists": True}}, {'processed_daily_data.eta.processed': 1, '_id': 0}).sort('processed_daily_data.rep_dt.processed', DESCENDING).limit(1):
+                print("DATE!!!!!", doc['processed_daily_data']['eta']['processed'])
+                if 'eta' in doc['processed_daily_data']:
+                    if type(doc['processed_daily_data']['eta']['processed']) == str:
+                        # try:
+                        new_date = datetime.strptime(doc['processed_daily_data']['eta']['processed'], '%d-%m-%Y %H:%M:%S')
+                        newdate = new_date.strftime('%Y-%m-%d')
+                    else:
+                        if pd.isnull(doc['processed_daily_data']['eta']['processed']) == False:
+                            newdate = doc['processed_daily_data']['eta']['processed'].strftime('%Y-%m-%d')
+                        else:
+                            newdate = None
+                    result[imo] = newdate
+                    # result.append(newdate)
+                else:
+                    result[imo] = ""
+                    # result.append("")
+                # break
         
         return result
     
@@ -1791,16 +2527,19 @@ class Configurator():
         result = []
 
         for imo in ship_imo_list:
-            for doc in maindb_collection.find({'ship_imo': imo}, {'processed_daily_data.cp_hfo_cons.processed': 1, '_id': 0}).sort('processed_daily_data.rep_dt.processed', DESCENDING):
-                result.append(doc['processed_daily_data']['cp_hfo_cons']['processed'])
-                break
+            for doc in maindb_collection.find({'ship_imo': imo}, {'processed_daily_data.cp_hfo_cons.processed': 1, '_id': 0}).sort('processed_daily_data.rep_dt.processed', DESCENDING).limit(1):
+                if 'cp_hfo_cons' in doc['processed_daily_data']:
+                    result.append(doc['processed_daily_data']['cp_hfo_cons']['processed'])
+                else:
+                    result.append("")
+                # break
         
         return result
     
-    def create_list_of_active_ships(self):
+    def create_list_of_active_ships(self, id):
         ''' Returns the list of active ships.'''
         result=[]
-        ship_imos = self.get_list_of_ship_imos()
+        ship_imos = self.get_list_of_ship_imos(id)
         daily_data_collection = database.get_collection('daily_data')
         for imo in ship_imos:
             try:
@@ -1812,11 +2551,12 @@ class Configurator():
         
         return result
     
-    def create_dict_of_issues(self, dateString=''):
+    def create_dict_of_issues(self, id, dateString=''):
         ''' Returns a dictionary of all the issues per ship. 
             Also used in the daily report process
+            Also used in the trends process
         '''
-        ship_imos = self.get_list_of_ship_imos()
+        ship_imos = self.get_list_of_ship_imos(id)
         maindb_collection = self.get_main_data()
         result = {}
         
@@ -1829,13 +2569,28 @@ class Configurator():
                 outlierCount = 0
                 operationalCount = 0
                 indicesCount = 0
-                for doc in maindb_collection.find({'ship_imo': imo, 'processed_daily_data.rep_dt.processed': findDate}):
+                for doc in maindb_collection.find({'ship_imo': imo, 'final_rep_dt': findDate}):
                     for key in doc['processed_daily_data'].keys():
                         try:
-                            if doc['processed_daily_data'][key]['within_outlier_limits']['m3'] == False or doc['processed_daily_data'][key]['within_operational_limits']['m3'] == False or (doc['processed_daily_data'][key]['SPEy']['m3'] > doc['processed_daily_data'][key]['Q_y']['m3'][1]):
-                                # print("YES")
-                                if key not in tempList:
+                            if doc['processed_daily_data'][key]['within_outlier_limits']['m3'] == False:
+                                # print("YES")  or (doc['processed_daily_data'][key]['SPEy']['m3'] > doc['processed_daily_data'][key]['Q_y']['m3'][1])
+                                if pd.isnull(doc['processed_daily_data'][key]['name']) == False:
                                     tempList.append(doc['processed_daily_data'][key]['name'].strip())
+                                    result[str(imo)] = tempList
+                            if doc['processed_daily_data'][key]['within_operational_limits']['m3'] == False:
+                                if pd.isnull(doc['processed_daily_data'][key]['name']) == False:
+                                    tempList.append(doc['processed_daily_data'][key]['name'].strip()+"_OP")
+                                    result[str(imo)] = tempList
+                            if 'spe_messages' in doc['processed_daily_data'][key].keys() and 'm3' in doc['processed_daily_data'][key]['spe_messages'].keys():
+                                # spe_messages_dict[key] = doc['processed_daily_data'][key]['spe_messages'][new_duration][2]
+                                if doc['processed_daily_data'][key]['is_not_spe_anamolous']['m3'][2] == False:
+                                    tempList.append(doc['processed_daily_data'][key]['name'].strip()+"_SPE")
+                                    result[str(imo)] = tempList
+                                elif doc['processed_daily_data'][key]['is_not_spe_anamolous']['m3'][1] == False:
+                                    tempList.append(doc['processed_daily_data'][key]['name'].strip()+"_SPE")
+                                    result[str(imo)] = tempList
+                                elif doc['processed_daily_data'][key]['is_not_spe_anamolous']['m3'][0] == False:
+                                    tempList.append(doc['processed_daily_data'][key]['name'].strip()+"_SPE")
                                     result[str(imo)] = tempList
                             if doc['processed_daily_data'][key]['within_outlier_limits']['m3'] == False:
                                 outlierCount = outlierCount + 1
@@ -1847,6 +2602,8 @@ class Configurator():
                         except TypeError:
                             continue
                         except KeyError:
+                            continue
+                        except IndexError:
                             continue
                 issuesCount[imo] = {'outlier': outlierCount, 'operational': operationalCount}
         else:
@@ -1859,10 +2616,25 @@ class Configurator():
                 for doc in maindb_collection.find({'ship_imo': imo}).sort('processed_daily_data.rep_dt.processed', DESCENDING).limit(1):
                     for key in doc['processed_daily_data'].keys():
                         try:
-                            if doc['processed_daily_data'][key]['within_outlier_limits']['m3'] == False or doc['processed_daily_data'][key]['within_operational_limits']['m3'] == False or (doc['processed_daily_data'][key]['SPEy']['m3'] > doc['processed_daily_data'][key]['Q_y']['m3'][1]):
-                                # print("YES")
-                                if key not in tempList:
+                            if doc['processed_daily_data'][key]['within_outlier_limits']['m3'] == False:
+                                # print("YES")  or (doc['processed_daily_data'][key]['SPEy']['m3'] > doc['processed_daily_data'][key]['Q_y']['m3'][1])
+                                if pd.isnull(doc['processed_daily_data'][key]['name']) == False:
                                     tempList.append(doc['processed_daily_data'][key]['name'].strip())
+                                    result[str(imo)] = tempList
+                            if doc['processed_daily_data'][key]['within_operational_limits']['m3'] == False:
+                                if pd.isnull(doc['processed_daily_data'][key]['name']) == False:
+                                    tempList.append(doc['processed_daily_data'][key]['name'].strip()+"_OP")
+                                    result[str(imo)] = tempList
+                            if 'spe_messages' in doc['processed_daily_data'][key].keys() and 'm3' in doc['processed_daily_data'][key]['spe_messages'].keys():
+                                # spe_messages_dict[key] = doc['processed_daily_data'][key]['spe_messages'][new_duration][2]
+                                if doc['processed_daily_data'][key]['is_not_spe_anamolous']['m3'][2] == False:
+                                    tempList.append(doc['processed_daily_data'][key]['name'].strip()+"_SPE")
+                                    result[str(imo)] = tempList
+                                elif doc['processed_daily_data'][key]['is_not_spe_anamolous']['m3'][1] == False:
+                                    tempList.append(doc['processed_daily_data'][key]['name'].strip()+"_SPE")
+                                    result[str(imo)] = tempList
+                                elif doc['processed_daily_data'][key]['is_not_spe_anamolous']['m3'][0] == False:
+                                    tempList.append(doc['processed_daily_data'][key]['name'].strip()+"_SPE")
                                     result[str(imo)] = tempList
                             
                             if doc['processed_daily_data'][key]['within_outlier_limits']['m3'] == False:
@@ -1875,28 +2647,83 @@ class Configurator():
                             continue
                         except KeyError:
                             continue
+                        except IndexError:
+                            continue
                 issuesCount[imo] = {'outlier': outlierCount, 'operational': operationalCount}
                     # result[imo] = tempList
                         # result[imo] = tempList
         print("DICT OF ISSUES", result)
         return result, issuesCount
+    
+    def create_dict_of_compliance_messages(self, dateString=""):
+        '''
+            Returns a string of the compliance message of a ship given a date or the most recent when no date is passed.
+            Used in daily report.
+        '''
+        # ship_imos = self.get_list_of_ship_imos()
+        maindb_collection = self.get_main_data()
+        # result = {}
 
-    def create_cp_compliance_dict(self):
+        if dateString != "":
+            findDate = datetime.strptime(dateString,"%Y-%m-%d, %H:%M:%S")
+            # for imo in ship_imos:
+            # print(imo)
+            complianceMessage = ""
+            for doc in maindb_collection.find({'ship_imo': self.ship_imo, 'processed_daily_data.rep_dt.processed': findDate}):
+                if 'cp_message' in doc and type(doc['cp_message']) == str:
+                    complianceMessage = doc['cp_message']
+                    # tempList.append(doc['cp_message'])
+                    # result[str(imo)] = tempList
+                else:
+                    complianceMessage = None
+                    # tempList.append(None)
+                    # result[str(imo)] = tempList
+            return complianceMessage
+        else:
+            # for imo in ship_imos:
+                # print(imo)
+            complianceMessage = ""
+            for doc in maindb_collection.find({'ship_imo': self.ship_imo}).sort('processed_daily_data.rep_dt.processed', DESCENDING).limit(1):
+                if 'cp_message' in doc and type(doc['cp_message']) == str:
+                    complianceMessage = doc['cp_message']
+                    # tempList.append(doc['cp_message'])
+                    # result[str(imo)] = tempList
+                else:
+                    complianceMessage = None
+                    # tempList.append(None)
+                    # result[str(imo)] = tempList
+            return complianceMessage
+        # print("DICT OF ISSUES", result)
+        # return result
+
+    def create_cp_compliance_dict(self, id):
         ''' Returns if the ship is cp compliant.'''
         ship_collection = self.get_ship_configs()
         maindb_collection = self.get_main_data()
         charter_party_info = {}
 
-        for doc in ship_collection.find({}).sort('ship_imo', ASCENDING):
-            tempList = []
-            print(doc['ship_imo'])
-            for key in doc['data'].keys():
-                if doc['data'][key]['subcategory'] == 'Charter party':
-                    if pd.isnull(doc['data'][key]['static_data']) == False:
-                        tempList.append({'identifier': key, 'static_data': doc['data'][key]['static_data'], 'source_identifier': doc['data'][key]['source_idetifier']})
-                        charter_party_info[doc['ship_imo']] = tempList
-                    else:
-                        continue
+        if id == "":
+            for doc in ship_collection.find().sort('ship_imo', ASCENDING):
+                tempList = []
+                print(doc['ship_imo'])
+                for key in doc['data'].keys():
+                    if doc['data'][key]['subcategory'] == 'Charter party':
+                        if pd.isnull(doc['data'][key]['static_data']) == False:
+                            tempList.append({'identifier': key, 'static_data': doc['data'][key]['static_data'], 'source_identifier': doc['data'][key]['source_idetifier']})
+                            charter_party_info[doc['ship_imo']] = tempList
+                        else:
+                            continue
+        else:
+            for doc in ship_collection.find({'organization_id': id}).sort('ship_imo', ASCENDING):
+                tempList = []
+                print(doc['ship_imo'])
+                for key in doc['data'].keys():
+                    if doc['data'][key]['subcategory'] == 'Charter party':
+                        if pd.isnull(doc['data'][key]['static_data']) == False:
+                            tempList.append({'identifier': key, 'static_data': doc['data'][key]['static_data'], 'source_identifier': doc['data'][key]['source_idetifier']})
+                            charter_party_info[doc['ship_imo']] = tempList
+                        else:
+                            continue
 
         compliant=""
         for imo in charter_party_info.keys():
@@ -1904,14 +2731,230 @@ class Configurator():
                 for key in doc['processed_daily_data'].keys():
                     for dicts in charter_party_info[imo]:
                         if key == dicts['source_identifier']:
-                            if doc['processed_daily_data'][key]['processed'] > dicts['static_data']:
-                                compliant = "No"
-                            else:
-                                compliant = "Yes"
+                            try:
+                                if doc['processed_daily_data'][key]['processed'] > dicts['static_data']:
+                                    compliant = "No"
+                                else:
+                                    compliant = "Yes"
+                            except TypeError:
+                                compliant = None
                         dicts.update({'compliant': compliant})
 
         return charter_party_info
 
+    ''' Functions for Inputs Processing'''
+    def get_dict_of_raw_values(self, duration, header_dict):
+        ''' Returns a dictionary of raw values from daily data. 
+            Only values from a particular duration are selected.
+            Key - identifier, Value - List of all values in that duration.
+        '''
+        if(duration == 'lastyear'):
+            # dictionary_structure = self.create_dictionary_structure_for_raw_values()
+            # dictionary_structure_keys = list(dictionary_structure.keys())
+            # close_by_date = self.create_maindb_according_to_duration(duration=duration)
+            daily_data_collection = database.get_collection('daily_data')
+            identifier_mapping = self.get_identifier_mapping()
+            static_data = self.get_static_data()
+            list_of_static_data = list(static_data.keys())
+            list_of_new_id = list(identifier_mapping.keys())
+            common_elements = [i for i in list_of_new_id if i in list_of_static_data]
+            # print("COMMON ELEMENT!!!!", common_elements)
+            # print("LIST OF NEW ID", list_of_new_id)
+
+            for doc in daily_data_collection.find({'ship_imo': self.ship_imo}, {'final_rep_dt': 1}).sort('data.rep_dt', DESCENDING).limit(1):
+                current_year = int(doc['final_rep_dt'].strftime('%Y'))
+            
+            last_year = current_year - 1
+            last_year_start_date = datetime(last_year, 1, 1, 12)
+            last_year_end_date = datetime(last_year, 12, 31, 12)
+
+            result = {}
+            for header in header_dict:
+                tempList = []
+                for doc in daily_data_collection.find({'ship_imo': self.ship_imo, 'final_rep_dt': {'$gte': last_year_start_date, '$lte': last_year_end_date}}):
+                    temp = {}
+                    # print("CURRENT DATE", doc['data']['rep_dt'])
+                    # if doc['data']['rep_dt'] != close_by_date:
+                    for elem in common_elements:
+                        # print("STATIC DATA", elem)
+                        source_id = identifier_mapping[elem]
+                        if source_id in header_dict[header]:
+                            # source_id = identifier_mapping[elem]
+                            # print("SOURCE ID!!!!!!!", source_id)
+                            # print("STATIC DATA!!!!!!", static_data[elem]['value'])
+                            if pd.isnull(static_data[elem]['value']) == False:
+                                if static_data[elem]['value'] == 0 or static_data[elem]['value'] == 0.0:
+                                    temp[source_id] = str(static_data[elem]['value'])
+                                else:
+                                    temp[source_id] = static_data[elem]['value']
+                            else:
+                                temp[source_id] = ""
+                    # print("STATIC DATA TEMP DICT!!!!!!!", temp)
+
+                    for key in doc['data'].keys():
+                        source_id = identifier_mapping[key]
+                        if source_id in header_dict[header]:
+                            # if source_id in list_values or source_id.lower() in list_values:
+                                # index_of_value = list_values.index(source_id) if source_id in list_values else list_values.index(source_id.lower())
+                                # key_for_dict = list_keys[index_of_value]
+                            # if key in list_of_new_id:
+                                # if key in doc['data']:
+                            # print("KEY FOR DICT", source_id)
+                            if pd.isnull(doc['data'][key]) == False:
+                                if type(doc['data'][key]) == datetime:
+                                    if key == 'rep_dt':
+                                        newdate = doc['final_rep_dt'].strftime('%d-%m-%Y %H:%M:%S')
+                                        temp[source_id] = newdate
+                                    else:
+                                # if key == 'rep_dt' or key == 'eta' or key == 'UTC_GMT' or key == 'stp_frm' or key == 'stp_to' or key == 'red_frm' or key == 'red_to':
+                                        newdate = doc['data'][key].strftime('%d-%m-%Y %H:%M:%S')
+                                        temp[source_id] = newdate
+                                else:
+                                    if doc['data'][key] == 0 or doc['data'][key] == 0.0:
+                                        temp[source_id] = str(doc['data'][key])
+                                    else:
+                                        temp[source_id] = doc['data'][key]
+                                # dictionary_structure[key].append(doc['data'][key])
+                            else:
+                                temp[source_id] = ""
+                                    # dictionary_structure[key].append("")
+                                # else:
+                                #     print("ELSE PART!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+                                #     temp[source_id] = static_data[key]['value']
+                            # else:
+                            #     temp[source_id] = ""
+                            # else:
+                            #     temp[source_id] = ""
+                    # print("ENTIRE TEMP!!!!!!!", temp)
+                    tempList.append(temp)
+                result[header] = tempList
+                    # else:
+                    #     break
+        else:
+            # dictionary_structure = self.create_dictionary_structure_for_raw_values()
+            # dictionary_structure_keys = list(dictionary_structure.keys())
+            # close_by_date = self.create_maindb_according_to_duration(duration=duration)
+            daily_data_collection = database.get_collection('daily_data')
+            identifier_mapping = self.get_identifier_mapping()
+            static_data = self.get_static_data()
+            list_of_static_data = list(static_data.keys())
+            list_of_new_id = list(identifier_mapping.keys())
+            common_elements = [i for i in list_of_new_id if i in list_of_static_data]
+            # print("COMMON ELEMENT!!!!", common_elements)
+            # print("LIST OF NEW ID", list_of_new_id)
+            result = {}
+            for header in header_dict:
+                tempList = []
+                for doc in daily_data_collection.find({'ship_imo': self.ship_imo}).sort('data.rep_dt', DESCENDING).limit(int(duration)):
+                    temp = {}
+                    # print("CURRENT DATE", doc['data']['rep_dt'])
+                    # if doc['data']['rep_dt'] != close_by_date:
+                    for elem in common_elements:
+                        # print("STATIC DATA", elem)
+                        source_id = identifier_mapping[elem]
+                        if source_id in header_dict[header]:
+                            # source_id = identifier_mapping[elem]
+                            # print("SOURCE ID!!!!!!!", source_id)
+                            # print("STATIC DATA!!!!!!", static_data[elem]['value'])
+                            if pd.isnull(static_data[elem]['value']) == False:
+                                if static_data[elem]['value'] == 0 or static_data[elem]['value'] == 0.0:
+                                    temp[source_id] = str(static_data[elem]['value'])
+                                else:
+                                    temp[source_id] = static_data[elem]['value']
+                            else:
+                                temp[source_id] = ""
+                    # print("STATIC DATA TEMP DICT!!!!!!!", temp)
+
+                    for key in doc['data'].keys():
+                        source_id = identifier_mapping[key]
+                        if source_id in header_dict[header]:
+                            # if source_id in list_values or source_id.lower() in list_values:
+                                # index_of_value = list_values.index(source_id) if source_id in list_values else list_values.index(source_id.lower())
+                                # key_for_dict = list_keys[index_of_value]
+                            # if key in list_of_new_id:
+                                # if key in doc['data']:
+                            # print("KEY FOR DICT", source_id)
+                            if pd.isnull(doc['data'][key]) == False:
+                                if type(doc['data'][key]) == datetime:
+                                    if key == 'rep_dt':
+                                        newdate = doc['final_rep_dt'].strftime('%d-%m-%Y %H:%M:%S')
+                                        temp[source_id] = newdate
+                                    else:
+                                # if key == 'rep_dt' or key == 'eta' or key == 'UTC_GMT' or key == 'stp_frm' or key == 'stp_to' or key == 'red_frm' or key == 'red_to':
+                                        newdate = doc['data'][key].strftime('%d-%m-%Y %H:%M:%S')
+                                        temp[source_id] = newdate
+                                else:
+                                    if doc['data'][key] == 0 or doc['data'][key] == 0.0:
+                                        temp[source_id] = str(doc['data'][key])
+                                    else:
+                                        temp[source_id] = doc['data'][key]
+                                # dictionary_structure[key].append(doc['data'][key])
+                            else:
+                                temp[source_id] = ""
+                                    # dictionary_structure[key].append("")
+                                # else:
+                                #     print("ELSE PART!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+                                #     temp[source_id] = static_data[key]['value']
+                            # else:
+                            #     temp[source_id] = ""
+                            # else:
+                            #     temp[source_id] = ""
+                    # print("ENTIRE TEMP!!!!!!!", temp)
+                    tempList.append(temp)
+                result[header] = tempList
+                    # else:
+                    #     break
+        print("RESULT!!!!!!", result)
+        # print("LIST KEYS!!!!!!", list(result[0].keys()), list_keys)
+        actual_result={}
+        for sheet_name in result:
+            tempList=[]
+            for dicts in result[sheet_name]:
+                temp_list=[]
+                for key in header_dict[sheet_name]:
+                    if key in dicts:
+                        temp={}
+                        temp['value'] = dicts[key]
+                        temp_list.append(temp)
+                    else:
+                        temp={}
+                        temp['value'] = ""
+                        temp_list.append(temp)
+                tempList.append(temp_list)
+            actual_result[sheet_name] = tempList
+            # tempList=[]
+        # for sheet_name in result:
+        #     temp_list=[]
+        #     for sheet_number in header_dict.keys():
+        #         if sheet_name == sheet_number:
+        #             for header in header_dict[sheet_number]:
+        #                 temp={}
+        #                 if header == None:
+        #                     temp['value'] = ""
+        #                     temp_list.append(temp)
+        #                 else:
+        #                 # if header in dictionary:
+        #                     temp['value'] = result[sheet_name][header] if header in result[sheet_name] and header in header_dict[sheet_number] else ""
+        #                     temp_list.append(temp)
+        #                 # else:
+        #                 #     temp['value'] = ""
+        #                 #     temp_list.append(temp)
+        #             tempList.append(temp_list)
+        #     actual_result[sheet_number] = tempList
+        print("ACTUAL RESULT!!!!!", actual_result)
+        return actual_result
+    
+    def get_key(self, list_values, identifier_mapping):
+        ''' Creates a list of identifiers whose raw values are to be collected.'''
+        result = []
+
+        for key, value in identifier_mapping.items():
+            if value in list_values:
+                result.append(key)
+            else:
+                result.append(key)
+        
+        return result
 
 
 
