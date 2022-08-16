@@ -739,13 +739,18 @@ class IndividualProcessors():
 
     def speed_sog_calc_processor(self,base_dict):
         base_dict=base_dict      
-        if pandas.isnull(self.daily_data['data']['stm_hrs'])==False and pandas.isnull(self.daily_data['data']['dst_last'])==False:
-            if self.daily_data['data']['stm_hrs']==0:
-                base_dict['processed']=self.daily_data['data']['dst_last']/0.1
-            else:
-                base_dict['processed']=self.daily_data['data']['dst_last']/self.daily_data['data']['stm_hrs']
-        base_dict['is_read']=False
-        base_dict['is_processed']=True
+        try:
+            if pandas.isnull(self.daily_data['data']['stm_hrs'])==False and pandas.isnull(self.daily_data['data']['dst_last'])==False:
+                if self.daily_data['data']['stm_hrs']==0:
+                    base_dict['processed']=self.daily_data['data']['dst_last']/0.1
+                else:
+                    base_dict['processed']=self.daily_data['data']['dst_last']/self.daily_data['data']['stm_hrs']
+            base_dict['is_read']=False
+            base_dict['is_processed']=True
+        except:
+            base_dict['processed']=None
+            base_dict['is_read']=False
+            base_dict['is_processed']=False
         return base_dict
 
     def speed_sog_i_processor(self,base_dict):
@@ -777,8 +782,11 @@ class IndividualProcessors():
                 current_dir_rel=180
                 base_dict['processed']=speed_sog-round(curknots*(math.cos(current_dir_rel/57.3)),3)
             else:
-                current_dir_rel=self.daily_data['data']['current_dir_rel']
-                base_dict['processed']=speed_sog-round(curknots*(math.cos(current_dir_rel/57.3)),3)
+                try:
+                    current_dir_rel=self.daily_data['data']['current_dir_rel']
+                    base_dict['processed']=speed_sog-round(curknots*(math.cos(current_dir_rel/57.3)),3)
+                except:
+                    base_dict['processed']=speed_sog
             base_dict['is_read']=False
             base_dict['is_processed']=True
         except:
