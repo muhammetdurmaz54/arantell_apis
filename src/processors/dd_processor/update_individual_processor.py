@@ -346,7 +346,10 @@ class UpdateIndividualProcessors():
 
                 
                     # exit()
-
+                    # print(X_train)
+                    # print(Y_train)
+                    # print(X_test)
+                    # print(Y_test)
 
                     if len(x)>5:
                         pls_reg=LRPI()
@@ -363,8 +366,8 @@ class UpdateIndividualProcessors():
                     predcol=["lower","Pred","upper"]
                     for col in predcol:
                         val=(pred[col].iloc[-1]*std_y)+mean_y
-                        pred_list.append(round(val,2))
-                    
+                        pred_list.append(val)
+                    # print(pred_list)
                     pred_temp=[]
                     for i in range(0,len(pred['Pred'])):
                         pred_temp.append((pred['Pred'].iloc[i]*std_y)+mean_y)
@@ -375,8 +378,8 @@ class UpdateIndividualProcessors():
                     # show_dataframe['current_pred']=pred_temp
                     # show_dataframe.to_csv("pwr_pred.csv")
                     # print(show_dataframe)
-                    spe=round((pred['Pred'].iloc[-1]-Y_test[y].iloc[-1])**2,4)
-                    
+                    spe=(pred['Pred'].iloc[-1]-Y_test[y].iloc[-1])**2
+                    # print(spe)
                     spe_dataframe=pd.DataFrame({})
                     spe_dataframe['spe']=(pred['Pred']-Y_test[y])**2
                     
@@ -399,7 +402,7 @@ class UpdateIndividualProcessors():
                         L=st.norm.ppf(1-i)
                         ewma_val_cal,ewma_ucl_cal,ewma_lcl_cal=ewma_obj.ControlChart(L=L,sigma=std_val)
                         # ewma_val_cal_2=spe_dataframe['spe'].ewm(alpha=0.05,adjust=False).mean()
-                        ewma_val=round(ewma_val_cal[-1],2)
+                        ewma_val=ewma_val_cal[-1]
                         # ewma_ucl_val=round(ewma_ucl_cal[-1],2)
                         ewma.append(ewma_val)
                         # ewma_ucl.append(ewma_ucl_val)
@@ -480,7 +483,7 @@ class UpdateIndividualProcessors():
                         dis_listnew.append(m_dis)
 
                     pls_dataframe['t_2']=dis_listnew
-                    t2_initial=pls_dataframe['t_2'].iloc[-1].round(3)
+                    t2_initial=pls_dataframe['t_2'].iloc[-1]
                     
                     # m=static_length
                     # p=4
