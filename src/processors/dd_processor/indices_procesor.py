@@ -291,9 +291,9 @@ class Indice_Processing():
                             
                             for col in predcol:
                                 val=(pred[col].iloc[-1]*std_y)+mean_y
-                                pred_list.append(round(val,2))
+                                pred_list.append(val)
                             pred_list_upper.append(pred_list[1])
-                            spe=round((pred['Pred'].iloc[-1]-Y_test[id].iloc[-1])**2,4)
+                            spe=(pred['Pred'].iloc[-1]-Y_test[id].iloc[-1])**2
                             spe_list_upper.append(spe)
                         
                         spe_value=sum(spe_list_upper)
@@ -337,7 +337,7 @@ class Indice_Processing():
                             dis_listnew.append(m_dis)
 
                         pls_dataframe['t_2']=dis_listnew
-                        t2_initial=pls_dataframe['t_2'].iloc[-1].round(3)
+                        t2_initial=pls_dataframe['t_2'].iloc[-1]
 
                         
                         m=length_dataframe
@@ -596,7 +596,7 @@ class mewma():
             # print(i)
             ucl[i] = np.mean(t2) + L*sigma*np.sqrt((self.lambd / (2 - self.lambd))*(1-(1-self.lambd)**(I[i])))
         
-        mewma_val=round(t2[-1],2)
-        ucl_val=round(ucl[-1],2)
+        mewma_val=t2[-1]
+        ucl_val=ucl[-1]
         
         return mewma_val,ucl_val 
