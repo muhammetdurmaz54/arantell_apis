@@ -116,7 +116,6 @@ class MainDB():
         self.connect_db()
         self.get_daily_data()
         self.get_ship_configs()
-        self.get_ship_stats()
         self.process_daily_data()
         self.process_weather_api_data()
         self.process_position_api_data()
@@ -499,7 +498,7 @@ class MainDB():
 
     def update_maindb(self,index):
         
-                #self.maindb.update_one({"ship_imo": int(self.ship_imo)},{"$set":{"processed_daily_data":self.base_main_data}})
+        #self.maindb.update_one({"ship_imo": int(self.ship_imo)},{"$set":{"processed_daily_data":self.base_main_data}})
         self.maindb.update_one(self.maindb.find({"ship_imo": int(self.ship_imo)})[index],{"$set":{"processed_daily_data":self.base_main_data}})
             
         # document = {
@@ -1790,10 +1789,10 @@ start_time = time.time()
 
 # daily_obj=DailyInsert('F:\Afzal_cs\Internship\Arvind data files\RTM FUEL.xlsx','F:\Afzal_cs\Internship\Arvind data files\RTM ENGINE.xlsx',9591301,True)
 # daily_obj.do_steps()
-obj=MainDB(9591301,1400,datetime.strptime('22/3/18','%d/%m/%y'))
+obj=MainDB(9591301,400,datetime.strptime('22/3/18','%d/%m/%y'))
 obj.get_ship_configs()
-# obj.get_main_db(0)
-# obj.ad_all()
+obj.get_main_db(0)
+obj.ad_all()
 # obj.add_calc_i_cp()
 # obj.maindb_lvl_two()
 #initial population done (remove date condition on find  before uploading in aws)
