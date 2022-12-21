@@ -1,6 +1,8 @@
+
 from asyncio.windows_events import NULL
 from math import nan
 from os import error
+import os
 import sys
 from xmlrpc.client import _datetime_type 
 sys.path.insert(1,"F:\\Afzal_cs\\Internship\\arantell_apis-main")
@@ -13,6 +15,8 @@ from mongoengine import *
 from datetime import datetime
 import pandas as pd
 import numpy as np
+import ntpath
+import boto3
 
 log = CommonLogger(__name__, debug=True).setup_logger()
 # connect("aranti")
@@ -33,6 +37,7 @@ class DailyInsert:
     def do_steps(self):
         self.connect()
         inserted_id = self.dailydata_insert()
+        # s3_upload=self.upload_to_s3()
         # if self.error:
         #     return False, str(self.traceback_msg)
         # else:
@@ -56,31 +61,60 @@ class DailyInsert:
         return final_rep_dt
 
 
+    def logs_data_generate(self,file_loc):
+        tabs = pd.ExcelFile(file_loc).sheet_names 
+        dataframe_dicts={}
+        maindata=pd.DataFrame({"rep_dt":[],"timestamp":[]})
+
+        j=0
+        for i in tabs:
+            tempdata = pd.read_excel(file_loc,sheet_name=i,skiprows = [1, 2, 3]).fillna("  ")
+            if "rep_dt" and "timestamp" in tempdata.columns:
+                dataframe_dicts["eng_"+str(j)]=tempdata
+                if len(dataframe_dicts["eng_"+str(j)]['rep_dt'])>len(maindata['rep_dt']):
+                    maindata=pd.merge(maindata,dataframe_dicts["eng_"+str(j)],on=["rep_dt",'timestamp'],how="right")
+                elif len(dataframe_dicts["eng_"+str(j)]['rep_dt'])<len(maindata['rep_dt']):
+                    maindata=pd.merge(maindata,dataframe_dicts["eng_"+str(j)],on=["rep_dt",'timestamp'],how="left")
+                # print(maindata)
+            j=j+1
+        maindata = maindata.drop_duplicates(subset=["rep_dt", "timestamp"])
+        maindata=maindata.reset_index(drop=True)
+        return maindata
+
 
     def dailydata_insert(self):
         if self.logs==True:
             self.historical_noon=False
+            self.type_of_data="Logs"
         if self.logs==False:
             self.historical_noon=True
+            self.type_of_data="Noon"
 
 
 
         if self.fuel!=None and self.eng!=None:
-            fuel = pd.read_excel(self.fuel,skiprows = [1, 2]).fillna("  ")
+            if self.logs==True:
+                fuel=self.logs_data_generate(self.fuel)
+            elif self.logs==False:
+                fuel = pd.read_excel(self.fuel,skiprows = [1, 2, 3]).fillna("  ")
+                fuel = fuel.drop_duplicates(subset=["rep_dt"])
+                fuel=fuel.reset_index(drop=True)
             fuel=fuel[fuel.rep_dt != np.NaN]
             for column in fuel.columns:
                 if (fuel[column] == "  ").all():
                     fuel=fuel.drop(columns=column)
-            eng = pd.read_excel(self.eng,skiprows = [1, 2]).fillna("  ")
+
+            if self.logs==True:
+                eng=self.logs_data_generate(self.eng)
+            elif self.logs==False:
+                eng = pd.read_excel(self.eng,skiprows = [1, 2, 3]).fillna("  ")
+                eng = eng.drop_duplicates(subset=["rep_dt"])
+                eng=eng.reset_index(drop=True)
             eng=eng[eng.rep_dt != np.NaN]
             for column in eng.columns:
                 if (eng[column] == "  ").all():
                     eng=eng.drop(columns=column)
-            
-            # print(fuel)
-            # print(eng)
-            
-            
+         
             
             database=self.db.get_database("aranti")
             ship_configs_collection=database.get_collection("ship")
@@ -89,7 +123,7 @@ class DailyInsert:
             maindb = database.get_collection("Main_db")
             ship_stats=database.get_collection("Ship_stats")
             try:
-                maindb.delete_many({"ship_imo":self.imo})
+                # maindb.delete_many({"ship_imo":self.imo})
                 ship_stats.delete_one({"ship_imo": self.imo})
                 daily_data_collection.delete_many({"ship_imo":self.imo})
                 print("deleted maindb")
@@ -111,7 +145,7 @@ class DailyInsert:
 
                     ship_configs_collection.update_one(ship_configs_collection.find({"ship_imo": int(self.imo)})[0],{"$set":{"common_col":list(common_col)}})
 
-                    exit()
+                    # exit()
                     for com_col in common_col:
                         if com_col!=identifier_mapping['rep_dt'] and com_col!=identifier_mapping['timestamp'] and com_col!=identifier_mapping["ship_imo"]:
                             fuel[str(com_col)+"_fuel_file"]=fuel[com_col]
@@ -171,6 +205,8 @@ class DailyInsert:
                             merg22=merg2[merg2["indicator"]!="both"]    #only eng data is indicated
                         except:
                             mer=pd.merge(temp_fuel,temp_eng1,on=[identifier_mapping["rep_dt"]])
+                            # mer.to_csv("rtm_merged.csv")
+                            # exit()
                             merg1=pd.merge(temp_fuel,temp_eng1,on=[identifier_mapping["rep_dt"]],how="left",indicator="indicator")
                             merg2=pd.merge(temp_fuel1,temp_eng,on=[identifier_mapping["rep_dt"]],how="right",indicator="indicator")
                             merg11=merg1[merg1["indicator"]!="both"]    #only fuel data is indicated
@@ -191,12 +227,12 @@ class DailyInsert:
                     rep_dt_col=identifier_mapping['rep_dt']
 
                     # print("hi")
-                    # print(len(mer))
+                    # print(mer['rpm'])
                     # mer.to_csv("atm_both_data.csv")
                     # exit()
                     # print(mer['estLat'])
-                    # print(merg11)
-                    # print(merg22)
+                    # print(len(merg11))
+                    # print(len(merg22))
                     # exit()
                     if len(mer)>0:
                         for j,row in mer.iterrows():  
@@ -223,7 +259,7 @@ class DailyInsert:
                                 except:
                                     daily_nav['final_rep_dt']=self.final_rep_dt(daily_nav['data']['rep_dt'],None)
 
-                                
+
                                 if self.imo in ship_imos:
                                     daily_data=daily_data_collection.find({"ship_imo": self.imo})
                                     dates_unique=daily_data.distinct("data.rep_dt")
@@ -500,7 +536,6 @@ class DailyInsert:
 
 
     def getdata(self,row,data_available_nav,identifier_mapping):
-        
         dest={}
         for w in data_available_nav:
             try:
@@ -526,8 +561,7 @@ class DailyInsert:
                 
             except KeyError:
                 continue
-        # for i in dest:
-        #     print(i," ",type(dest[i]),"    ",dest[i])
+
         self.common_data={}    
         for i in row.keys():
             try:
@@ -543,192 +577,28 @@ class DailyInsert:
                             self.common_data[i]=row[i]
             except AttributeError:
                 continue
+        for i in dest:
+            if identifier_mapping[i]+"_fuel_file" in self.common_data or identifier_mapping[i]+"_eng_file" in self.common_data:
+                if pd.isnull(dest[i])==True:
+                    if pd.isnull(self.common_data[identifier_mapping[i]+"_fuel_file"])==False:
+                        dest[i]=self.common_data[identifier_mapping[i]+"_fuel_file"]
+                    elif pd.isnull(self.common_data[identifier_mapping[i]+"_eng_file"])==False:
+                        dest[i]=self.common_data[identifier_mapping[i]+"_eng_file"]
         # for i in self.common_data:
         #     print(i," ",type(self.common_data[i]),"   ",self.common_data[i])
         return dest
+    
+
+    def upload_to_s3(self):
+        self.fuel_object_key = self.ship_configs['ship_name'] + ' - ' + str(self.imo) + '/' + self.type_of_data.capitalize() + '/' + "Fuel".capitalize() + '/' + ntpath.basename(self.fuel)
+        self.eng_object_key = self.ship_configs['ship_name'] + ' - ' + str(self.imo) + '/' + self.type_of_data.capitalize() + '/' + "Engine".capitalize() + '/' + ntpath.basename(self.eng)
+        s3 = boto3.client('s3', aws_access_key_id=os.getenv("ak_aws_id"), aws_secret_access_key=os.getenv("ak_aws_key"))
+        s3.upload_file(self.fuel, Bucket="input-templates", Key=self.fuel_object_key)
+        s3.upload_file(self.eng, Bucket="input-templates", Key=self.eng_object_key)
 
 
-obj=DailyInsert('F:\Afzal_cs\Internship\Arvind data files\9205926noonfuel.xlsx','F:\Afzal_cs\Internship\Arvind data files\9205926noonengine.xlsx',9205926,False,True)
+obj=DailyInsert('F:\Afzal_cs\Internship\Arvind data files\9606821noonfuel.xlsx','F:\Afzal_cs\Internship\Arvind data files\9606821noonengine.xlsx',9606821,False,True)
 # # obj=DailyInsert('F:\Afzal_cs\Internship\Arvind data files\RTM FUEL.xlsx',None,9591301,True)
 # # obj=DailyInsert(None,'F:\Afzal_cs\Internship\Arvind data files\RTM ENGINE.xlsx',9591301,True)
 obj.do_steps()
 
-
-# below code is for rtm cook which has only one data file combined
-# class DailyInsert:
-#     def __init__(self,fuelfile,imo):
-#         self.fuel=fuelfile
-#         self.imo=imo
-#         self.error=False
-
-#     def do_steps(self):
-#         self.connect()
-#         inserted_id = self.dailydata_insert()
-#         if self.error:
-#             return False, str(self.traceback_msg)
-#         else:
-#             return True, str(inserted_id)
-
-#     def connect(self):
-#         self.db = connect_db()
-
-
-#     def dailydata_insert(self):
-#         # fuel = pd.read_excel(self.fuel,sheet_name='OriginalData').fillna("")
-#         fuel = pd.read_excel(self.fuel).fillna("")
-
-#         ship_imo_o=Ship.objects()
-#         for i in ship_imo_o:
-
-#             ship_imo=i.ship_imo
-#             if ship_imo==self.imo:
-#                 ship_name=i.ship_name
-#                 data_available_nav=i.data_available_nav
-#                 data_available_engine= i.data_available_engine
-#                 identifier_mapping=i.identifier_mapping
-#                 temp_alldata=data_available_nav[:]
-#                 temp_alldata.extend(data_available_engine)
-                
-        
-                
-                
-                
-#                 for j,row in fuel.iterrows():                      #for both cases where rept date and imo are common in both files
-                    
-#                     daily_nav=DailyData(
-#                         ship_imo=ship_imo,
-#                         ship_name=ship_name,
-#                         historical=True,
-#                         nav_data_available=True,
-#                         engine_data_available=True,
-#                         nav_data_details={"file_name":"daily_data19June20.xlsx","file_url":"aws.s3.xyz.com","uploader_details":{"userid":"xyz","company":"sdf"}},
-#                         engine_data_details={"file_name":"daily_data19June20engine.xlsx","file_url":"aws.s3.xyz.com","uploader_details":{"userid":"xyz","company":"sdf"},},
-#                         data_available_nav=data_available_nav,
-#                         data_available_engine=data_available_engine,
-#                         data=self.getdata(row,temp_alldata,identifier_mapping)
-                        
-#                     )
-#                     daily_nav.save()
-#             # for j,row in fuel.iterrows():                      #for both cases where rept date and imo are common in both files
-                
-#             #     daily_nav={
-#             #         "ship_imo":ship_imo,
-#             #         "ship_name":ship_name,
-#             #         "historical":True,
-#             #         "nav_data_available":True,
-#             #         "engine_data_available":True,
-#             #         "nav_data_details":{"file_name":"daily_data19June20.xlsx","file_url":"aws.s3.xyz.com","uploader_details":{"userid":"xyz","company":"sdf"}},
-#             #         "engine_data_details":{"file_name":"daily_data19June20engine.xlsx","file_url":"aws.s3.xyz.com","uploader_details":{"userid":"xyz","company":"sdf"},},
-#             #         "data_available_nav":data_available_nav,
-#             #         "data_available_engine":data_available_engine,
-#             #         "data":self.getdata(row,temp_alldata,identifier_mapping)
-                    
-#             #     }
-#             #     daily_data_collection.insert_one(daily_nav).inserted_id
-                    
-            
-#     def getdata(self,row,data_available_nav,identifier_mapping):
-        
-#         dest={}
-#         for w in data_available_nav:
-#             try:
-#                 if w in row:
-#                     dest[w]=row[w]
-#                 elif identifier_mapping[w].strip() in row:
-#                     dest[w]=row[identifier_mapping[w]]
-#             except KeyError:
-#                 continue    
-            
-#         return dest
-
-
-# obj=DailyInsert('F:\Afzal_cs\Internship\Atm_both_data.xlsx',9591301)
-# obj.connect()
-# obj.dailydata_insert()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# for j,row in mer.iterrows():                      #for both cases where rept date and imo are common in both files
-                        
-                    #     daily_nav=DailyData(
-                    #         ship_imo=ship_imo,
-                    #         ship_name=ship_name,
-                    #         historical=True,
-                    #         nav_data_available=True,
-                    #         engine_data_available=True,
-                    #         nav_data_details={"file_name":"daily_data19June20.xlsx","file_url":"aws.s3.xyz.com","uploader_details":{"userid":"xyz","company":"sdf"}},
-                    #         engine_data_details={"file_name":"daily_data19June20engine.xlsx","file_url":"aws.s3.xyz.com","uploader_details":{"userid":"xyz","company":"sdf"},},
-                    #         data_available_nav=data_available_nav,
-                    #         data_available_engine=data_available_engine,
-                    #         data=self.getdata(row,temp_alldata,identifier_mapping)
-                            
-                    #     )
-                    #     daily_nav.save()
-                        
-                    # for j,row in merg11.iterrows():                      #for case where rept date and imo are not common in both files and fuel data gets inserted
-                        
-                    #     daily_nav=DailyData(
-                    #         ship_imo=ship_imo,
-                    #         ship_name=ship_name,
-                    #         historical=True,
-                    #         nav_data_available=True,
-                    #         engine_data_available=False,
-                    #         nav_data_details={"file_name":"daily_data19June20.xlsx","file_url":"aws.s3.xyz.com","uploader_details":{"userid":"xyz","company":"sdf"}},
-                    #         engine_data_details={},
-                    #         data_available_nav=data_available_nav,
-                    #         data_available_engine=[],
-                    #         data=self.getdata(row,data_available_nav,identifier_mapping)
-                            
-                    #     )
-                    #     daily_nav.save()
-
-                    # for j,row in merg22.iterrows():                      #for case where rept date and imo are not common in both files and engine data gets inserted
-                        
-                    #     daily_nav=DailyData(
-                    #         ship_imo=ship_imo,
-                    #         ship_name=ship_name,
-                    #         historical=True,
-                    #         nav_data_available=False,
-                    #         engine_data_available=True,
-                    #         nav_data_details={},
-                    #         engine_data_details={"file_name":"daily_data19June20engine.xlsx","file_url":"aws.s3.xyz.com","uploader_details":{"userid":"xyz","company":"sdf"}},
-                    #         data_available_nav=[],
-                    #         data_available_engine=data_available_engine,
-                    #         data=self.getdata(row,data_available_engine,identifier_mapping)
-                            
-                    #     )
-                    #     daily_nav.save()
