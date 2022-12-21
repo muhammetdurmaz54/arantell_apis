@@ -22,7 +22,7 @@ from src.processors.dd_processor.universal_limit import Universal_limits
 from src.processors.dd_processor.update_individual_processor import UpdateIndividualProcessors,EWMA
 from src.processors.dd_processor.individual_processor_lvl_two import IndividualProcessorsTwo
 # from src.processors.dd_processor.update_individual_predictions import UpdateIndividualProcessorspredictions
-from src.processors.dd_extractor.extractor_new import DailyInsert
+# from src.processors.dd_extractor.extractor_new import DailyInsert
 from src.processors.dd_processor.indices_procesor import Indice_Processing,mewma
 from src.processors.dd_processor.Universal_indice_limits import Universal_indices_limits
 from src.configurations.logging_config import CommonLogger
@@ -359,14 +359,21 @@ class MainDB():
 
     def get_main_db(self,index):
         self.maindb = database.get_collection("Main_db")
-        # self.maindb.delete_many(self.maindb.find({"ship_imo":self.ship_imo}),{"processed_daily_data.main_fuel_index"})
+        # self.maindb.delete_many({"ship_imo":self.ship_imo})
         # self.maindb.delete_many({"ship_imo": int(self.ship_imo),"processed_daily_data.rep_dt.processed":{"$lte":datetime(2016,2,1,12)}})
         # self.maindb.update_many( {}, { "$rename": { "processed_daily_data.ext_pres": "processed_daily_data.ext_press" } } )
         # self.maindb.update_many({}, {'$unset': {"processed_daily_data.main_fuel_index":1}})
         # print("done")
         # self.maindb.update_many({},{"$set":{"processed_daily_data.cp_speed.identifier":"cp_speed"}})
         # exit()
-        self.main_data = self.maindb.find({"ship_imo": int(self.ship_imo)})[index]
+        self.main_data = self.maindb.find({"ship_imo": int(9205926)})[0]
+        # for i in range(0,self.main_data.count()):
+        print(self.main_data)
+        # print(self.main_data['processed_daily_data']['sfoc']['spe_messages'])
+        # print(self.main_data['processed_daily_data']['main_fuel_per_dst']['is_not_spe_anamolous'])
+        # print(self.main_data['processed_daily_data']['main_fuel_per_dst']['spe_messages'])
+        # print(self.main_data['processed_daily_data']['pwr']['is_not_spe_anamolous'])
+        # print(self.main_data['processed_daily_data']['pwr']['spe_messages'])
         # count=0
         # cpress=[]
         # for i in range(0,self.main_data.count()):
@@ -2167,10 +2174,10 @@ start_time = time.time()
 
 # daily_obj=DailyInsert('F:\Afzal_cs\Internship\Arvind data files\RTM FUEL.xlsx','F:\Afzal_cs\Internship\Arvind data files\RTM ENGINE.xlsx',9591301,True)
 # daily_obj.do_steps()
-obj=MainDB(9591301)
-obj.get_ship_configs()
-# obj.get_main_db(0)
-obj.ad_all()
+obj=MainDB(9205926)
+# obj.get_ship_configs()
+obj.get_main_db(0)
+# obj.ad_all()
 # obj.add_calc_i_cp()
 # obj.maindb_lvl_two()
 #initial population done (remove date condition on find  before uploading in aws)
@@ -2178,7 +2185,7 @@ obj.ad_all()
 # obj.update_maindb_alldoc()
 
 #outlier (both outlier 1 and 2 inside this) and (remove date condition on find  before uploading in aws)
-obj.update_good_voyage()
+# obj.update_good_voyage()
 #good voyage tag created here essential for predictions process 
 
 # obj.update_maindb_predictions_alldoc()
@@ -2205,7 +2212,7 @@ obj.update_good_voyage()
 # obj.get_ship_configs()
 #Backcalculating
 # obj.update_cp_msg()
-obj.anamolies_by_config()
+# obj.anamolies_by_config()
 
 #temporarily added for checking spe and ewma using a diferent dataframe and formula
 # done till here  
