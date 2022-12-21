@@ -41,9 +41,9 @@ daily_report_column_headers = {
     'VESSEL PARTICULARS': ["Name", "Constant"],
     'VESSEL STATUS': ["Name", "Unit", "Reported", "Expected", "Charter Pty", "Statement"],
     'CHANGE IN SPEED': ["Name", "Unit", "Reported", "Expected", "Statement"],
-    'WEATHER PARAMETERS': ["Name", "Unit", "Reported", "Statement", "API_DATA"],
-    'DISTANCE AND TIME': ["Name", "Unit", "Reported", "Expected", "Statement", "API_DATA"],
-    'VESSEL POSITION': ["Name", "Reported", "Expected"],
+    'WEATHER PARAMETERS': ["Name", "Unit", "Reported", "AIS/MET", "Statement", "API_DATA"],
+    'DISTANCE AND TIME': ["Name", "Unit", "Reported", "AIS", "Expected", "Statement", "API_DATA"],
+    'VESSEL POSITION': ["Name", "Reported", "AIS", "Expected"],
     'FUEL OIL CONSUMPTION': common_header,
     'MAIN ENGINE': common_header,
     'GENERATOR': common_header,
@@ -838,7 +838,7 @@ class Configurator():
         ''' For getting the groupname and the list of included parameters'''
         singledata = self.ship_configs['data']
 
-        grpnames=self.get_list_of_groupnames()
+        grpnames=self.get_list_of_groupnumbers()
         generic=self.get_dict_groupnames()
                 
         
@@ -864,7 +864,7 @@ class Configurator():
         ''' Returns a dictionary with keys as the names of individual groups
             and values as empty lists.
         '''
-        grpnames=self.get_list_of_groupnames()
+        grpnames=self.get_list_of_groupnumbers()
         ship_collection = self.get_ship_configs()
 
         generic_dict={}
@@ -878,16 +878,40 @@ class Configurator():
 
         return generic_dict
     
-    def get_list_of_groupnames(self):
+    def get_list_of_groupnumbers(self):
         ''' Returns list of all the groupnumbers'''
         singledata = self.ship_configs['data']
         grpnames=[]
         for var in singledata.keys():
             groups = singledata[var]['group_selection']
             for group in groups:
-                if group['groupnumber'] not in grpnames:
-                    grpnames.append(group['groupnumber'])
+                if int(group['groupnumber']) not in grpnames:
+                    grpnames.append(int(group['groupnumber']))
+        grpnames.sort()
         return grpnames
+    
+    def get_list_of_groupnames(self):
+        ''' Returns list of all the groupnames'''
+        singledata = self.ship_configs['data']
+        groupnumbers = self.get_list_of_groupnumbers()
+        print("GROUPNUMBERS!!!", groupnumbers)
+        groupnames = []
+        sorted_groupnames = []
+
+        for var in singledata.keys():
+            groups = singledata[var]['group_selection']  
+            for group in groups:
+                if group['groupname'] not in groupnames:
+                    # groupnames.append(group['groupname'])
+                    groupnames.insert(int(group['groupnumber'])-1, group['groupname'])
+        print("GROUPNAMES!!!", groupnames)
+        # groupnumbers.sort()
+        # for i in range(0, len(groupnames)):
+        #     for j in range(0, len(groupnumbers)):
+        #         if groupnumbers[j] == i + 1:
+        #             sorted_groupnames.append(groupnames[i])
+
+        return groupnames
         
     
     def get_number_of_blocks(self, groupname='', groupsList=[]):
@@ -1414,11 +1438,20 @@ class Configurator():
         '''
         shortNameDict={}
 
-        for var in self.ship_configs['data']:
-            if type(self.ship_configs['data'][var]['short_names']) == float:
-                shortNameDict[var] = var
-            else:
-                shortNameDict[var] = self.ship_configs['data'][var]['short_names']
+        try:
+            for var in self.ship_configs['data']:
+                if pd.isnull(self.ship_configs['data'][var]['short_names']) == True:
+                    shortNameDict[var] = var
+                else:
+                    shortNameDict[var] = self.ship_configs['data'][var]['short_names']
+        except KeyError:
+            ship_configs_collection = self.get_ship_configs()
+            for doc in ship_configs_collection.find({"ship_imo": self.ship_imo}):
+                for var in doc['data']:
+                    if pd.isnull(doc['data'][var]['short_names']) == True:
+                        shortNameDict[var] = var
+                    else:
+                        shortNameDict[var] = doc['data'][var]['short_names']
         
         return shortNameDict
     
@@ -1439,20 +1472,12 @@ class Configurator():
                     parameter_list.append(var)
             elif singledata[var]['override'] != -1 and singledata[var]['override'] != 1:
                 if pd.isnull(singledata[var]['var_type']) == False:
-                    if 'E' in singledata[var]['var_type'] and '1' not in singledata[var]['var_type'] and pd.isnull(singledata[var]['source_idetifier']) == False:
+                    if singledata[var]['var_type'] =='E' or singledata[var]['var_type'] == 'E1' and pd.isnull(singledata[var]['source_idetifier']) == False:
                         equipment_list.append(var)
-                    if 'P' in singledata[var]['var_type'] and (pd.isnull(singledata[var]['source_idetifier']) == False or singledata[var]['Derived'] == True):
+                    if 'P' in singledata[var]['var_type'] and pd.isnull(singledata[var]['source_idetifier']) == False:
                         parameter_list.append(var)
             else:
                 continue
-            # if pd.isnull(singledata[var]['var_type']) != True:
-            #     if 'E' in singledata[var]['var_type'] and '1' not in singledata[var]['var_type'] and singledata[var]['source_idetifier'] == 'available':
-            #         equipment_list.append(var)
-            #     if 'P' in singledata[var]['var_type']:
-            #         parameter_list.append(var)
-        # for var in singledata.keys():
-        #     if singledata[var]['var_type'] == 'E':
-        #         print(singledata[var])
         print("EQUIPMENT LIST", equipment_list)
         
         return equipment_list, parameter_list
@@ -1562,29 +1587,36 @@ class Configurator():
                     if subcategoryDictData[subcategory][i]['predictions']['m3']:
                         tempExptd = self.makeDecimal(subcategoryDictData[subcategory][i]['predictions']['m3'][1])
                         subcategoryDictData[subcategory][i]['predictions']['m3'][1] = tempExptd
+                    if subcategoryDictData[subcategory][i]['predictions']['m6']:
+                        tempExptd = self.makeDecimal(subcategoryDictData[subcategory][i]['predictions']['m6'][1])
+                        subcategoryDictData[subcategory][i]['predictions']['m6'][1] = tempExptd
+                    if subcategoryDictData[subcategory][i]['predictions']['m12']:
+                        tempExptd = self.makeDecimal(subcategoryDictData[subcategory][i]['predictions']['m12'][1])
+                        subcategoryDictData[subcategory][i]['predictions']['m12'][1] = tempExptd
                 except TypeError:
                     continue
                 except KeyError:
                     continue
         return subcategoryDictData
     
-    def get_category_and_subcategory_with_issues(self, dateString, id):
+    def get_category_and_subcategory_with_issues(self, dateString, id, ship_imo):
         ''' Returns all the categories and the subcategories that have outlier parameters.'''
         result={}
         ship_collection = self.get_ship_configs()
         issues, issuesCount = self.create_dict_of_issues(id, dateString=dateString) if dateString != "" else self.create_dict_of_issues(id, "")
-        for doc in ship_collection.find({'ship_imo': self.ship_imo}):
+        for doc in ship_collection.find({'ship_imo': int(ship_imo)}):
             for key in doc['data'].keys():
-                if str(self.ship_imo) in issues:
+                # if key in equipment_list or key in parameter_list:
+                if str(ship_imo) in issues:
                     for var in issues[str(self.ship_imo)]:
                         if pd.isnull(doc['data'][key]['short_names']) == False and doc['data'][key]['short_names'].strip() == var:
                             tempList=[]
                             if pd.isnull(doc['data'][key]['subcategory']) == False and doc['data'][key]['subcategory'].strip() not in tempList:
                                 tempList.append(doc['data'][key]['subcategory'].strip())
-                                print(tempList)
+                                # print(tempList)
                             if pd.isnull(doc['data'][key]['category']) == False and doc['data'][key]['category'].strip() not in result.keys():
                                 result[doc['data'][key]['category'].strip()] = tempList
-                                print(tempList)
+                                # print(tempList)
                             else:
                                 if pd.isnull(doc['data'][key]['category']) == False:
                                     result[doc['data'][key]['category'].strip()].extend(tempList)
@@ -1592,10 +1624,10 @@ class Configurator():
                             tempList=[]
                             if pd.isnull(doc['data'][key]['subcategory']) == False and doc['data'][key]['subcategory'].strip() not in tempList:
                                 tempList.append(doc['data'][key]['subcategory'].strip()+'_OP')
-                                print(tempList)
+                                # print(tempList)
                             if pd.isnull(doc['data'][key]['category']) == False and doc['data'][key]['category'].strip() not in result.keys():
                                 result[doc['data'][key]['category'].strip()] = tempList
-                                print(tempList)
+                                # print(tempList)
                             else:
                                 if pd.isnull(doc['data'][key]['category']) == False:
                                     result[doc['data'][key]['category'].strip()].extend(tempList)
@@ -1603,17 +1635,17 @@ class Configurator():
                             tempList=[]
                             if pd.isnull(doc['data'][key]['subcategory']) == False and doc['data'][key]['subcategory'].strip() not in tempList:
                                 tempList.append(doc['data'][key]['subcategory'].strip()+'_SPE')
-                                print(tempList)
+                                # print(tempList)
                             if pd.isnull(doc['data'][key]['category']) == False and doc['data'][key]['category'].strip() not in result.keys():
                                 result[doc['data'][key]['category'].strip()] = tempList
-                                print(tempList)
+                                # print(tempList)
                             else:
                                 if pd.isnull(doc['data'][key]['category']) == False:
                                     result[doc['data'][key]['category'].strip()].extend(tempList)
                 else:
                     result = {}
         print(result)
-        return result
+        return result, issuesCount
     
     def get_static_data_for_charter_party(self):
         ''' Returns the dictionary with the static data of the charter party parameters. '''
