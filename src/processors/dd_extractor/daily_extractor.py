@@ -1,23 +1,20 @@
-# from math import nan
-# from os import error
+from math import nan
+from os import error
+import os
 import re
 import sys
-# from timeit import repeat 
+from timeit import repeat 
 sys.path.insert(1,"F:\\Afzal_cs\\Internship\\arantell_apis-main")
 from src.db.setup_mongo import connect_db
 from src.configurations.logging_config import CommonLogger
-# from src.helpers.check_status import check_status
+from src.helpers.check_status import check_status
 from mongoengine import *
 from datetime import datetime
 import pandas as pd
-from src.processors.config_extractor.run_maindb import MainDbRunner
-from threading import Thread
-import os
+import numpy as np
+from pymongo import ASCENDING,DESCENDING
 import boto3
 from io import StringIO
-import time
-# import numpy as np
-# from pymongo import ASCENDING,DESCENDING
 
 log = CommonLogger(__name__, debug=True).setup_logger()
 # connect("aranti")
@@ -65,21 +62,20 @@ class DailyDataExtractor:
             final_rep_dt=rep_dt.replace(hour=timestamp_dict[str(final_log_time)])
         return final_rep_dt
 
-    def create_data(self,full_dict, identifier_mapping):
+    def create_data(self,full_dict):
         temp_dict={}
         for i in full_dict:
             try:
                 del full_dict[i]['undefined']
             except:
                 pass
-            if identifier_mapping['rep_dt'] and identifier_mapping['timestamp'] in full_dict[i].keys():
-                temp_dict[i]=len(full_dict[i]['rep_dt'])
+            temp_dict[i]=len(full_dict[i]['rep_dt'])
         var=max(temp_dict, key= lambda x: temp_dict[x])
         maindata=pd.DataFrame(full_dict[var])
         for i in full_dict:
-            if i!=var and (identifier_mapping['rep_dt'] and identifier_mapping['timestamp'] in full_dict[i].keys()):
+            if i!=var:
                 data=pd.DataFrame(full_dict[i])
-                maindata=pd.merge(maindata,data,on=[identifier_mapping["rep_dt"],identifier_mapping['timestamp']],how="left")
+                maindata=pd.merge(maindata,data,on=["rep_dt",'timestamp'],how="left")
             # maindata=pd.concat([maindata,data],axis=1)
 
         # maindata = maindata.loc[:,~maindata.columns.duplicated()]
@@ -137,8 +133,6 @@ class DailyDataExtractor:
             except:
                 daily_data=None
             if daily_data:
-                # print("GOING TO SLEEP!")
-                # time.sleep(1200)
                 if 'data_available_engine' in daily_data and len(daily_data['data_available_engine'])>0 and daily_data['engine_data_available']==True:
                     historical=False
                     nav_data_available=True
@@ -218,8 +212,6 @@ class DailyDataExtractor:
             except:
                 daily_data=None 
             if daily_data:
-                # print("GOING TO SLEEP!")
-                # time.sleep(1200)
                 if 'data_available_nav' in daily_data and len(daily_data['data_available_nav'])>0 and daily_data['nav_data_available']==True:
                     historical=False
                     eng_data_available=True
@@ -283,133 +275,85 @@ class DailyDataExtractor:
         self.ship_configs = ship_configs_collection.find({"ship_imo": self.imo})[0]
         daily_data_collection =database.get_collection("daily_data")
         if self.fuel!=None:
-            ship_name=self.ship_configs['ship_name']
-            data_available_nav=self.ship_configs['data_available_nav']
-            data_available_engine=self.ship_configs['data_available_engine']
-            identifier_mapping=self.ship_configs['identifier_mapping']
-            self.common_col=self.ship_configs['common_col']
             if self.logs==False:
                 try:
                     del self.fuel['undefined']
                 except:
                     pass
                 fuel = pd.DataFrame(self.fuel)
-                # fuel.to_csv(str(self.imo)+"_noonfuel_"+datetime.today().date().strftime("%Y-%m-%d"))
                 csv_buffer = StringIO()
                 fuel.to_csv(csv_buffer)
                 fuel_object_key = self.ship_configs['ship_name'] + ' - ' + str(self.imo) + '/' + 'Noon' + '/' + "Fuel".capitalize() + '/' + str(self.imo)+"_noonfuel_"+datetime.today().date().strftime("%Y-%m-%d")+'.csv'
                 s3 = boto3.client('s3', aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"), aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"))
                 s3.put_object(Body=csv_buffer.getvalue(), Bucket="input-templates", Key=fuel_object_key)
             elif self.logs==True:
-                fuel=self.create_data(self.fuel, identifier_mapping)
-                # fuel.to_csv(str(self.imo)+"_logsfuel_"+datetime.date.today())
+                fuel=self.create_data(self.fuel)
                 csv_buffer = StringIO()
                 fuel.to_csv(csv_buffer)
                 fuel_object_key = self.ship_configs['ship_name'] + ' - ' + str(self.imo) + '/' + 'Logs' + '/' + "Fuel".capitalize() + '/' + str(self.imo)+"_logsfuel_"+datetime.today().date().strftime("%Y-%m-%d")+'.csv'
                 s3 = boto3.client('s3', aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"), aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"))
                 s3.put_object(Body=csv_buffer.getvalue(), Bucket="input-templates", Key=fuel_object_key)            
 
+            ship_name=self.ship_configs['ship_name']
+            data_available_nav=self.ship_configs['data_available_nav']
+            data_available_engine=self.ship_configs['data_available_engine']
+            identifier_mapping=self.ship_configs['identifier_mapping']
+            self.common_col=self.ship_configs['common_col']
             print("COMMON COL", self.common_col)
             for com_col in self.common_col:
                 if com_col!=identifier_mapping['rep_dt'] and com_col!=identifier_mapping['timestamp'] and com_col!=identifier_mapping["ship_imo"] and com_col in fuel.columns:
                     fuel[str(com_col)+"_fuel_file"]=fuel[com_col]
                     print("COMMON CL", com_col)
                     print("FUEL COMMON COL", fuel[com_col])
-            fuel_insert_date_list=[]
-            fuel_insert_timestamp_list = []
+            
             for i in range(len(fuel)):
                 fuel_insert_date, fuel_insert_timestamp=self.fuel_insert(fuel,identifier_mapping,daily_data_collection,data_available_nav,ship_name,i)
-                fuel_insert_date_list.append(fuel_insert_date)
-                fuel_insert_timestamp_list.append(fuel_insert_timestamp)
-            return fuel_insert_date_list, fuel_insert_timestamp_list
-            # if len(fuel_insert_date_list) > 0:
-            #     for i in range(len(fuel_insert_date_list)):
                 # if fuel_insert_date != None:
                 #     runner = MainDbRunner(fuel_insert_date, self.imo, fuel_insert_timestamp)
                 #     message = runner.check_fuel_and_engine_availability_and_run()
-            # return {"Message": message}
 
         elif self.eng!=None:
-            ship_name=self.ship_configs['ship_name']
-            data_available_nav=self.ship_configs['data_available_nav']
-            data_available_engine=self.ship_configs['data_available_engine']
-            identifier_mapping=self.ship_configs['identifier_mapping']
-            self.common_col=self.ship_configs['common_col']
             if self.logs==False:
                 try:
                     del self.eng['undefined']
                 except:
                     pass
                 eng = pd.DataFrame(self.eng)
-                # eng.to_csv(str(self.imo)+"_noonengine_"+datetime.date.today())
                 csv_buffer = StringIO()
                 eng.to_csv(csv_buffer)
                 eng_object_key = self.ship_configs['ship_name'] + ' - ' + str(self.imo) + '/' + 'Noon' + '/' + "Engine".capitalize() + '/' + str(self.imo)+"_noonengine_"+datetime.today().date().strftime("%Y-%m-%d")+'.csv'
                 s3 = boto3.client('s3', aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"), aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"))
                 s3.put_object(Body=csv_buffer.getvalue(), Bucket="input-templates", Key=eng_object_key)
             elif self.logs==True:
-                eng=self.create_data(self.eng, identifier_mapping)
-                # eng.to_csv(str(self.imo)+"_logsengine_"+datetime.date.today())
+                eng=self.create_data(self.eng)
                 csv_buffer = StringIO()
                 eng.to_csv(csv_buffer)
                 eng_object_key = self.ship_configs['ship_name'] + ' - ' + str(self.imo) + '/' + 'Logs' + '/' + "Engine".capitalize() + '/' + str(self.imo)+"_logsengine_"+datetime.today().date().strftime("%Y-%m-%d")+'.csv'
                 s3 = boto3.client('s3', aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"), aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"))
                 s3.put_object(Body=csv_buffer.getvalue(), Bucket="input-templates", Key=eng_object_key)
             
+            # database=self.db.get_database("aranti")
+            # ship_configs_collection=database.get_collection("ship")
+            # self.ship_configs = ship_configs_collection.find({"ship_imo": self.imo})[0]
+            # daily_data_collection =database.get_collection("daily_data")
+            ship_name=self.ship_configs['ship_name']
+            data_available_nav=self.ship_configs['data_available_nav']
+            data_available_engine=self.ship_configs['data_available_engine']
+            identifier_mapping=self.ship_configs['identifier_mapping']
+            self.common_col=self.ship_configs['common_col']
             for com_col in self.common_col:
                 if com_col!=identifier_mapping['rep_dt'] and com_col!=identifier_mapping['timestamp'] and com_col!=identifier_mapping["ship_imo"] and com_col in eng.columns:
                     eng[str(com_col)+"_eng_file"]=eng[com_col]
 
-            eng_insert_date_list = []
-            engine_insert_timestamp_list = []
             for i in range(len(eng)):
                 eng_insert_date, engine_insert_timestamp=self.eng_insert(eng,identifier_mapping,daily_data_collection,data_available_engine,ship_name,i)
-                eng_insert_date_list.append(eng_insert_date)
-                engine_insert_timestamp_list.append(engine_insert_timestamp)
-            return eng_insert_date_list, engine_insert_timestamp_list
-            # if len(eng_insert_date_list) > 0:
-            #     for i in range(len(eng_insert_date_list)):
                 # if eng_insert_date != None:
                 #     runner = MainDbRunner(eng_insert_date, self.imo, engine_insert_timestamp)
                 #     message = runner.check_fuel_and_engine_availability_and_run()
-            # return {"Message": message}
             
 
 
     def getdata(self,row,data_available_nav,identifier_mapping,dest, index_number):
-        # for w in data_available_nav:
-        #     try:
-        #         if w in row:
-        #             dest[w]=self.is_float(str(row[w]))
-        #         elif identifier_mapping[w].strip() in row:
-        #             dest[w]=self.is_float(str(row[identifier_mapping[w]]))
-        #         if dest[w] == "None" or dest[w] == "none":
-        #             dest[w] = None
-        #     except KeyError:
-        #         continue
-
-        # self.common_data={}    
-        # for i in row.columns:
-        #     print("ROW COLUMNS", i)
-        #     try:
-        #         if i in self.common_col and i!=identifier_mapping['rep_dt'] and i!=identifier_mapping['timestamp']:
-        #             if self.fuel!=None:
-        #                 print("ROW", i, row[i])
-        #                 if row[i]== None or pd.isnull(row[i]) == True:
-        #                     self.common_data[str(i)+"_fuel_file"] = None
-        #                 else:
-        #                     self.common_data[str(i)+"_fuel_file"]=self.is_float(str(row[i]))
-        #                 print("COMMON COLUMN", self.common_data)
-        #             elif self.eng!=None:
-        #                 if row[i] == None or pd.isnull(row[i]) == True:
-        #                     self.common_data[str(i)+"_eng_file"] = None
-        #                 else:
-        #                     self.common_data[str(i)+"_eng_file"]=self.is_float(str(row[i]))
-        #     except:
-        #         continue
-        # print(self.common_data) 
-    
-        # return dest
         for w in data_available_nav:
             try:
                 if w in row:
@@ -457,17 +401,8 @@ class DailyDataExtractor:
                 return floatnum
         else:
             return floatnum
-    
-    # def upload_to_s3(self):
-    #     self.fuel_object_key = self.ship_configs['ship_name'] + ' - ' + str(self.imo) + '/' + self.type_of_data.capitalize() + '/' + "Fuel".capitalize() + '/' + ntpath.basename(self.fuel)
-    #     self.eng_object_key = self.ship_configs['ship_name'] + ' - ' + str(self.imo) + '/' + self.type_of_data.capitalize() + '/' + "Engine".capitalize() + '/' + ntpath.basename(self.eng)
-    #     s3 = boto3.client('s3', aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"), aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"))
-    #     s3.upload_file(self.fuel, Bucket="input-templates", Key=self.fuel_object_key)
-    #     s3.upload_file(self.eng, Bucket="input-templates", Key=self.eng_object_key)
 
-
-
-# obj=DailyDataExtractor(None,doo,9205926,True,False)
-# obj.connect()
-# msg=obj.dailydata_insert()
-# print(msg)
+obj=DailyDataExtractor(None,None,9205926,True,False)
+obj.connect()
+msg=obj.dailydata_insert()
+print(msg)
