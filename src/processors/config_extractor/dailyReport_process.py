@@ -52,7 +52,7 @@ class DailyReportExtractor():
                 'final_rep_dt': 1,
                 '_id': 0
             }
-        ).sort('processed_daily_data.rep_dt.processed', ASCENDING)
+        ).sort('final_rep_dt', ASCENDING)
         res = loads(dumps(res))
 
         for i in res:
@@ -63,14 +63,14 @@ class DailyReportExtractor():
         if self.dateString != '':
             latestResult = self.read_data_for_specific_date(self.dateString)
             latestRes = self.configuration.check_for_nan_and_replace(latestResult)
-            issues = self.configuration.get_category_and_subcategory_with_issues(self.dateString, self.id)
+            issues, issuesCount = self.configuration.get_category_and_subcategory_with_issues(self.dateString, self.id, self.ship_imo)
             charter_party_values, charter_party_prediction_values = self.configuration.get_daily_charter_party_values(dateString=self.dateString)
             compliance_messages = self.configuration.create_dict_of_compliance_messages(dateString=self.dateString)
         else:
             # tempDateList = dateList.reverse()[0]
             latestResult = self.read_data_for_specific_date(dateList[len(dateList) - 1])
             latestRes = self.configuration.check_for_nan_and_replace(latestResult)
-            issues = self.configuration.get_category_and_subcategory_with_issues("", self.id)
+            issues, issuesCount = self.configuration.get_category_and_subcategory_with_issues("", self.id, self.ship_imo)
             charter_party_values, charter_party_prediction_values = self.configuration.get_daily_charter_party_values('')
             compliance_messages = self.configuration.create_dict_of_compliance_messages('')
             
@@ -112,6 +112,7 @@ class DailyReportExtractor():
                 newVesselParticulars[key] = subcategoryDict['Vessel Particulars'][key]
         categoryDictData['VESSEL PARTICULARS'] = [{'Vessel Particulars': newVesselParticulars}]
 
+        # print(categoryDictData)
         listOfVesselParticularKeys = list(newVesselParticulars.keys())
 
         # anomalyList = self.getAnomalyList(categoryDictData)
@@ -120,7 +121,7 @@ class DailyReportExtractor():
         new_category_dict = self.get_corrected_daily_data(categoryDict=categoryDict, categoryDictData=categoryDictData)
         # print(new_category_dict)
         
-        return categoryList, new_category_dict, column_headers, subcategoryDict, dateList, categoryDictData, issues, static_data_for_charter_party, charter_party_values, charter_party_prediction_values, compliance_messages, listOfVesselParticularKeys
+        return categoryList, new_category_dict, column_headers, subcategoryDict, dateList, categoryDictData, issues, static_data_for_charter_party, charter_party_values, charter_party_prediction_values, compliance_messages, listOfVesselParticularKeys, issuesCount
 
 
         # return categoryDict, column_headers, subcategoryDict, dateList, latestRes
