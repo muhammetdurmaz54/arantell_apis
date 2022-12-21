@@ -1,21 +1,21 @@
-# from email.errors import NonPrintableDefect
-# from logging import NOTSET
-# from pickle import TRUE
-# from re import M, T
+from email.errors import NonPrintableDefect
+from logging import NOTSET
+from pickle import TRUE
+from re import M, T
 import sys
 import os
-# from tkinter.messagebox import NO
-# from turtle import pd
+from tkinter.messagebox import NO
+from turtle import pd
 from dotenv import load_dotenv
-# from numpy.core.defchararray import endswith, index
-# from numpy.lib.function_base import median
-# from numpy.lib.npyio import load
-# from numpy.lib.shape_base import dsplit
+from numpy.core.defchararray import endswith, index
+from numpy.lib.function_base import median
+from numpy.lib.npyio import load
+from numpy.lib.shape_base import dsplit
 
 import pandas
-# from pandas.core.algorithms import factorize
-# from pandas.core.frame import DataFrame
-# from pandas.tseries.offsets import Second 
+from pandas.core.algorithms import factorize
+from pandas.core.frame import DataFrame
+from pandas.tseries.offsets import Second 
 sys.path.insert(1,"F:\\Afzal_cs\\Internship\\arantell_apis-main")
 from src.db.setup_mongo import connect_db
 from src.processors.dd_processor.individual_processors import IndividualProcessors
@@ -29,20 +29,20 @@ from src.processors.dd_processor.indices_procesor import Indice_Processing,mewma
 from src.processors.dd_processor.Universal_indice_limits import Universal_indices_limits
 from src.configurations.logging_config import CommonLogger
 from datetime import date, datetime
-# from src.db.schema.main import Main_db
-# from src.db.schema.ship import Ship 
-# from src.db.schema.ddschema import DailyData
+from src.db.schema.main import Main_db
+from src.db.schema.ship import Ship 
+from src.db.schema.ddschema import DailyData
 import numpy as np
 from pymongo import MongoClient
-# import random
+import random
 from src.processors.dd_processor.outlier import CheckOutlier
-# from pymongo import ASCENDING
-# from dateutil.relativedelta import relativedelta
+from pymongo import ASCENDING
+from dateutil.relativedelta import relativedelta
 # import matplotlib.pyplot as plt
 log = CommonLogger(__name__,debug=True).setup_logger()
-# from bson import json_util
+from bson import json_util
 import scipy.stats as st
-# import time
+import time
 
 load_dotenv()
 
@@ -402,9 +402,7 @@ class MainDB():
         # print(main_dict_list[i]['processed_daily_data']['rep_dt'])
         print("lvltwo doneee")
         return main_dict_list
-        
-    def closest(self,lst, K):
-        return lst[min(range(len(lst)), key = lambda i: abs(lst[i]-K))]
+
 
     def vsl_load_conversion(self,main_dict_list):
         dft_low=[]
@@ -440,16 +438,14 @@ class MainDB():
         if len(dft_low)>1 and len(dft_high)>1:
             dft_low_mean=sum(dft_low) / len(dft_low)
             dft_high_mean=sum(dft_high) / len(dft_high)
-            close_dict=[dft_low_mean,dft_high_mean]
             print(main_dict_list['processed_daily_data']['rep_dt']['processed'])
             print("start:",main_dict_list['processed_daily_data']['draft_mean']['processed'])
             print("start:",main_dict_list['processed_daily_data']['vsl_load_bal']['processed'])
             if pandas.isnull(main_dict_list['processed_daily_data']['draft_mean']['processed'])==False:
-                close_val=self.closest(close_dict,main_dict_list['processed_daily_data']['draft_mean']['processed'])
-                if close_val==dft_low_mean:
+                if main_dict_list['processed_daily_data']['draft_mean']['processed'] < dft_low_mean + 0.35*(dft_high_mean-dft_low_mean):
                     main_dict_list['processed_daily_data']['vsl_load_bal']['processed']=0
                     main_dict_list["vessel_loaded_check"]="Ballast"
-                elif close_val==dft_high_mean:
+                elif main_dict_list['processed_daily_data']['draft_mean']['processed'] > dft_low_mean + 0.65*(dft_high_mean-dft_low_mean):
                     main_dict_list['processed_daily_data']['vsl_load_bal']['processed']=1
                     main_dict_list["vessel_loaded_check"]="Loaded"
             print("finish:",main_dict_list['processed_daily_data']['draft_mean']['processed'])
@@ -2214,62 +2210,62 @@ class MainDB():
 
 
 
-# start_time = time.time()
+start_time = time.time()
 
-# # daily_obj=DailyInsert('F:\Afzal_cs\Internship\Arvind data files\RTM FUEL.xlsx','F:\Afzal_cs\Internship\Arvind data files\RTM ENGINE.xlsx',9591301,True)
-# # daily_obj.do_steps()
-# # maindb = database.get_collection("Main_db")
+# daily_obj=DailyInsert('F:\Afzal_cs\Internship\Arvind data files\RTM FUEL.xlsx','F:\Afzal_cs\Internship\Arvind data files\RTM ENGINE.xlsx',9591301,True)
+# daily_obj.do_steps()
+# maindb = database.get_collection("Main_db")
 
-# # maindb.delete_many({"ship_imo": 9591301,"processed_daily_data.rep_dt.processed":datetime(2017,1,1,12)})
-# obj=MainDB(9591301,None,datetime.strptime('14/12/16 12:00:00','%d/%m/%y %H:%M:%S'))
-# obj.get_ship_configs()
-# # obj.get_main_db(0)
-# first_maindict=obj.ad_all()
-# # #initialize maindb with handwritten formulas draftmean=(dft_aft+dt_fwd)/2 (dailydata)
-# calc_i_cp_main_dict=obj.add_calc_i_cp(first_maindict)
-# # #adding calc _i _cp variable values in respective identifier example:speed_sog_calc=speed_sog{speed_sog_calc:value}
-# equipment_values_main_dict=obj.equipment_values(calc_i_cp_main_dict)
-# # #updating equipment values 0 or 1 here
-# lvl_two_main_dict=obj.maindb_lvl_two(equipment_values_main_dict)
-# # #same as ad_all (gets the value from maindb)
-# # #initial population done (remove date condition on find  before uploading in aws)
-# base_dataframe_one=obj.create_base_dataframe(lvl_two_main_dict)
-# # # creates dataframe of all identifiers (currently all good vayage true)
-# outlier_main_dict=obj.update_outlier_maindb_alldoc(lvl_two_main_dict)
-# # #outlier (both outlier 1 and 2 inside this) and (remove date condition on find  before uploading in aws)
-# good_voyage_main_dict=obj.update_good_voyage(outlier_main_dict)
-# # #good voyage tag created here essential for predictions process
-# # base_dataframe_two=obj.create_base_dataframe(good_voyage_main_dict)    #not needed in dailydata processing bcz it is added for historical process(two phase creating dataframe once when good data voyage was not called and one after called)
-# # #call again bcz after running good voyage function now good voyage values will be false in some rows so good data for prediction will be selected now
-# preds_main_dict=obj.update_maindb_predictions_alldoc(good_voyage_main_dict)
-# # #predictions, spe, t2, ewma, cumsum all done here (remove date condition on find  before uploading in aws)
-# main_fuel_spe=obj.update_main_fuel_spe(preds_main_dict)
+# maindb.delete_many({"ship_imo": 9591301,"processed_daily_data.rep_dt.processed":datetime(2017,1,1,12)})
+obj=MainDB(9592301,2400,datetime.strptime('04-08-2022 12:00:00','%d-%m-%Y %H:%M:%S'))
+obj.get_ship_configs()
+# obj.get_main_db(0)
+first_maindict=obj.ad_all()
+# #initialize maindb with handwritten formulas draftmean=(dft_aft+dt_fwd)/2 (dailydata)
+calc_i_cp_main_dict=obj.add_calc_i_cp(first_maindict)
+# #adding calc _i _cp variable values in respective identifier example:speed_sog_calc=speed_sog{speed_sog_calc:value}
+equipment_values_main_dict=obj.equipment_values(calc_i_cp_main_dict)
+# #updating equipment values 0 or 1 here
+lvl_two_main_dict=obj.maindb_lvl_two(equipment_values_main_dict)
+# #same as ad_all (gets the value from maindb)
+# #initial population done (remove date condition on find  before uploading in aws)
+base_dataframe_one=obj.create_base_dataframe(lvl_two_main_dict)
+# # creates dataframe of all identifiers (currently all good vayage true)
+outlier_main_dict=obj.update_outlier_maindb_alldoc(base_dataframe_one)
+# #outlier (both outlier 1 and 2 inside this) and (remove date condition on find  before uploading in aws)
+good_voyage_main_dict=obj.update_good_voyage(outlier_main_dict)
+# #good voyage tag created here essential for predictions process
+# base_dataframe_two=obj.create_base_dataframe(good_voyage_main_dict)    #not needed in dailydata processing bcz it is added for historical process(two phase creating dataframe once when good data voyage was not called and one after called)
+# #call again bcz after running good voyage function now good voyage values will be false in some rows so good data for prediction will be selected now
+preds_main_dict=obj.update_maindb_predictions_alldoc(good_voyage_main_dict)
+# #predictions, spe, t2, ewma, cumsum all done here (remove date condition on find  before uploading in aws)
+main_fuel_spe=obj.update_main_fuel_spe(preds_main_dict)
 
-# sfoc_spe=obj.update_sfoc_spe(main_fuel_spe)
+sfoc_spe=obj.update_sfoc_spe(main_fuel_spe)
 
-# avg_hfo_spe=obj.update_avg_hfo_spe(sfoc_spe)
+avg_hfo_spe=obj.update_avg_hfo_spe(sfoc_spe)
 
 
-# indices_preds_main_dict=obj.update_indices(avg_hfo_spe)
-# # #creating indices as well as prediction, spe, t2, mewma, mcumsum, all done here
+indices_preds_main_dict=obj.update_indices(avg_hfo_spe)
+# #creating indices as well as prediction, spe, t2, mewma, mcumsum, all done here
 
-# uni_limit=obj.universal_limit(indices_preds_main_dict)
-# uni_indice_limit=obj.universal_indices_limits(uni_limit)
-# ewma_limit=obj.ewma_limits(uni_indice_limit)
-# indice_ewma=obj.indice_ewma_limit(ewma_limit)
+uni_limit=obj.universal_limit(indices_preds_main_dict)
+uni_indice_limit=obj.universal_indices_limits(uni_limit)
+ewma_limit=obj.ewma_limits(uni_indice_limit)
+indice_ewma=obj.indice_ewma_limit(ewma_limit)
 
-# # main_fuel_main_dict=obj.update_main_fuel(indices_preds_main_dict)
-# # #backcalculationg main fuel by given furlmula (all values which are created in predictions processe will be backcalculated with same formula)
-# # sfoc_main_dict=obj.update_sfoc(main_fuel_main_dict)
-# # # #backcalculating 
-# # avg_hfo_main_dict=obj.update_avg_hfo(sfoc_main_dict)
-# # # #Backcalculating
-# cp_msg_main_dict=obj.update_cp_msg(indice_ewma)
-# final_main_dict=obj.anamolies_by_config(cp_msg_main_dict)
-# create_maindb_update_shipconfig=obj.final_maindb_config(final_main_dict)
+# main_fuel_main_dict=obj.update_main_fuel(indices_preds_main_dict)
+# #backcalculationg main fuel by given furlmula (all values which are created in predictions processe will be backcalculated with same formula)
+# sfoc_main_dict=obj.update_sfoc(main_fuel_main_dict)
+# # #backcalculating 
+# avg_hfo_main_dict=obj.update_avg_hfo(sfoc_main_dict)
+# # #Backcalculating
+cp_msg_main_dict=obj.update_cp_msg(indice_ewma)
+final_main_dict=obj.anamolies_by_config(cp_msg_main_dict)
+create_maindb_update_shipconfig=obj.final_maindb_config(final_main_dict)
 
-# #temporarily added for checking spe and ewma using a diferent dataframe and formula
-# # done till here  
+#temporarily added for checking spe and ewma using a diferent dataframe and formula
+# done till here  
 
-# end_time=time.time()
-# print(end_time-start_time)
+end_time=time.time()
+print(end_time-start_time)
