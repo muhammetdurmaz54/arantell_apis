@@ -1,5 +1,5 @@
 from __future__ import division
-from numpy import testing
+from numpy import outer, testing
 
 from numpy.core.fromnumeric import reshape, var
 from numpy.core.function_base import linspace
@@ -99,7 +99,7 @@ class UpdateIndividualProcessors():
         temp_dict={}
         for i in range(len(temp_list)):
             temp_list_2=[]
-            for j in range(0,len(temp_list[i])):    
+            for j in range(0,len(temp_list[i])):
                 try:
                     temp_list_2.append(temp_list[i][j]['processed_daily_data'][dependent_variables[i]]['processed'])
                 except:
@@ -164,26 +164,86 @@ class UpdateIndividualProcessors():
        
 
 
-  
-    
+    def z_score_data(self,new_data,identifier):
+        mean_val=np.mean(new_data[identifier])
+        standdev=np.std(new_data[identifier])
+        zsc_list=[]
+        try:
+            z_score=st.zscore(new_data[identifier])
+            new_data['z_score']=z_score
+        except:
+            for rowval in new_data[identifier]:
+                zsc=(rowval-mean_val)/standdev
+                zsc_list.append(zsc)
+            new_data['z_score']=zsc_list
+        new_data= new_data.drop(index=new_data[new_data['z_score'] > 2].index)
+        new_data= new_data.drop(index=new_data[new_data['z_score'] < -2].index)
+        new_data=new_data.reset_index(drop=True)
+        new_data=new_data.drop(columns='z_score')
+        new_data=new_data.reset_index(drop=True)
+        return new_data
 
-
-
-
+    def checkspe_limit(self,spe_data):
+        mean_val=np.mean(spe_data['spe'])
+        var_sped=np.var(spe_data['spe'])
+        spe_h_val=2*(mean_val**2)/(var_sped)
+        spe_g_val=(var_sped)/(2*(mean_val))
+        chi_val=st.chi2.ppf(1-0.05, spe_h_val)
+        spe_limit_g_val=spe_g_val*chi_val
+        spe_data.drop(spe_data.tail(1).index,inplace = True)
+        new_spe_data= spe_data.drop(index=spe_data[spe_data['spe'] > spe_limit_g_val].index)
+        return new_spe_data.index
 
     def prediction(self,dataframe,currdate,month,lastyear,identifier,main_data_dict):
         if month is not None:
             new_date=currdate-relativedelta(months=month)
             new_data=dataframe.loc[(dataframe['rep_dt'] >= new_date) & (dataframe['rep_dt'] < currdate)]
+            # print(new_data)
+            # print(currdate)
+            length_dataframe=len(new_data)
+            # print(length_dataframe)
             curr_data=dataframe.loc[(dataframe['rep_dt'] == currdate)]
+            # print(curr_data)
+            if length_dataframe!=50 and length_dataframe<50:
+                try:
+                    index_number=curr_data.index
+                    print("inside index part",index_number)
+                    if index_number>50:
+                        new_data=dataframe.loc[(dataframe.index<index_number[0])&(dataframe.index>=index_number[0]-51)]
+                        # print("newwww_dataaggin",new_data)
+                    else:
+                        new_data=new_data
+                except:
+                    new_data=new_data
+                
+            # curr_data=dataframe.loc[(dataframe['rep_dt'] == currdate)]
         if lastyear is not None:
             newyeardate=currdate-relativedelta(months=12)
             new_date=newyeardate-relativedelta(months=lastyear)
             new_data=dataframe.loc[(dataframe['rep_dt'] >= new_date) & (dataframe['rep_dt'] < newyeardate)]
+            # print(new_data)
+            # print(currdate)
+            length_dataframe=len(new_data)
+            # print(length_dataframe)
+            
+            if length_dataframe!=50 and length_dataframe<50:
+                try:
+                    previousyear_curr_data=dataframe.loc[(dataframe['rep_dt'] == newyeardate)]
+                    index_number=previousyear_curr_data.index
+                    print(index_number)
+                    if index_number>50:
+                        new_data=dataframe.loc[(dataframe.index<index_number[0])&(dataframe.index>=index_number[0]-51)]
+                    else:
+                        new_data=new_data
+                except:
+                    new_data=new_data
+
             curr_data=dataframe.loc[(dataframe['rep_dt'] == currdate)]
         new_data=new_data.reset_index(drop=True)
         length_dataframe=len(new_data)
-        if length_dataframe>25:
+        print(length_dataframe)
+
+        if length_dataframe>=50:
             if 'rep_dt' in new_data.columns:
                 new_data=new_data.drop(columns='rep_dt')
             for column in new_data:
@@ -207,34 +267,82 @@ class UpdateIndividualProcessors():
                 if pandas.isnull(new_data[col]).all():
                     new_data=new_data.drop(columns=col)
                 
-
             new_data=new_data.dropna()
             new_data=new_data.reset_index(drop=True)
+            # outer_new_data=new_data.copy(deep=True)
+            # print(new_data)
+            # print(curr_data)
+            pred_list,spe,t2_initial,ewma,cumsum_val,new_spe_data,clean_new_data=self.prediction_data(new_data,curr_data,identifier,main_data_dict,"first")
+            # print(clean_new_data)
+            # print(pred_list)
+            if new_spe_data is not None and clean_new_data is not None:
+                if len(new_spe_data)==len(clean_new_data):
+                    # print(clean_new_data)
+                    return pred_list,spe,t2_initial,length_dataframe,ewma,cumsum_val
+                else:
+                    # print(new_spe_data)
+                    clean_new_data=clean_new_data.iloc[new_spe_data]
+                    clean_new_data=clean_new_data.reset_index(drop=True)
+                    pred_list,spe,t2_initial,ewma,cumsum_val,new_spe_data,clean_new_data=self.prediction_data(clean_new_data,curr_data,identifier,main_data_dict,"second")
+                    # print(pred_list)
+                    return pred_list,spe,t2_initial,length_dataframe,ewma,cumsum_val
+            # exit()
+            else:
+                pred_list=None
+                spe=None
+                # crit_data=None
+                # crit_val_dynamic=None
+                t2_initial=None
+                # t2_final=None
+                # spe_limit_array=None
+                # spe_anamoly=None
+                # spe_y_limit_array=None
+                # t2_anamoly=None
+                ewma=None
+                cumsum_val=None
+                # ewma_ucl=None
+                # print(pred_list,spe,crit_data,crit_val_dynamic,t2_initial,t2_final,spe_limit_array)
+                # return pred_list,spe,crit_data,crit_val_dynamic,t2_initial,t2_final,spe_limit_array,spe_anamoly,spe_y_limit_array,t2_anamoly,length_dataframe,ewma,cumsum_val,ewma_ucl
+                return pred_list,spe,t2_initial,length_dataframe,ewma,cumsum_val
+        else:
+            pred_list=None
+            spe=None
+            # crit_data=None
+            # crit_val_dynamic=None
+            t2_initial=None
+            # t2_final=None
+            # spe_limit_array=None
+            # spe_anamoly=None
+            # spe_y_limit_array=None
+            # t2_anamoly=None
+            ewma=None
+            cumsum_val=None
+            # ewma_ucl=None
+            # print(pred_list,spe,crit_data,crit_val_dynamic,t2_initial,t2_final,spe_limit_array)
+            # return pred_list,spe,crit_data,crit_val_dynamic,t2_initial,t2_final,spe_limit_array,spe_anamoly,spe_y_limit_array,t2_anamoly,length_dataframe,ewma,cumsum_val,ewma_ucl
+            return pred_list,spe,t2_initial,length_dataframe,ewma,cumsum_val
 
-            if len(new_data)>=5 and len(new_data.columns)>=2 and identifier in new_data.columns and (new_data[identifier] == 0).all()==False:
+    def prediction_data(self,new_data,curr_data,identifier,main_data_dict,first_iter):
+            if len(new_data)>=45 and len(new_data.columns)>=2 and identifier in new_data.columns and (new_data[identifier] == 0).all()==False:
                 x=[]
                 y=identifier
                 for col in new_data.columns:
                     x.append(col)
                 x.remove(y)
                 # print(new_data[identifier])
-                mean_val=np.mean(new_data[identifier])
-                standdev=np.std(new_data[identifier])
-                zsc_list=[]
-                try:
-                    z_score=st.zscore(new_data[identifier])
-                    new_data['z_score']=z_score
-                except:
-                    for rowval in new_data[identifier]:
-                        zsc=(rowval-mean_val)/standdev
-                        zsc_list.append(zsc)
-                    new_data['z_score']=zsc_list
-                new_data= new_data.drop(index=new_data[new_data['z_score'] > 2].index)
-                new_data= new_data.drop(index=new_data[new_data['z_score'] < -2].index)
-                new_data=new_data.reset_index(drop=True)
-                new_data=new_data.drop(columns='z_score')
-                new_data=new_data.reset_index(drop=True)
+                # print(new_data)
+                if first_iter=="first":
+                    new_data=self.z_score_data(new_data,identifier)
+                    # print(new_data)
+                    new_data=self.z_score_data(new_data,identifier)
+                    # print("z_scoreeeeeeeeeee",new_data)
+                    # exit()
+
+
+
+                data_today_temp=new_data.copy(deep=True)
                 data_today=new_data
+                # print("data Todayyyyyyy",data_today)
                 if len(curr_data) == 1:
                     data_today=data_today.append(curr_data[new_data.columns])
                     data_today=data_today.reset_index(drop=True)
@@ -382,10 +490,11 @@ class UpdateIndividualProcessors():
                     # print(spe)
                     spe_dataframe=pd.DataFrame({})
                     spe_dataframe['spe']=(pred['Pred']-Y_test[y])**2
-                    
-                    spe_dataframe = spe_dataframe.head(spe_dataframe.shape[0] - 1)
                     # print(spe_dataframe)
-                    
+                    spe_dataframe = spe_dataframe.head(spe_dataframe.shape[0] - 1)
+                    spe_dataframe.loc[len(spe_dataframe)]=spe
+                    new_spe_data=self.checkspe_limit(spe_dataframe)
+                    new_spe_data=new_spe_data.tolist()
                     # var_sped=np.var(spe_dataframe['spe'])
                     # mean_var=np.mean(spe_dataframe['spe'])
                     mewma_alpha=[]
@@ -510,7 +619,7 @@ class UpdateIndividualProcessors():
                     # spe_limit_array=None
                     # print(spe,t2_initial)
                     # return  pred_list,spe,crit_data,crit_val_dynamic,t2_initial,t2_final,spe_limit_array,spe_anamoly,spe_y_limit_array,t2_anamoly,length_dataframe,ewma,cumsum_val,ewma_ucl
-                    return pred_list,spe,t2_initial,length_dataframe,ewma,cumsum_val
+                    return pred_list,spe,t2_initial,ewma,cumsum_val,new_spe_data,data_today_temp
 
 
                     # pls_dataframe=pls_dataframe.drop(index=pls_dataframe[pls_dataframe['t_2'] > t_2limit].index)
@@ -617,10 +726,12 @@ class UpdateIndividualProcessors():
                     # t2_anamoly=None
                     ewma=None
                     cumsum_val=None
+                    new_spe_data=None
+                    data_today_temp=None
                     # ewma_ucl=None
                     # print(pred_list,spe,crit_data,crit_val_dynamic,t2_initial,t2_final,spe_limit_array)
                     # return pred_list,spe,crit_data,crit_val_dynamic,t2_initial,t2_final,spe_limit_array,spe_anamoly,spe_y_limit_array,t2_anamoly,length_dataframe,ewma,cumsum_val,ewma_ucl
-                    return pred_list,spe,t2_initial,length_dataframe,ewma,cumsum_val
+                    return pred_list,spe,t2_initial,ewma,cumsum_val,new_spe_data,data_today_temp
 
             else:
                 pred_list=None
@@ -635,28 +746,30 @@ class UpdateIndividualProcessors():
                 # t2_anamoly=None
                 ewma=None
                 cumsum_val=None
+                new_spe_data=None
+                data_today_temp=None
                 # ewma_ucl=None
                 # print(pred_list,spe,crit_data,crit_val_dynamic,t2_initial,t2_final,spe_limit_array)
                     # return pred_list,spe,crit_data,crit_val_dynamic,t2_initial,t2_final,spe_limit_array,spe_anamoly,spe_y_limit_array,t2_anamoly,length_dataframe,ewma,cumsum_val,ewma_ucl
-                return pred_list,spe,t2_initial,length_dataframe,ewma,cumsum_val
+                return pred_list,spe,t2_initial,ewma,cumsum_val,new_spe_data,data_today_temp
 
-        else:
-            pred_list=None
-            spe=None
-            # crit_data=None
-            # crit_val_dynamic=None
-            t2_initial=None
-            # t2_final=None
-            # spe_limit_array=None
-            # spe_anamoly=None
-            # spe_y_limit_array=None
-            # t2_anamoly=None
-            ewma=None
-            cumsum_val=None
-            # ewma_ucl=None
-            # print(pred_list,spe,crit_data,crit_val_dynamic,t2_initial,t2_final,spe_limit_array)
-            # return pred_list,spe,crit_data,crit_val_dynamic,t2_initial,t2_final,spe_limit_array,spe_anamoly,spe_y_limit_array,t2_anamoly,length_dataframe,ewma,cumsum_val,ewma_ucl
-            return pred_list,spe,t2_initial,length_dataframe,ewma,cumsum_val
+        # else:
+        #     pred_list=None
+        #     spe=None
+        #     # crit_data=None
+        #     # crit_val_dynamic=None
+        #     t2_initial=None
+        #     # t2_final=None
+        #     # spe_limit_array=None
+        #     # spe_anamoly=None
+        #     # spe_y_limit_array=None
+        #     # t2_anamoly=None
+        #     ewma=None
+        #     cumsum_val=None
+        #     # ewma_ucl=None
+        #     # print(pred_list,spe,crit_data,crit_val_dynamic,t2_initial,t2_final,spe_limit_array)
+        #     # return pred_list,spe,crit_data,crit_val_dynamic,t2_initial,t2_final,spe_limit_array,spe_anamoly,spe_y_limit_array,t2_anamoly,length_dataframe,ewma,cumsum_val,ewma_ucl
+        #     return pred_list,spe,t2_initial,length_dataframe,ewma,cumsum_val
 
     def base_prediction_processor(self,dataframe,currdate,identifier,main_data_dict):
         pred={}
