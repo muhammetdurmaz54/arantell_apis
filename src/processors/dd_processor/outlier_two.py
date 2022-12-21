@@ -66,6 +66,7 @@ class OutlierTwo():
             curr_data=dataframe.loc[(dataframe['rep_dt'] == current_date)]
         new_data=new_data.append(curr_data)
         new_data=new_data.reset_index(drop=True)
+        # print(no_months,last_year_months,new_data)
 
         return new_data
 
