@@ -77,7 +77,7 @@ class ConfigExtractor():
         a = self.df_groups.columns.get_level_values(0).to_series()
         b = a.mask(a.str.startswith('Unnamed')).ffill().fillna('')
         self.df_groups.columns = [b, self.df_groups.columns.get_level_values(1)]
-        self.grpdict = pd.read_excel(self.file, sheet_name="GrpDir", skiprows=[0])
+        self.grpdict = pd.read_excel(self.file, sheet_name="GrpDir",skiprows=[0])
         # self.mlcontrol=pd.read_excel(self.file, sheet_name='MLcontrol',skiprows = [0, 1, 2], engine='openpyxl')
         self.mlcontrol=self.df_variables.loc[:,'ML_control_begin':'ML_control_end']
         self.anamoly_messages=pd.read_excel(self.file, sheet_name='AnamolyMessages')
@@ -566,7 +566,7 @@ class ConfigExtractor():
         
         
 
-obj=ConfigExtractor(9205926,'F:\Afzal_cs\Internship\Configurator_9205926.xlsx',True)
+obj=ConfigExtractor(9595917,'F:\Afzal_cs\Internship\Configurator_9595917.xlsx',True)
 # obj.connect()
 # obj.read_files()
 # obj.anamoly()
