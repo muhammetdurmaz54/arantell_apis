@@ -31,6 +31,10 @@ class InteractiveExtractor():
         self.configuration = Configurator(self.ship_imo)
         self.ship_configs = self.configuration.get_ship_configs()
         self.main_db = self.configuration.get_main_data()
+        short_names = self.configuration.create_short_names_dictionary()
+        other_dict={}
+        for key in self.other_X.keys():
+            other_dict[short_names[key]] = self.other_X[key]
         result={}
         if self.Z is not None:
             if self.typeofinput == 'input':
@@ -48,10 +52,10 @@ class InteractiveExtractor():
                         'y': actual_Y_list,
                         'z': actual_Z_list
                     }
-                    return X_name, Y_name, Z_name, result
+                    return X_name, Y_name, Z_name, result, other_dict
                 except ValueError:
                     result = self.configuration.create_surface_data(self.X, self.Y, self.duration, self.Z, self.load, **self.other_X)
-                    return result
+                    return result, other_dict
                 # result['Prediction'] = {
                 #     'x': X1,
                 #     'y': Y1,
@@ -90,7 +94,7 @@ class InteractiveExtractor():
                         'y': Y_list,
                         'z': Z_list
                     }
-                    return X_name, Y_name, Z_name, result
+                    return X_name, Y_name, Z_name, result, other_dict
         else:
             empty_x_constant_list = []
             dataframe, X_name, Y_name, X_list, Y_list = self.configuration.create_dataframe(self.X, self.Y, self.duration, self.load, **self.other_X)
@@ -120,4 +124,4 @@ class InteractiveExtractor():
                     'x': X_list,
                     'y': Y_list
                 }
-                return X_name, Y_name, result
+                return X_name, Y_name, result, other_dict
