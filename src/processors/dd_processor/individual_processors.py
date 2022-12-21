@@ -330,7 +330,7 @@ class IndividualProcessors():
     def w_dir_processor(self,base_dict):
         try:
             base_dict=base_dict
-            base_dict['reported']=self.to_degree(self.daily_data['data']['w_dir'].strip())
+            # base_dict['reported']=self.to_degree(self.daily_data['data']['w_dir'].strip())
             base_dict['processed']=base_dict['reported']
             base_dict['is_read']=True
             base_dict['is_processed']=False
@@ -627,8 +627,8 @@ class IndividualProcessors():
 
     def w_dir_deg_processor(self,base_dict):
         base_dict=base_dict
-        base_dict['reported'] = self.to_degree(self.daily_data['data']['w_dir_deg'].strip())
-        base_dict['processed'] = base_dict['reported'] 
+        base_dict['reported'] = self.to_degree(self.daily_data['data']['w_dir'].strip())
+        base_dict['processed'] = base_dict['reported']
         base_dict['is_read']=True
         base_dict['is_processed']=False
         return base_dict
