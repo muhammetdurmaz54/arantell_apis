@@ -56,18 +56,18 @@ class TrendsExtractor():
         if 'Multi Axis' not in self.group:
             if self.include_outliers == 'true':
                 if 'Lastyear' in self.duration:
-                    a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t = self.process_data()
-                    return a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t
+                    a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, q = self.process_data()
+                    return a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, q
                 else:
-                    a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q = self.process_data()
-                    return a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q
+                    a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r = self.process_data()
+                    return a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r
             else:
                 if 'Lastyear' in self.duration:
-                    a, b, c, d, e, g, h, i, j, k, l, m, n, o, p, q, r, s = self.process_data()
-                    return a, b, c, d, e, g, h, i, j, k, l, m, n, o, p, q, r, s
+                    a, b, c, d, e, g, h, i, j, k, l, m, n, o, p, q, r, s, t = self.process_data()
+                    return a, b, c, d, e, g, h, i, j, k, l, m, n, o, p, q, r, s, t
                 else:
-                    a, b, c, d, e, g, h, i, j, k, l, m, n, o, p = self.process_data()
-                    return a, b, c, d, e, g, h, i, j, k, l, m, n, o, p
+                    a, b, c, d, e, g, h, i, j, k, l, m, n, o, p, q = self.process_data()
+                    return a, b, c, d, e, g, h, i, j, k, l, m, n, o, p, q
         if 'Multi Axis' in self.group:
             a, b, c, d, e, f, g, h, i, j, k, l = self.process_data()
             return a, b, c, d, e, f, g, h, i, j, k, l
@@ -241,10 +241,11 @@ class TrendsExtractor():
         ewma_number_dict = {}
         spe_messages_dict = {}
         outlier_messages_dict = {}
-        new_duration = durationActual.replace('ly_','') if 'ly_' in durationActual else durationActual # Remove when Last year duration added in DB.
+        # new_duration = durationActual.replace('ly_','') if 'ly_' in durationActual else durationActual # Remove when Last year duration added in DB.
+        new_duration = durationActual
         loaded_ballast_list = self.configuration.get_shapes_for_loaded_ballast_data(self.noonorlogs)
         # dict_of_issues, issuesCount = self.configuration.create_dict_of_issues('')
-        dict_of_issues = {}
+        # dict_of_issues = {}
         if('Multi Axis' in self.group):
             ''' TEMPORARY PURPOSES'''
             number_of_the_unit = self.group.replace('Multi Axis - Unit ', '')
@@ -332,7 +333,7 @@ class TrendsExtractor():
             
             chart_height = self.get_chart_height(new_group)
             variables_list = self.configuration.get_variables_list_in_order_of_blocks(new_group)
-            return datadict, expecteddict, lowerdict, upperdict, new_short_names_list, loaded_ballast_list, fuel_consumption, new_group, chart_height, dict_of_issues, variables_list
+            return datadict, expecteddict, lowerdict, upperdict, new_short_names_list, loaded_ballast_list, fuel_consumption, new_group, chart_height, variables_list
         else:
             print("START DICT AND LIST ACC TO GROUPS")
             if self.group == "" and self.individual_params != "":
@@ -457,7 +458,7 @@ class TrendsExtractor():
                         print("TEMP SPE", temp_spe)
                         spe_number_dict[name] = temp_spe[0]['spe_limits'][name][durationActual]['zero_zero_five']
                         t2_number_dict[name] = temp_spe[0]['t2_limits'][name]['zero_two']
-                        ewma_number_dict[name] = temp_spe[0]['ewma_limits'][name][durationActual][2]
+                        ewma_number_dict[name] = temp_spe[0]['ewma_limits'][name][durationActual][2][2]
                     except KeyError:
                         continue
                     except TypeError:
@@ -2343,6 +2344,18 @@ class TrendsExtractor():
                 except KeyError:
                     continue          
             print("END LIST")
+            # processed_values = pd.DataFrame(datadict)
+            # processed_values.to_csv("Processed_Values.csv")
+            # expected_values = pd.DataFrame(expecteddict)
+            # expected_values.to_csv("Expected_Values.csv")
+            # spe_values = pd.DataFrame(spedict)
+            # spe_values.to_csv("SPE_Values.csv")
+            # ewma_values = pd.DataFrame(ewmadict)
+            # ewma_values.to_csv("EWMA_Values.csv")
+            # t2_values = pd.DataFrame(t2dict)
+            # t2_values.to_csv("T2_Values.csv")
+            # outlier_values = pd.DataFrame(outlierdict)
+            # outlier_values.to_csv("Outlier_Values.csv")
             # newgroup = self.configuration.get_corrected_group_selection(datadict, group, spe=False)
             print("START SPE")
             newgroup_spe = self.configuration.get_group_selection_including_spe(groups, datadict, spedict)
@@ -2351,21 +2364,23 @@ class TrendsExtractor():
             corrected_group = self.configuration.get_corrected_group_selection(newgroup_spe)
             self.corrected = corrected_group
             subgroup_dict_new = self.configuration.get_subgroup_names_for_custom_groups(subgroup_dict, "", corrected_group) if len(self.individual_params) > 1 else subgroup_dict
+            weather_data = self.get_weather_parameters()
+            short_names = self.short_names_for_weather_params(list(weather_data.keys()))
             print("END CORRECTED GRP")
             
             if self.include_outliers == 'true':
                 if 'ly_' in durationActual:
-                    return corrected_group, datadict, expecteddict, lowerdict, upperdict, lyexpecteddict, lylowerdict, lyupperdict, outlierdict, loaded_ballast_list, spedict, spelimitdict, t2dict, t2limitdict, ewmadict, ewmalimitdict, dict_of_issues, spe_messages_dict, subgroup_dict_new, outlier_messages_dict
+                    return corrected_group, datadict, expecteddict, lowerdict, upperdict, lyexpecteddict, lylowerdict, lyupperdict, outlierdict, loaded_ballast_list, spedict, spelimitdict, t2dict, t2limitdict, ewmadict, ewmalimitdict, spe_messages_dict, subgroup_dict_new, outlier_messages_dict, weather_data, short_names
                 else:
-                    return corrected_group, datadict, expecteddict, lowerdict, upperdict, outlierdict, loaded_ballast_list, spedict, spelimitdict, t2dict, t2limitdict, ewmadict, ewmalimitdict, dict_of_issues, spe_messages_dict, subgroup_dict_new, outlier_messages_dict
+                    return corrected_group, datadict, expecteddict, lowerdict, upperdict, outlierdict, loaded_ballast_list, spedict, spelimitdict, t2dict, t2limitdict, ewmadict, ewmalimitdict, spe_messages_dict, subgroup_dict_new, outlier_messages_dict, weather_data, short_names
             else:
                 if 'ly_' in durationActual:
-                    return corrected_group, datadict, expecteddict, lowerdict, upperdict, lyexpecteddict, lylowerdict, lyupperdict, loaded_ballast_list, spedict, spelimitdict, t2dict, t2limitdict, ewmadict, ewmalimitdict, dict_of_issues, spe_messages_dict, subgroup_dict_new
+                    return corrected_group, datadict, expecteddict, lowerdict, upperdict, lyexpecteddict, lylowerdict, lyupperdict, loaded_ballast_list, spedict, spelimitdict, t2dict, t2limitdict, ewmadict, ewmalimitdict, spe_messages_dict, subgroup_dict_new, weather_data, short_names
                 else:
-                    return corrected_group, datadict, expecteddict, lowerdict, upperdict, loaded_ballast_list, spedict, spelimitdict, t2dict, t2limitdict, ewmadict, ewmalimitdict, dict_of_issues, spe_messages_dict, subgroup_dict_new
+                    return corrected_group, datadict, expecteddict, lowerdict, upperdict, loaded_ballast_list, spedict, spelimitdict, t2dict, t2limitdict, ewmadict, ewmalimitdict, spe_messages_dict, subgroup_dict_new, weather_data, short_names
     
     def process_fuel_consumption(self):
-        ''' Returns the dictionary of all the variables for Fuel Consumption sorted by date(rep_dt)'''
+        ''' Returns the dictionary of all the variables for Fuel Consumption sorted by date(final_rep_dt)'''
         fuelSelection = self.configuration.get_selection_for_fuel_consumption()
         durationActual = self.configuration.create_current_duration(self.duration)
         charter_party_static_data = self.configuration.get_static_data_for_charter_party()
@@ -2491,12 +2506,43 @@ class TrendsExtractor():
 
         
         return fuelresList
+    
+    def get_weather_parameters(self):
+        '''
+            Gets weather data
+        '''
+
+        weather_parameters = ['sea_st', 'w_force', 'w_dir_rel', 'curknots', 'swelldir', 'current_dir_rel']
+        weather_data = {}
+
+        for param in weather_parameters:
+            tempList=[]
+            for doc in self.main_db.find({'ship_imo': self.ship_imo}, {"processed_daily_data."+param: 1}).sort('final_rep_dt', ASCENDING):
+                try:
+                    tempList.append(self.configuration.makeDecimal(doc['processed_daily_data'][param]['processed']))
+                except TypeError:
+                    tempList.append(None)
+            weather_data[param] = tempList
+        
+        return weather_data
 
     # print("START GENERIC GROUP SELECTION")
     # def get_generic_group_list(self):
     #     groupList = self.configuration.get_generic_group_selection()
     #     return groupList
     # print("END GENERIC GROUP SELECTION")
+
+    def short_names_for_weather_params(self, params):
+        '''
+            Get Short Names for weather parameters
+        '''
+        all_short_names = self.configuration.create_short_names_dictionary()
+        short_names = {}
+
+        for param in params:
+            short_names[param] = all_short_names[param]
+        
+        return short_names
 
     def get_groups_selection_for_table_component(self):
         # self.configuration = Configurator(self.ship_imo)
