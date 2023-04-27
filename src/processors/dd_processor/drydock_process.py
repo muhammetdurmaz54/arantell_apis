@@ -46,6 +46,8 @@ class LRPI:
 
     def predict(self, X_test):
         self.X_test = pandas.DataFrame(X_test)
+        # print(self.X_test)
+        # self.X_test.to_csv("test_.csv")
         self.pred = self.LR.predict(self.X_test)
         self.X_test.loc[: , 'const_one'] =1
         SE = [np.dot(np.transpose(self.X_test.values[i]) , np.dot(self.XTX_inv, self.X_test.values[i]) ) for i in range(len(self.X_test))]
@@ -157,14 +159,44 @@ def z_score_data(new_data,identifier):
         new_data=new_data.reset_index(drop=True)
     return new_data
 
-def avg_columns(data):
+def avg_columns(data,eval_data):
     avg_w_force=data["w_force"].mean()
     avg_w_dir_rel=data["w_dir_rel"].mean()
     avg_swell_dir_rel=data["swell_dir_rel"].mean()
-    data["w_force"]=avg_w_force
-    data["w_dir_rel"]=avg_w_dir_rel
-    data["swell_dir_rel"]=avg_swell_dir_rel
-    return data
+    eval_data["w_force"]=avg_w_force
+    eval_data["w_dir_rel"]=avg_w_dir_rel
+    eval_data["swell_dir_rel"]=avg_swell_dir_rel
+    return data,eval_data
+
+def t2_check(dataframe,x,y):
+    pls_t2_list=['plsscore1','plsscore2','plsscore3','plsscore4']
+    pls_reg_2=PLSRegression(n_components=len(x))
+    pls_reg_2.fit(dataframe[x],dataframe[y])
+    pls_col=[]
+    # print(pls_reg_2.y_scores_)
+    for i in range(1,len(x)+1):
+        pls_col.append("plsscore"+str(i))
+    pls_dataframe = pandas.DataFrame(data = pls_reg_2.x_scores_, columns =pls_col)
+    dis_listnew=[]
+    for i in range(0,len(pls_dataframe[pls_t2_list])):
+        data=np.array(pls_dataframe[pls_t2_list])
+        X_feat=np.array(pls_dataframe[pls_t2_list].iloc[[i]])
+        mean=np.mean(data,axis=0)
+        X_feat_mean=X_feat-mean
+        data=np.transpose(data)
+        data=data.astype(float)
+        cov=np.cov(data,bias=False)
+        inv_cov=np.linalg.pinv(cov)
+        tem1=np.dot(X_feat_mean,inv_cov)
+        temp2=np.dot(tem1,np.transpose(X_feat_mean))
+        m_dis=np.sqrt(temp2[0][0])
+        dis_listnew.append(m_dis)
+
+    pls_dataframe['t_2']=dis_listnew
+    pls_dataframe=pls_dataframe[pls_dataframe['t_2']<=2]
+    dataframe2=dataframe[dataframe.index.isin(pls_dataframe.index)]
+    dataframe2=dataframe2.reset_index(drop=True)
+    return dataframe2
 
 def checkspe_limit(spe_data):
     mean_val=np.mean(spe_data['spe'])
@@ -177,23 +209,86 @@ def checkspe_limit(spe_data):
     new_spe_data= spe_data.drop(index=spe_data[spe_data['spe'] > spe_limit_g_val].index)
     return new_spe_data.index
 
-def drydock(dry_dock_period,eval_data_period,imo):
-    Y_list=["speed_stw_calc","pwr","app_slip","main_fuel_per_dst"]
-    X_list=["rep_dt","draft_mean","trim","rpm","w_dir_rel","swell_dir_rel","amb_temp","cpress","w_force"]
-    X_list_norepdt=["draft_mean","trim","rpm","w_dir_rel","swell_dir_rel","amb_temp","cpress","w_force"]
+def drydock(dry_dock_period,eval_data_period,imo,performance_type):
+    Y_list=["pwr","app_slip","main_fuel_per_dst"]
+    X_list=["rep_dt","draft_mean","trim","speed_stw_calc","w_dir_rel","swell_dir_rel","amb_temp","cpress","w_force"]
+    X_list_norepdt=["draft_mean","trim","speed_stw_calc","w_dir_rel","swell_dir_rel","amb_temp","cpress","w_force"]
     complete_list=X_list+Y_list
 
     dry_Dock_period_partition=dry_dock_period.split("-")
     eval_data_period_partition=eval_data_period.split("-")
+    dry_Dock_period_start=datetime.strptime(dry_Dock_period_partition[0], '%d/%m/%Y')
     dry_Dock_period_end=datetime.strptime(dry_Dock_period_partition[1], '%d/%m/%Y')
     eval_data_period_start=datetime.strptime(eval_data_period_partition[0], '%d/%m/%Y')
     eval_data_period_end=datetime.strptime(eval_data_period_partition[1], '%d/%m/%Y')
-    base_dataframe=create_base_dataframe(imo,complete_list)
-    new_month=dry_Dock_period_end+relativedelta(months=6)
-    ref_data=base_dataframe.loc[(base_dataframe['rep_dt'] >= dry_Dock_period_end) & (base_dataframe['rep_dt'] < new_month)]
-    ref_data=ref_data.reset_index(drop=True)
-    eval_data=base_dataframe.loc[(base_dataframe['rep_dt'] >= eval_data_period_start) & (base_dataframe['rep_dt'] < eval_data_period_end)]
-    eval_data=eval_data.reset_index(drop=True)
+    # base_dataframe=create_base_dataframe(imo,complete_list)
+    if performance_type == 'maintainance_trigger':
+        base_dataframe = pandas.read_csv("welland_intervention_0.95stw.csv")
+    else:
+        base_dataframe = pandas.read_csv("welland_intervention_1.05stw.csv")
+    newdatearray=[]
+    for i in base_dataframe['rep_dt']:
+        i=newdatearray.append(datetime.strptime(i, '%d-%m-%Y %H:%M'))
+    base_dataframe['rep_dt']=newdatearray
+
+    temp_ref_data_period = {}
+    temp_eval_data_period = {}
+    if performance_type=='maintainance_trigger':
+        new_month=dry_Dock_period_end+relativedelta(months=6)
+        ref_data=base_dataframe.loc[(base_dataframe['rep_dt'] >= dry_Dock_period_end) & (base_dataframe['rep_dt'] < new_month)]
+        ref_data=ref_data.reset_index(drop=True)
+        eval_data=base_dataframe.loc[(base_dataframe['rep_dt'] >= eval_data_period_start) & (base_dataframe['rep_dt'] < eval_data_period_end)]
+        eval_data=eval_data.reset_index(drop=True)
+        temp_ref_data_period['Reference'] = {
+            'Start': dry_Dock_period_end.strftime('%Y/%m/%d'),
+            'End': new_month.strftime('%Y/%m/%d')
+        }
+        temp_eval_data_period['Evaluation'] = {
+            'Start': eval_data_period_start.strftime('%Y/%m/%d'),
+            'End': eval_data_period_end.strftime('%Y/%m/%d')
+        }
+    
+    
+    # elif performance_type=='dry_docking_performance':
+    #     new_month=dry_Dock_period_end+relativedelta(months=6)
+    #     ref_data=base_dataframe.loc[(base_dataframe['rep_dt'] >= dry_Dock_period_end) & (base_dataframe['rep_dt'] < new_month)]
+    #     ref_data=ref_data.reset_index(drop=True)
+    #     eval_data=base_dataframe.loc[(base_dataframe['rep_dt'] >= eval_data_period_start) & (base_dataframe['rep_dt'] < eval_data_period_end)]
+    #     eval_data=eval_data.reset_index(drop=True)
+    
+    # elif performance_type=='service_performance':
+    #     new_month=dry_Dock_period_end+relativedelta(months=12)
+    #     ref_data=base_dataframe.loc[(base_dataframe['rep_dt'] >= dry_Dock_period_end) & (base_dataframe['rep_dt'] < new_month)]
+    #     ref_data=ref_data.reset_index(drop=True)
+    #     eval_data=base_dataframe.loc[(base_dataframe['rep_dt'] >= eval_data_period_start) & (base_dataframe['rep_dt'] < eval_data_period_end)]
+    #     eval_data=eval_data.reset_index(drop=True)
+
+    elif performance_type=='maintainance_effect':
+        new_month=dry_Dock_period_start-relativedelta(months=6)
+        eval_new_month=dry_Dock_period_end+relativedelta(months=6)
+        ref_data=base_dataframe.loc[(base_dataframe['rep_dt'] >= new_month) & (base_dataframe['rep_dt'] < dry_Dock_period_start)]
+        ref_data=ref_data.reset_index(drop=True)
+        eval_data=base_dataframe.loc[(base_dataframe['rep_dt'] >= dry_Dock_period_end) & (base_dataframe['rep_dt'] < eval_new_month)]
+        eval_data=eval_data.reset_index(drop=True)
+        temp_ref_data_period['Reference'] = {
+            'Start': new_month.strftime('%Y/%m/%d'),
+            'End': dry_Dock_period_start.strftime('%Y/%m/%d')
+        }
+        temp_eval_data_period['Evaluation'] = {
+            'Start': dry_Dock_period_end.strftime('%Y/%m/%d'),
+            'End': eval_new_month.strftime('%Y/%m/%d')
+        } 
+
+
+    
+    
+
+
+
+
+    # print(ref_data)
+    # print(eval_data)
+    # exit()
     ref_data=ref_data[complete_list]
     eval_data=eval_data[complete_list]
 
@@ -201,73 +296,148 @@ def drydock(dry_dock_period,eval_data_period,imo):
     eval_data=clean_data(eval_data)
     
     ref_data=z_score_data(ref_data,Y_list)
+    
     ref_data=z_score_data(ref_data,Y_list)
+    
     eval_data=z_score_data(eval_data,Y_list)
     eval_data=z_score_data(eval_data,Y_list)
 
+    ref_data=t2_check(ref_data,X_list_norepdt,Y_list)
+    eval_data=t2_check(eval_data,X_list_norepdt,Y_list)
+    # ref_data.to_csv("trigger_ref_data.csv")
+    # eval_data.to_csv("trigger_eval_data.csv")
+    # print(ref_data)
+    # print(eval_data)
+    # exit()
     temp_eval_data=eval_data.copy()
 
-    temp_ref_data=avg_columns(ref_data)
-    eval_data['w_force']=temp_ref_data['w_force']
-    eval_data['w_dir_rel']=temp_ref_data['w_dir_rel']
-    eval_data['swell_dir_rel']=temp_ref_data['swell_dir_rel']
+    temp_ref_data,eval_data=avg_columns(ref_data,eval_data)
+    # eval_data['w_force']=temp_ref_data['w_force']
+    # eval_data['w_dir_rel']=temp_ref_data['w_dir_rel']
+    # eval_data['swell_dir_rel']=temp_ref_data['swell_dir_rel']
+
+    #Part 1A
     for y_axis in Y_list:
-        # print(y_axis)
         pls_reg=LRPI()
         pls_reg.fit(temp_eval_data[X_list_norepdt],temp_eval_data[y_axis])
         eval_pred=pls_reg.predict(eval_data[X_list_norepdt])
-        eval_data[y_axis+'_pred']=eval_pred['Pred']
-    pwr_loss_var_list=[]
-    for row in range(0,len(eval_data)):
-        pwr_loss_var=((eval_data["pwr_pred"][row]-eval_data["pwr"][row])/eval_data["pwr"][row])*100
-        pwr_loss_var_list.append(pwr_loss_var)
-    eval_data['pwr_loss']=pwr_loss_var_list
-    eval_data["pwr_loss_avg"]=np.mean(pwr_loss_var_list)
-
+        eval_data[y_axis+'_pred_eval_data']=eval_pred['Pred']
+    # if performance_type == 'maintainance_trigger':
+    #     eval_data['pwr_pred_eval_data'] = eval_data['pwr_pred_eval_data'] 
+    #     eval_data['main_fuel_per_dst_pred_eval_data'] = eval_data['main_fuel_per_dst_pred_eval_data'] 
+    # else:
+    #     eval_data['pwr_pred_eval_data'] = eval_data['pwr_pred_eval_data'] 
+    #     eval_data['main_fuel_per_dst_pred_eval_data'] = eval_data['main_fuel_per_dst_pred_eval_data'] 
+    #Part 1B
     for y_axis in Y_list:
         pls_reg=LRPI()
         pls_reg.fit(ref_data[X_list_norepdt],ref_data[y_axis])
         eval_pred=pls_reg.predict(eval_data[X_list_norepdt])
-        eval_data[y_axis+'_second_pred']=eval_pred['Pred']
-
-    eval_data['pwr_pred_x']=eval_data['pwr_pred']
-    ref_data['pwr_pred_x']=ref_data['pwr']
-    new_xlist=X_list
-    new_xlist=new_xlist+["pwr_pred_x"]
-    new_xlist.remove("rep_dt")
-    new_ylist=Y_list
-    new_ylist.remove("pwr")
-
-    
-
-    for y_axis in new_ylist:
-        pls_reg=LRPI()
-        pls_reg.fit(ref_data[new_xlist],ref_data[y_axis])
-        eval_pred=pls_reg.predict(eval_data[new_xlist])
-        eval_data[y_axis+'_third_pred']=eval_pred['Pred']
-
+        eval_data[y_axis+'_second_pred_ref_data']=eval_pred['Pred']
 
     for y_axis in Y_list:
         loss_var_list=[]
         for row in range(0,len(eval_data)):
-            loss_var=((eval_data[y_axis+"_third_pred"][row]-eval_data[y_axis+"_pred"][row])/eval_data[y_axis+"_pred"][row])*100
-            loss_var_list.append(loss_var)
-        eval_data[y_axis+'_loss']=loss_var_list
-        eval_data[y_axis+"_loss_avg"]=np.mean(loss_var_list)
-    plt.plot(eval_data['rep_dt'], eval_data['pwr_pred'], color='red',label='speed_stw_calc_loss')
-    plt.plot(eval_data['rep_dt'], eval_data['pwr_second_pred'], color='green',label='speed_stw_calc_loss_avg')
-    # plt.plot(eval_data['rep_dt'], eval_data['app_slip_loss'], color='blue',label='app_slip_loss')
-    # plt.plot(eval_data['rep_dt'], eval_data['app_slip_loss_avg'], color='black',label='app_slip_loss_avg')
-    # plt.plot(eval_data['rep_dt'], eval_data['main_fuel_per_dst_loss'], color='yellow',label='main_fuel_per_dst_loss')
-    # plt.plot(eval_data['rep_dt'], eval_data['main_fuel_per_dst_loss_avg'], color='orange',label='main_fuel_per_dst_loss_avg')
-    # plt.plot(eval_data['rep_dt'], eval_data['pwr_loss'], color='purple',label='pwr_loss')
-    # plt.plot(eval_data['rep_dt'], eval_data['pwr_loss_avg'], color='brown',label='pwr_loss_avg')
-    plt.xlabel("Date")
+            loss_var=((eval_data[y_axis+"_second_pred_ref_data"][row]-eval_data[y_axis+"_pred_eval_data"][row])/eval_data[y_axis+"_pred_eval_data"][row])*100
+            if y_axis == 'main_fuel_per_dst':
+                loss_var_list.append(loss_var)
+            else:
+                loss_var_list.append(loss_var)
+        if y_axis == 'main_fuel_per_dst' or y_axis == 'app_slip':
+            eval_data[y_axis+'_rise']=loss_var_list
+            eval_data[y_axis+"_rise_avg"]=np.mean(loss_var_list)
+        else:
+            eval_data[y_axis+'_loss']=loss_var_list
+            eval_data[y_axis+"_loss_avg"]=np.mean(loss_var_list)
+
+    
+    temp_predictor_eval_data=eval_data.copy()
+    temp_predictor_eval_data['pwr_pred_x']=eval_data['pwr_pred_eval_data']
+    eval_data['pwr_pred_x']=eval_data['pwr']
+    ref_data['pwr_pred_x']=ref_data['pwr']
+    new_xlist=X_list
+    new_xlist=new_xlist+["pwr_pred_x"]
+    new_xlist.remove("rep_dt")
+    new_xlist.remove("speed_stw_calc")
+    new_ylist=Y_list
+    new_ylist.remove("pwr")
+    new_ylist.append("speed_stw_calc")
+
+
+    #Part 2A
+    for y_axis in new_ylist:
+        pls_reg=LRPI()
+        pls_reg.fit(ref_data[new_xlist],ref_data[y_axis])
+        eval_pred=pls_reg.predict(temp_predictor_eval_data[new_xlist])
+        eval_data[y_axis+'_third_pred_ref_data']=eval_pred['Pred']
+    #Part 2B
+    for y_axis in new_ylist:
+        pls_reg=LRPI()
+        pls_reg.fit(eval_data[new_xlist],eval_data[y_axis])
+        eval_pred=pls_reg.predict(temp_predictor_eval_data[new_xlist])
+        eval_data[y_axis+'_fourth_pred_eval_data']=eval_pred['Pred']
+    # if performance_type == 'maintainance_trigger':
+    #     eval_data['speed_stw_calc_fourth_pred_eval_data'] = eval_data['speed_stw_calc_fourth_pred_eval_data'] 
+    # else:
+    #     eval_data['speed_stw_calc_fourth_pred_eval_data'] = eval_data['speed_stw_calc_fourth_pred_eval_data'] 
+
+    speed_stw_loss_var_list=[]
+    for row in range(0,len(eval_data)):
+        speed_stw_loss_var=((eval_data["speed_stw_calc_third_pred_ref_data"][row]-eval_data["speed_stw_calc_fourth_pred_eval_data"][row])/eval_data["speed_stw_calc_fourth_pred_eval_data"][row])*100
+        speed_stw_loss_var_list.append(speed_stw_loss_var)
+    eval_data['speed_stw_calc_loss']=speed_stw_loss_var_list
+    eval_data["speed_stw_calc_loss_avg"]=np.mean(speed_stw_loss_var_list)
+    if performance_type == 'maintainance_trigger':
+        # eval_data['pwr_pred_eval_data'] = eval_data['pwr_pred_eval_data'] * 1.01
+        # eval_data['main_fuel_per_dst_pred_eval_data'] = eval_data['main_fuel_per_dst_pred_eval_data'] * 1.06
+        # eval_data['speed_stw_calc_fourth_pred_eval_data'] = eval_data['speed_stw_calc_fourth_pred_eval_data'] * 0.90
+        eval_data['pwr_loss'] = eval_data['pwr_loss'] * -1 
+        eval_data['pwr_loss_avg'] = eval_data['pwr_loss_avg'] * -1 
+        eval_data['main_fuel_per_dst_rise'] = eval_data['main_fuel_per_dst_rise'] * -1
+        eval_data['main_fuel_per_dst_rise_avg'] = eval_data['main_fuel_per_dst_rise_avg'] * -1
+        # eval_data['speed_stw_calc_loss'] = eval_data['speed_stw_calc_loss'] + 5
+        # eval_data['speed_stw_calc_loss_avg'] = eval_data['speed_stw_calc_loss_avg'] + 2.5
+    else:
+        eval_data['speed_stw_calc_loss'] = eval_data['speed_stw_calc_loss'] * -1
+        eval_data['speed_stw_calc_loss_avg'] = eval_data['speed_stw_calc_loss_avg'] * -1
+    eval_data.to_csv("eval_datanewtest_new.csv")
+    # ref_data.to_csv("ref_datanewtest.csv")
+    print(eval_data)
+    # exit()
+    # eval_data.to_csv("trigger_eval_data_final.csv")
+
+    # plt.plot(eval_data['rep_dt'], eval_data['speed_stw_calc_loss'], color='blue',label='speed_stw_calc_loss')
+    # plt.plot(eval_data['rep_dt'], eval_data['speed_stw_calc_loss_avg'], color='black',label='speed_stw_calc_loss_avg')
+    # plt.plot(eval_data['rep_dt'], eval_data['pwr_loss'], color='blue',label='pwr_loss')
+    # plt.plot(eval_data['rep_dt'], eval_data['pwr_loss_avg'], color='black',label='pwr_loss_avg')
+    # plt.plot(eval_data['rep_dt'], eval_data['main_fuel_per_dst_rise'], color='blue',label='main_fuel_per_dst_rise')
+    # plt.plot(eval_data['rep_dt'], eval_data['main_fuel_per_dst_rise_avg'], color='black',label='main_fuel_per_dst_rise_avg')
+
+    # plt.plot(eval_data['rep_dt'], eval_data['pwr_pred_eval_data'], color='red',label='pwr_pred_eval_data')
+    # plt.plot(eval_data['rep_dt'], eval_data['pwr_second_pred_ref_data'], color='blue',label='pwr_second_pred_ref_data')
+    plt.plot(eval_data['rep_dt'], eval_data['main_fuel_per_dst_pred_eval_data'], color='red',label='main_fuel_per_dst_pred_eval_data')
+    plt.plot(eval_data['rep_dt'], eval_data['main_fuel_per_dst_second_pred_ref_data'], color='blue',label='main_fuel_per_dst_second_pred_ref_data')
+    # plt.plot(eval_data['rep_dt'], eval_data['speed_stw_calc_fourth_pred_eval_data'], color='red',label='speed_stw_calc_fourth_pred_eval_data')
+    # plt.plot(eval_data['rep_dt'], eval_data['speed_stw_calc_third_pred_ref_data'], color='blue',label='speed_stw_calc_third_pred_ref_data')
+    # plt.xlabel("Date")
+
+
+    # plt.plot(eval_data['rep_dt'], eval_data['main_fuel_per_dst_third_pred_ref_data'], color='blue',label='main_fuel_per_dst_third_pred_ref_data')
+    # plt.plot(eval_data['rep_dt'], eval_data['main_fuel_per_dst_fourth_pred_eval_data'], color='red',label='main_fuel_per_dst_fourth_pred_eval_data')
     plt.ylabel("Loss and loss avg")
     plt.legend()
     plt.show()
 start_time = time.time()
-drydock("01/12/2015-15/12/2015","15/05/2015-15/11/2015",9205926)
-
+# drydock("01/06/2015-15/06/2015","16/12/2015-16/05/2016",9205926,'maintainance_trigger')
+drydock("01/06/2015-15/06/2015","20/06/2015-20/12/2015",9205926,'maintainance_effect')
+#"01/12/2015-15/12/2015","15/05/2015-15/11/2015"
 end_time=time.time()
 print(end_time-start_time)
+
+
+
+
+
+
+
+
