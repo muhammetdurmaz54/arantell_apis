@@ -16,7 +16,7 @@ from src.helpers.check_status import check_status
 from src.db.schema.ship import Ship
 import pandas as pd
 import numpy as np
-from mongoengine import *
+# from mongoengine import *
 from pymongo import MongoClient
 import os
 from dotenv import load_dotenv
@@ -70,17 +70,17 @@ class ConfigExtractor():
     
     @check_status
     def read_files(self):
-        self.df_configurations = pd.read_excel(self.file, sheet_name='Configurations')
-        self.df_variables = pd.read_excel(self.file, sheet_name='N&E')
-        self.df_groups = pd.read_excel(self.file, sheet_name="Groups", header=[0, 1])
+        self.df_configurations = pd.read_excel(self.file, sheet_name='Configurations',engine='openpyxl')
+        self.df_variables = pd.read_excel(self.file, sheet_name='N&E',engine='openpyxl')
+        self.df_groups = pd.read_excel(self.file, sheet_name="Groups", header=[0, 1],engine='openpyxl')
         # Convert the headers and sub-headers in the dataframe to MultiIndex headers of the form ('Header', 'SubHeader')
         a = self.df_groups.columns.get_level_values(0).to_series()
         b = a.mask(a.str.startswith('Unnamed')).ffill().fillna('')
         self.df_groups.columns = [b, self.df_groups.columns.get_level_values(1)]
-        self.grpdict = pd.read_excel(self.file, sheet_name="GrpDir",skiprows=[0])
+        self.grpdict = pd.read_excel(self.file, sheet_name="GrpDir",skiprows=[0],engine='openpyxl')
         # self.mlcontrol=pd.read_excel(self.file, sheet_name='MLcontrol',skiprows = [0, 1, 2], engine='openpyxl')
         self.mlcontrol=self.df_variables.loc[:,'ML_control_begin':'ML_control_end']
-        self.anamoly_messages=pd.read_excel(self.file, sheet_name='AnamolyMessages')
+        self.anamoly_messages=pd.read_excel(self.file, sheet_name='AnamolyMessages',engine='openpyxl')
         # print(self.anamoly_messages)
         # print(self.mlcontrol)
 
@@ -566,7 +566,7 @@ class ConfigExtractor():
         
         
 
-obj=ConfigExtractor(9595917,'F:\Afzal_cs\Internship\Configurator_9595917.xlsx',True)
+obj=ConfigExtractor(9205926,'F:\Afzal_cs\Internship\Configurator_9205926.xlsx',True)
 # obj.connect()
 # obj.read_files()
 # obj.anamoly()
