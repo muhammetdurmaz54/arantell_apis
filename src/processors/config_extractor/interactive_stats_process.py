@@ -68,8 +68,12 @@ class InteractiveStatsExtractor():
         tempResult = {}
         for key in stats_dict.keys():
             # tempList=np.linspace(stats_dict[key]['Min'], stats_dict[key]['Max'], stats_dict[key]['Max']-stats_dict[key]['Min'])
-            tempList=np.linspace(stats_dict[key]['Min'], stats_dict[key]['Max'], 6)
-            tempResult[key] = tempList
+            if key == 'trim':
+                # tempList=np.linspace(stats_dict[key]['Min'], stats_dict[key]['Max'], 6)
+                tempResult[key] = [-0.2, -0.1, 0, 0.1, 0.2, 0.4]
+            else:
+                tempList=np.linspace(stats_dict[key]['Min'], stats_dict[key]['Max'], 6)
+                tempResult[key] = tempList
             print(tempList)
             if key == 'trim':
                 stats_dict[key]['Step'] = 0.1
@@ -80,7 +84,7 @@ class InteractiveStatsExtractor():
             tempDict={}
             if key == 'trim':
                 for i in tempResult[key]:
-                    tempDict.update({str(round(i, 2)): str(round(i, 2))})
+                    tempDict.update({str(i): str(i)})
                 stats_dict[key]["Marks"] = tempDict
             else:
                 for i in tempResult[key]:
