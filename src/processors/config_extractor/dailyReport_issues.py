@@ -37,6 +37,12 @@ class DailyIssueExtractor():
         # shortNameDict = self.configuration.create_short_names_dictionary()
         equipment_list, parameter_list = self.configuration.get_Equipment_and_Parameter_list()
         static_data_for_charter_party = self.configuration.get_static_data_for_charter_party()
+
+        for header in column_headers.keys():
+            if 'Reported' in column_headers[header]:
+                index_reported = column_headers[header].index('Reported')
+                if 'Occurrence' not in column_headers[header]:
+                    column_headers[header].insert(index_reported+1, 'Occurrence')
         
         # anomalyList=[]
         dateList=[]
@@ -123,9 +129,12 @@ class DailyIssueExtractor():
         # categoryDictDataDecimal = self.configuration.get_decimal_control_on_daily_values(categoryDictData)
         new_category_dict = self.get_corrected_daily_data(categoryDict=categoryDict, categoryDictData=newCategoryDictData)
 
-        # print(new_category_dict)
+        outlier_list, operational_list, spe_list = self.get_parameters_with_issues(newCategoryDictData)
+        week_list = self.get_date_range(dateList, self.dateString) if self.dateString != "" else self.get_date_range(dateList, dateList[-1])
+        outlier_dict, operational_dict, spe_dict = self.read_date_for_range_of_dates(week_list, outlier_list, operational_list, spe_list)
+        frequencyCategoryDictData = self.put_frequency_in_data(newCategoryDictData, outlier_dict, operational_dict, spe_dict)
         
-        return categoryList, new_category_dict, column_headers, subcategoryDict, dateList, newCategoryDictData, issues, static_data_for_charter_party, charter_party_values, charter_party_prediction_values, compliance_messages, listOfVesselParticularKeys, issuesCount
+        return categoryList, new_category_dict, column_headers, subcategoryDict, dateList, frequencyCategoryDictData, issues, static_data_for_charter_party, charter_party_values, charter_party_prediction_values, compliance_messages, listOfVesselParticularKeys, issuesCount
 
 
         # return categoryDict, column_headers, subcategoryDict, dateList, latestRes
@@ -200,7 +209,6 @@ class DailyIssueExtractor():
                         # print(len(issues_dict[category][i][subcategory]))
                         # print(j)
                         while j < len(issues_dict[category][i][subcategory]):
-                            print('ID ', issues_dict[category][i][subcategory][j]['identifier'])
                             # if issues_dict[category][i][subcategory][j]['identifier'] == 'real_slip_calc':
                             #     print(issues_dict[category][i][subcategory][j])
                             try:
@@ -219,17 +227,14 @@ class DailyIssueExtractor():
                                 # if pd.isnull(issues_dict[category][i][subcategory][j]['within_outlier_limits']['m6']) == False:
                                 if issues_dict[category][i][subcategory][j]['within_outlier_limits']['m6'] == False:
                                     index_list.append(j)
-                                    print("WITHIN OUTLIER")
                                     # within_outlier_limits_flag = True
                                 
                                 # elif within_outlier_limits_flag == False and pd.isnull(issues_dict[category][i][subcategory][j]['within_operational_limits']['m6']) == False:
                                 elif issues_dict[category][i][subcategory][j]['within_operational_limits']['m6'] == False:
                                     index_list.append(j)
-                                    print("WITHIN OPERATIONAL")
                                     # within_operational_flag = True
                                 elif pd.isnull(issues_dict[category][i][subcategory][j]['spe_messages']['m6'][2]) == False:
                                     index_list.append(j)
-                                    print("SPE MESSAGE")
                             except KeyError:
                                 # index_list.append(j)
                                 # continue
@@ -253,7 +258,6 @@ class DailyIssueExtractor():
                     # print("IF IN RID")
                     del issues_dict[category]
                 else:
-                    print(category)
                     for i in issues_dict[category]:
                         for subcategory in i.copy().keys():
                             if len(i[subcategory]) == 0:
@@ -261,7 +265,6 @@ class DailyIssueExtractor():
                                 del i[subcategory]
                     
                     tempdictarray = list(filter(None, issues_dict[category]))
-                    print(tempdictarray)
                     issues_dict[category] = tempdictarray
 
         for category in issues_dict.copy():            
@@ -270,6 +273,168 @@ class DailyIssueExtractor():
             
         
         return issues_dict
+    
+    def get_parameters_with_issues(self, categoryDictData):
+        '''
+            Gets the parameters list that have issues
+        '''
+
+        outlier_list=[]
+        operational_list=[]
+        spe_list=[]
+        for category in categoryDictData.keys():
+            # print("CATEGORY ", category)
+            if category != 'VESSEL PARTICULARS':
+                for i in range(0, len(categoryDictData[category])):
+                    # print("i ", i)
+                    for subcategory in categoryDictData[category][i].keys():
+                        # print("SUBCATEGORY ", subcategory)
+                        # j = len(categoryDictData[category][i][subcategory]) - 1
+                        j = 0
+                        # length_of_subcategory = len(categoryDictData[category][i][subcategory])
+                        index_list = []
+                        # print(len(categoryDictData[category][i][subcategory]))
+                        # print(j)
+                        while j < len(categoryDictData[category][i][subcategory]):
+                            # if categoryDictData[category][i][subcategory][j]['identifier'] == 'real_slip_calc':
+                            #     print(categoryDictData[category][i][subcategory][j])
+                            # parameter_list.append(categoryDictData[category][i][subcategory][j]['identifier'])
+                            try:
+                                if categoryDictData[category][i][subcategory][j]['within_outlier_limits']['m6'] == False:
+                                    outlier_list.append(categoryDictData[category][i][subcategory][j]['identifier'])
+                                elif categoryDictData[category][i][subcategory][j]['within_operational_limits']['m6'] == False:
+                                    operational_list.append(categoryDictData[category][i][subcategory][j]['identifier'])
+                                elif pd.isnull(categoryDictData[category][i][subcategory][j]['spe_messages']['m6'][2]) == False:
+                                    spe_list.append(categoryDictData[category][i][subcategory][j]['identifier'])
+                            except KeyError:
+                                print("EXCEPT")
+                            j = j + 1
+        
+        return outlier_list, operational_list, spe_list
+    
+    def get_date_range(self, dateList, selected_date):
+        '''
+            Gets the date range for the last seven days
+        '''
+
+        # datetime_selected_date = datetime.strptime(selected_date, '%Y-%m-%d, %H:%M:%S')
+        week_list = []
+        start_index_of_week = dateList.index(selected_date)
+        # end_index_of_week = start_index_of_week - 7 if start_index_of_week > 7 else None
+        if start_index_of_week > 7:
+            end_index_of_week = start_index_of_week - 7
+        elif start_index_of_week > 0 and start_index_of_week < 7:
+            end_index_of_week = 0
+        else:
+            end_index_of_week = None
+
+        if end_index_of_week is not None:
+            for i in range(end_index_of_week, start_index_of_week):
+                week_list.append(dateList[i])
+        return week_list
+    
+    def read_date_for_range_of_dates(self, date_range_list, outlier_list, operational_list, spe_list):
+        '''
+            Reads data for specific dates in the list
+        '''
+        outlier_dict={}
+        operational_dict={}
+        spe_dict={}
+
+        for param in outlier_list:
+            count=0
+            for date in date_range_list:
+                findDate = datetime.strptime(date,"%Y-%m-%d, %H:%M:%S")
+                for doc in self.main_db.find(
+                    {
+                        'ship_imo': self.ship_imo,
+                        'final_rep_dt': findDate
+                    },
+                    {
+                        'processed_daily_data.'+param: 1,
+                        '_id': 0
+                    }
+                ):
+                    
+                    if doc['processed_daily_data'][param]['within_outlier_limits']['m6'] == False:
+                        print("OUTLIER")
+                        count = count + 1
+            outlier_dict[param] = count
+        
+        for param in operational_list:
+            count=0
+            for date in date_range_list:
+                findDate = datetime.strptime(date,"%Y-%m-%d, %H:%M:%S")
+                for doc in self.main_db.find(
+                    {
+                        'ship_imo': self.ship_imo,
+                        'final_rep_dt': findDate
+                    },
+                    {
+                        'processed_daily_data.'+param: 1,
+                        '_id': 0
+                    }
+                ):
+                    if doc['processed_daily_data'][param]['within_operational_limits']['m6'] == False:
+                        print("OPERATIONAL")
+                        count = count + 1
+            operational_dict[param] = count
+        
+        for param in spe_list:
+            count=0
+            for date in date_range_list:
+                findDate = datetime.strptime(date,"%Y-%m-%d, %H:%M:%S")
+                for doc in self.main_db.find(
+                    {
+                        'ship_imo': self.ship_imo,
+                        'final_rep_dt': findDate
+                    },
+                    {
+                        'processed_daily_data.'+param: 1,
+                        '_id': 0
+                    }
+                ):
+                    if pd.isnull(doc['processed_daily_data'][param]['spe_messages']['m6'][2]) == False:
+                        print("SPE")
+                        count = count + 1
+            spe_dict[param] = count
+
+        return outlier_dict, operational_dict, spe_dict
+    
+    def put_frequency_in_data(self, categoryDictData, outlierdict, operationaldict, spedict):
+        '''
+            Puts the number of occurrences of issues for each parameter in the data
+        '''
+
+        for category in categoryDictData.keys():
+            # print("CATEGORY ", category)
+            if category != 'VESSEL PARTICULARS':
+                for i in range(0, len(categoryDictData[category])):
+                    # print("i ", i)
+                    for subcategory in categoryDictData[category][i].keys():
+                        # print("SUBCATEGORY ", subcategory)
+                        # j = len(categoryDictData[category][i][subcategory]) - 1
+                        j = 0
+                        # length_of_subcategory = len(categoryDictData[category][i][subcategory])
+                        index_list = []
+                        # print(len(categoryDictData[category][i][subcategory]))
+                        # print(j)
+                        while j < len(categoryDictData[category][i][subcategory]):
+                            # if categoryDictData[category][i][subcategory][j]['identifier'] == 'real_slip_calc':
+                            #     print(categoryDictData[category][i][subcategory][j])
+                            # parameter_list.append(categoryDictData[category][i][subcategory][j]['identifier'])
+                            if categoryDictData[category][i][subcategory][j]['identifier'] in outlierdict.keys():
+                                outputstring = str(outlierdict[categoryDictData[category][i][subcategory][j]['identifier']]) + ' days' if outlierdict[categoryDictData[category][i][subcategory][j]['identifier']] < 7 else 'All days last week'
+                                categoryDictData[category][i][subcategory][j]['frequency'] = outputstring
+                            elif categoryDictData[category][i][subcategory][j]['identifier'] in operationaldict.keys():
+                                outputstring = str(operationaldict[categoryDictData[category][i][subcategory][j]['identifier']]) + ' days' if operationaldict[categoryDictData[category][i][subcategory][j]['identifier']] < 7 else 'All days last week'
+                                categoryDictData[category][i][subcategory][j]['frequency'] = outputstring
+                            elif categoryDictData[category][i][subcategory][j]['identifier'] in spedict.keys():
+                                outputstring = str(spedict[categoryDictData[category][i][subcategory][j]['identifier']]) + ' days' if spedict[categoryDictData[category][i][subcategory][j]['identifier']] < 7 else 'All days last week'
+                                categoryDictData[category][i][subcategory][j]['frequency'] = outputstring
+                            j = j + 1
+        
+        return categoryDictData
 
 
 
