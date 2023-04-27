@@ -359,16 +359,32 @@ class MainDB():
 
     def get_main_db(self,index):
         self.maindb = database.get_collection("Main_db")
-        # self.maindb.delete_many({"ship_imo":self.ship_imo})
+        self.maindb.delete_many({"ship_imo":self.ship_imo})
         # self.maindb.delete_many({"ship_imo": int(self.ship_imo),"processed_daily_data.rep_dt.processed":{"$lte":datetime(2016,2,1,12)}})
         # self.maindb.update_many( {}, { "$rename": { "processed_daily_data.ext_pres": "processed_daily_data.ext_press" } } )
         # self.maindb.update_many({}, {'$unset': {"processed_daily_data.main_fuel_index":1}})
         # print("done")
         # self.maindb.update_many({},{"$set":{"processed_daily_data.cp_speed.identifier":"cp_speed"}})
         # exit()
-        self.main_data = self.maindb.find({"ship_imo": int(9205926)})[0]
+        # self.main_data = self.maindb.find({"ship_imo": int(self.ship_imo)})
         # for i in range(0,self.main_data.count()):
-        print(self.main_data)
+        #     print(i)
+        #     print("OLD real slip",self.main_data[i]["processed_daily_data"]["real_slip_calc"]["processed"])
+        #     print("OLD app slip",self.main_data[i]["processed_daily_data"]["app_slip_calc"]["processed"])
+        #     real_cal=None
+        #     app_cal=None
+        #     try:
+                
+        #         if pandas.isnull(self.main_data[i]["processed_daily_data"]["real_slip_calc"]["processed"])==False:
+        #             real_cal=self.main_data[i]["processed_daily_data"]["real_slip_calc"]["processed"]*100
+        #         if pandas.isnull(self.main_data[i]["processed_daily_data"]["app_slip_calc"]["processed"])==False:
+        #             app_cal=self.main_data[i]["processed_daily_data"]["app_slip_calc"]["processed"]*100
+        #         print("NEW real slip", real_cal)
+        #         print("NEW app slip", app_cal)
+        #         self.maindb.update_one(self.maindb.find({"ship_imo": int(self.ship_imo)})[i],{"$set":{"processed_daily_data.real_slip_calc.processed":real_cal,"processed_daily_data.app_slip_calc.processed":app_cal}})
+        #     except:
+        #         continue
+        # print(self.main_data)
         # print(self.main_data['processed_daily_data']['sfoc']['spe_messages'])
         # print(self.main_data['processed_daily_data']['main_fuel_per_dst']['is_not_spe_anamolous'])
         # print(self.main_data['processed_daily_data']['main_fuel_per_dst']['spe_messages'])
