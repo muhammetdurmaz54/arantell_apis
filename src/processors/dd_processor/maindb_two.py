@@ -56,7 +56,7 @@ db=client.get_database("aranti")
 database = db
 
 
-# maindb=database.get_collection("Main_db")
+# maindb=database.get_collection("daily_data")
 # maindb.delete_many({"ship_imo":9205926})
 # exit()
 # # maindb.update_many( {}, { "$rename": { "historical_noon": "Noon" } } )
@@ -454,6 +454,7 @@ class MainDB():
         main_dict_list=self.sister_imo_main_dict
         return main_dict_list
 
+
     def sister_vessel_prediction(self,dataframe,main_dict_list,sister_imo):
         self.key_replace_dict={}
         for key in self.ship_configs['data']:
@@ -471,7 +472,7 @@ class MainDB():
             print("tooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",i)
             main_data_dict=main_dict_list[i]['processed_daily_data']
             for key in ml_control:
-                if key=="pwr" and key in main_data_dict and pandas.isnull(main_data_dict[key]['processed'])==False:
+                if key in main_data_dict and pandas.isnull(main_data_dict[key]['processed'])==False:
                     print("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",key)
                     val=ml_control[key]
                     for k in val:
@@ -538,6 +539,7 @@ class MainDB():
         
     def create_base_dataframe(self,main_dict_first_list,flag):
         if flag==True:
+            # #vsl load change with respect to draftmean val
             main_dict_list=self.vsl_load_conversion(main_dict_first_list)
         elif flag==False:
             main_dict_list=main_dict_first_list
@@ -814,12 +816,13 @@ class MainDB():
                     curr_date=main_data_dict['rep_dt']['processed'].date()
                     # UIP = UpdateIndividualProcessors(configs=self.ship_configs,md=self.main_data[i],imo=self.ship_imo)
                     pred_obj=UpdateIndividualProcessors(configs=self.ship_configs,imo=self.ship_imo)
-                    pred,spe,t2_initial,length_dataframe,ewma,cumsum=pred_obj.base_prediction_processor(temp_data,curr_date,key,main_data_dict)
+                    pred,spe,t2_initial,length_dataframe,ewma,cumsum,earth_pred=pred_obj.base_prediction_processor(temp_data,curr_date,key,main_data_dict)
                     # exit()
                     # print(temp_data)
                     # print(temp_data.loc[(temp_data['rep_dt'] >= new) & (temp_data['rep_dt'] < curr_date)])
                     # exit()
                     print(pred)
+                    print(earth_pred)
                     
                     main_data_dict[key]['predictions']=pred
                     main_data_dict[key]['SPEy']=spe
@@ -834,6 +837,7 @@ class MainDB():
                     main_data_dict[key]['length_dataframe']=length_dataframe
                     main_data_dict[key]['ewma']=ewma
                     main_data_dict[key]['cumsum']=cumsum
+                    main_data_dict[key]['earth_pred']=earth_pred
                     # exit()
                     # main_data_dict[key]['ewma_ucl']=ewma_ucl
                     # print(main_data_dict[key])
@@ -2341,7 +2345,7 @@ start_time = time.time()
 
 # daily_obj=DailyInsert('F:\Afzal_cs\Internship\Arvind data files\RTM FUEL.xlsx','F:\Afzal_cs\Internship\Arvind data files\RTM ENGINE.xlsx',9591301,True)
 # daily_obj.do_steps()
-obj=MainDB(9205926)
+obj=MainDB(6185798)
 obj.get_ship_configs()
 # obj.get_main_db(0)
 first_maindict=obj.ad_all()
@@ -2349,20 +2353,15 @@ first_maindict=obj.ad_all()
 # # #initialize maindb with handwritten formulas draftmean=(dft_aft+dt_fwd)/2 (dailydata)
 calc_i_cp_main_dict=obj.add_calc_i_cp(first_maindict)
 # # #adding calc _i _cp variable values in respective identifier example:speed_sog_calc=speed_sog{speed_sog_calc:value}
+# #updating equipment values 0 or 1 here
 lvl_two_main_dict=obj.maindb_lvl_two(calc_i_cp_main_dict)
 equipment_values_main_dict=obj.equipment_values(lvl_two_main_dict)
 
 
-
 temp_sister_vessswel_obj=obj.sister_vessel_pred(equipment_values_main_dict)
-
-
-# #updating equipment values 0 or 1 here
-# lvl_two_main_dict=obj.maindb_lvl_two(equipment_values_main_dict)
-# #vsl load change with respect to draftmean val
-# vsl_load_conversion_dict=obj.vsl_load_conversion(lvl_two_main_dict)
 # #same as ad_all (gets the value from maindb)
 base_dataframe_one=obj.create_base_dataframe(temp_sister_vessswel_obj,True)
+
 # # creates dataframe of all identifiers (currently all good vayage true)
 outlier_main_dict=obj.update_outlier_maindb_alldoc(base_dataframe_one)
 # #outlier (both outlier 1 and 2 inside this) and (remove date condition on find  before uploading in aws)
