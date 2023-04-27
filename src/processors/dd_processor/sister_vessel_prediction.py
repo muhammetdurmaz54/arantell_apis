@@ -168,7 +168,7 @@ class Sister_Vessel_pred():
                             X_train[i]=new_data[i]
                         try:
                             for j in data_today[i]:
-                                test_val=(j-mean_x_test)/std_x_test
+                                test_val=(j-mean_x)/std_x
                                 if pd.isnull(test_val)==False:
                                     test_x_list.append(test_val)
                                 else:
@@ -205,6 +205,9 @@ class Sister_Vessel_pred():
                     for col in predcol:
                         val=(pred[col].iloc[-1]*std_y)+mean_y
                         pred_list.append(val)
+                    if pred_list[1]<0:
+                        # print("neggativeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee")
+                        pred_list[1]=0
                     return pred_list[1]
                     
                 except:
