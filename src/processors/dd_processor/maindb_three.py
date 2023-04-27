@@ -379,7 +379,8 @@ class MainDB():
                     equipment_data[key]['processed']=1
                 else:
                     equipment_data[key]['processed']=0
-            main_dict_list[i]['Equipment']=equipment_data     
+            main_dict_list[i]['Equipment']=equipment_data    
+        print("equipment done") 
         return main_dict_list
         
 
@@ -415,6 +416,7 @@ class MainDB():
         sister_vessel_list=sister_vessel_list+similar_vessel_list
         
         self.sister_imo_main_dict=main_dict_list
+        print(sister_vessel_list)
         for i in sister_vessel_list:
             try:
                 maindb = database.get_collection("Main_db")
@@ -445,7 +447,7 @@ class MainDB():
                 for j in dataframe['rep_dt']:
                     j=newdatearray.append(j.date())
                 dataframe['rep_dt']=newdatearray
-                # print(dataframe)
+                print(i,dataframe)
                 new_main_dict_list=self.sister_vessel_prediction(dataframe,self.sister_imo_main_dict,i)
                 self.sister_imo_main_dict=new_main_dict_list
                 # dataframe.to_csv("datafull.csv")
@@ -472,8 +474,8 @@ class MainDB():
             print("tooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",i)
             main_data_dict=main_dict_list[i]['processed_daily_data']
             for key in ml_control:
-                if key=="pwr" and key in main_data_dict and pandas.isnull(main_data_dict[key]['processed'])==False:
-                    print("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",key)
+                if key in main_data_dict and pandas.isnull(main_data_dict[key]['processed'])==False:
+                    print("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",sister_imo,key)
                     val=ml_control[key]
                     for k in val:
                         if k=="" or k==" " or k=="  ":
@@ -503,6 +505,7 @@ class MainDB():
                     pred=pred_obj.prediction(temp_data,key,main_data_dict)
                     main_data_dict[key][str(sister_imo)+'_predictions']=pred
                     print(main_data_dict[key])
+                    main_data_dict[key][str(sister_imo)+'_predictions']
             main_dict_list[i]['processed_daily_data']=main_data_dict
             print("kiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii")
         return main_dict_list
@@ -539,6 +542,7 @@ class MainDB():
         
     def create_base_dataframe(self,main_dict_first_list,flag):
         if flag==True:
+            # #vsl load change with respect to draftmean val
             main_dict_list=self.vsl_load_conversion(main_dict_first_list)
         elif flag==False:
             main_dict_list=main_dict_first_list
@@ -1192,570 +1196,6 @@ class MainDB():
         print("init doneee")
         return main_dict_list
         
-    def update_main_fuel(self,main_dict_list):
-        # maindata = maindb.find({"ship_imo": int(self.ship_imo),"processed_daily_data.rep_dt.processed":{"$gte":datetime(2016,2,1,12)}})
-        temp_list_2=[]
-        for k in range(0,len(main_dict_list)):
-            if main_dict_list[k]['within_good_voyage_limit']==True:
-                try:
-                    temp_list_2.append(main_dict_list[k]['processed_daily_data']['dst_last']['processed'])
-                except KeyError:
-                    temp_list_2.append(None)
-        temp_list_2=[x for x in temp_list_2 if x is not None]
-        dst_mean=round(np.mean(temp_list_2),2)
-
-        Q_y_m3=self.ship_configs['spe_limits']['main_fuel_per_dst']['m3']
-        Q_y_m6=self.ship_configs['spe_limits']['main_fuel_per_dst']['m6']
-        Q_y_m12=self.ship_configs['spe_limits']['main_fuel_per_dst']['m12']
-        Q_y_ly_m3=self.ship_configs['spe_limits']['main_fuel_per_dst']['ly_m3']
-        Q_y_ly_m6=self.ship_configs['spe_limits']['main_fuel_per_dst']['ly_m6']
-        Q_y_ly_m12=self.ship_configs['spe_limits']['main_fuel_per_dst']['ly_m12']
-
-        T_2_limit=self.ship_configs['t2_limits']['main_fuel_per_dst']
-
-        ewma_limit_m3=self.ship_configs['ewma_limits']['main_fuel_per_dst']['m3']
-        ewma_limit_m6=self.ship_configs['ewma_limits']['main_fuel_per_dst']['m6']
-        ewma_limit_m12=self.ship_configs['ewma_limits']['main_fuel_per_dst']['m12']
-        ewma_limit_ly_m3=self.ship_configs['ewma_limits']['main_fuel_per_dst']['ly_m3']
-        ewma_limit_ly_m6=self.ship_configs['ewma_limits']['main_fuel_per_dst']['ly_m6']
-        ewma_limit_ly_m12=self.ship_configs['ewma_limits']['main_fuel_per_dst']['ly_m12']
-
-        Q_y_list={"m3":Q_y_m3,"m6":Q_y_m6,"m12":Q_y_m12,"ly_m3":Q_y_ly_m3,"ly_m6":Q_y_ly_m6,"ly_m12":Q_y_ly_m12}
-        ewma_limit={"m3":ewma_limit_m3,"m6":ewma_limit_m6,"m12":ewma_limit_m12,"ly_m3":ewma_limit_ly_m3,"ly_m6":ewma_limit_ly_m6,"ly_m12":ewma_limit_ly_m12}
-        Q_y={}
-        t_2_ucl={}
-        ewma_ucl={}
-        for month in Q_y_list:
-            if Q_y_list[month] and pandas.isnull(Q_y_list[month])==False and pandas.isnull(dst_mean)==False:
-                spe_alpha={}
-                for i in Q_y_list[month]:
-                    spe_alpha[i]=Q_y_list[month][i]*dst_mean
-                Q_y[month]=spe_alpha
-            else:
-                Q_y[month]=None
-            
-            try:
-                if len(ewma_limit[month])>0 and pandas.isnull(dst_mean)==False:
-                    ewma_alpha=[]
-                    for i in ewma_limit[month]:
-                        ewma_alpha.append(i*dst_mean)
-                    ewma_ucl[month]=ewma_alpha
-            except:
-                ewma_ucl[month]=None
-        
-        if pandas.isnull(T_2_limit)==False and pandas.isnull(dst_mean)==False:
-            for i in T_2_limit:
-                t_2_ucl[i]=T_2_limit[i]*dst_mean
-        else:
-            t_2_ucl=None
-        self.ship_configs['spe_limits']['main_fuel']=Q_y
-        self.ship_configs['t2_limits']['main_fuel']=t_2_ucl
-        self.ship_configs['ewma_limits']['main_fuel']=ewma_ucl
-        # self.ship_configs_collection.update_one(self.ship_configs_collection.find({"ship_imo": int(self.ship_imo)})[0],{"$set":{"spe_limits.main_fuel":Q_y,"t2_limits.main_fuel":t_2_ucl,"ewma_limits.main_fuel":ewma_ucl}})   
-        print("ship_doneeeeeeeeee")
-        for i in range(0,len(main_dict_list)):
-            try:
-                print(i)
-                main_data=main_dict_list[i]
-                main_fuel_per_dst_m3=main_data['processed_daily_data']['main_fuel_per_dst']['predictions']['m3']
-                main_fuel_per_dst_m6=main_data['processed_daily_data']['main_fuel_per_dst']['predictions']['m6']
-                main_fuel_per_dst_m12=main_data['processed_daily_data']['main_fuel_per_dst']['predictions']['m12']
-                main_fuel_per_dst_ly_m3=main_data['processed_daily_data']['main_fuel_per_dst']['predictions']['ly_m3']
-                main_fuel_per_dst_ly_m6=main_data['processed_daily_data']['main_fuel_per_dst']['predictions']['ly_m6']
-                main_fuel_per_dst_ly_m12=main_data['processed_daily_data']['main_fuel_per_dst']['predictions']['ly_m12']
-
-                spe_m3=main_data['processed_daily_data']['main_fuel_per_dst']['SPEy']['m3']
-                spe_m6=main_data['processed_daily_data']['main_fuel_per_dst']['SPEy']['m6']
-                spe_m12=main_data['processed_daily_data']['main_fuel_per_dst']['SPEy']['m12']
-                spe_ly_m3=main_data['processed_daily_data']['main_fuel_per_dst']['SPEy']['ly_m3']
-                spe_ly_m6=main_data['processed_daily_data']['main_fuel_per_dst']['SPEy']['ly_m6']
-                spe_ly_m12=main_data['processed_daily_data']['main_fuel_per_dst']['SPEy']['ly_m12']
-
-                ewma_m3=main_data['processed_daily_data']['main_fuel_per_dst']['ewma']['m3']
-                ewma_m6=main_data['processed_daily_data']['main_fuel_per_dst']['ewma']['m6']
-                ewma_m12=main_data['processed_daily_data']['main_fuel_per_dst']['ewma']['m12']
-                ewma_ly_m3=main_data['processed_daily_data']['main_fuel_per_dst']['ewma']['ly_m3']
-                ewma_ly_m6=main_data['processed_daily_data']['main_fuel_per_dst']['ewma']['ly_m6']
-                ewma_ly_m12=main_data['processed_daily_data']['main_fuel_per_dst']['ewma']['ly_m12']
-
-                T_2_m3=main_data['processed_daily_data']['main_fuel_per_dst']['t2_initial']['m3']
-                T_2_m6=main_data['processed_daily_data']['main_fuel_per_dst']['t2_initial']['m6']
-                T_2_m12=main_data['processed_daily_data']['main_fuel_per_dst']['t2_initial']['m12']
-                T_2_ly_m3=main_data['processed_daily_data']['main_fuel_per_dst']['t2_initial']['ly_m3']
-                T_2_ly_m6=main_data['processed_daily_data']['main_fuel_per_dst']['t2_initial']['ly_m6']
-                T_2_ly_m12=main_data['processed_daily_data']['main_fuel_per_dst']['t2_initial']['ly_m12']
-
-                # stm_hrs=self.main_data['processed_daily_data']['stm_hrs']['processed']
-                dst_last=main_data['processed_daily_data']['dst_last']['processed']
-                pred={}
-                spe_y={}
-                t_2={}
-                ewma={}
-                months_list={"m3":main_fuel_per_dst_m3,"m6":main_fuel_per_dst_m6,"m12":main_fuel_per_dst_m12,"ly_m3":main_fuel_per_dst_ly_m3,"ly_m6":main_fuel_per_dst_ly_m6,"ly_m12":main_fuel_per_dst_ly_m12}
-                spe_list={"m3":spe_m3,"m6":spe_m6,"m12":spe_m12,"ly_m3":spe_ly_m3,"ly_m6":spe_ly_m6,"ly_m12":spe_ly_m12}
-                T_2_list={"m3":T_2_m3,"m6":T_2_m6,"m12":T_2_m12,"ly_m3":T_2_ly_m3,"ly_m6":T_2_ly_m6,"ly_m12":T_2_ly_m12}
-                ewma_list={"m3":ewma_m3,"m6":ewma_m6,"m12":ewma_m12,"ly_m3":ewma_ly_m3,"ly_m6":ewma_ly_m6,"ly_m12":ewma_ly_m12}
-                
-                main_fuel=main_data['processed_daily_data']['main_fuel']
-                
-                for month in months_list:
-                    if months_list[month] and pandas.isnull(months_list[month][1])==False and pandas.isnull(dst_last)==False:
-                        temp_list=[]
-                        if pandas.isnull(months_list[month][0])==False or months_list[month][0]!=None:
-                            temp_list.append(months_list[month][0] * dst_last)
-                        else:
-                            temp_list.append(None)
-                        temp_list.append(months_list[month][1] * dst_last)
-                        if pandas.isnull(months_list[month][2])==False or months_list[month][2]!=None:
-                            temp_list.append(months_list[month][2] * dst_last)
-                        else:
-                            temp_list.append(None)
-                        pred[month]=temp_list
-                    else:
-                        pred[month]=[]
-                    main_fuel['predictions']=pred
-
-                    if spe_list[month] and pandas.isnull(spe_list[month])==False and pandas.isnull(dst_last)==False:
-                        spe_y[month]=spe_list[month] * dst_last
-                    else:
-                        spe_y[month]=None
-                    main_fuel['SPEy']=spe_y
-
-                    if T_2_list[month] and pandas.isnull(T_2_list[month])==False and pandas.isnull(dst_last)==False:
-                        t_2[month]=T_2_list[month] * dst_last
-                    else:
-                        t_2[month]=None
-                    main_fuel['t2_initial']=t_2
-
-                    try:
-                        if pandas.isnull(dst_last)==False and ewma_list[month]!=None and len(ewma_list[month])>0:
-                            ewma_alpha=[]
-                            for j in ewma_list[month]:
-                                ewma_alpha.append(j*dst_last)
-                            ewma[month]=ewma_alpha
-                        else:
-                            ewma[month]=None
-                    except:
-                        ewma[month]=None
-                    main_fuel['ewma']=ewma
-
-                    """if T_2_limit[month] and pandas.isnull(T_2_limit[month])==False:
-                        t_2_ucl[month]=T_2_limit[month] * dst_mean
-                        if pandas.isnull(t_2[month])==False or t_2[month]!=None:
-                            if t_2[month]>t_2_ucl[month]:
-                                t_2_anamoly[month]=False
-                            else:
-                                t_2_anamoly[month]=True
-                        else:
-                            t_2_anamoly[month]=None
-                    else: 
-                        t_2_ucl[month]=None
-                        t_2_anamoly[month]=None
-                    main_fuel['ucl_crit_beta']=t_2_ucl
-                    main_fuel['t2_anamoly']=t_2_anamoly
-
-                    if Q_y_list[month] and pandas.isnull(Q_y_list[month][1])==False:
-                        temp_list1=[]
-                        temp_list2=[]
-                        if pandas.isnull(Q_y_list[month][0])==False or Q_y_list[month][0]!=None:
-                            temp_list1.append(Q_y_list[month][0] * dst_mean)
-                            if pandas.isnull(Q_y_list[month][0] * dst_mean)==False and pandas.isnull(main_fuel['SPEy'][month])==False:
-                                if (Q_y_list[month][0] * dst_mean)<main_fuel['SPEy'][month]:
-                                    temp_list2.append(False)
-                                else:
-                                    temp_list2.append(True)
-                            else:
-                                temp_list2.append(True)
-                        else:
-                            temp_list1.append(None)
-                            temp_list2.append(None)
-
-                        temp_list1.append(Q_y_list[month][1] *  dst_mean)
-                        if pandas.isnull(Q_y_list[month][1] *  dst_mean)==False and pandas.isnull(main_fuel['SPEy'][month])==False:
-                            if (Q_y_list[month][1] *  dst_mean)<main_fuel['SPEy'][month]:
-                                temp_list2.append(False)
-                            else:
-                                temp_list2.append(True)
-                        else:
-                            temp_list2.append(True)
-
-                        if pandas.isnull(Q_y_list[month][2])==False or Q_y_list[month][2]!=None:
-                            temp_list1.append(Q_y_list[month][2] * dst_mean)
-                            if pandas.isnull(Q_y_list[month][2] * dst_mean)==False and pandas.isnull(main_fuel['SPEy'][month])==False:
-                                if (Q_y_list[month][2] * dst_mean)<main_fuel['SPEy'][month]:
-                                    temp_list2.append(False)
-                                else:
-                                    temp_list2.append(True)
-                            else:
-                                temp_list2.append(True)
-                        else:
-                            temp_list1.append(None)
-                            temp_list2.append(None)
-                        Q_y[month]=temp_list1
-                        spe_anamoly[month]=temp_list2
-                    else:
-                        Q_y[month]=[]
-                        spe_anamoly[month]=[]
-                    main_fuel['Q_y']=Q_y
-                    main_fuel['spe_anamoly']=spe_anamoly"""
-                # self.maindb.update_one(self.maindb.find({"ship_imo": int(self.ship_imo),"processed_daily_data.rep_dt.processed":{"$gte":datetime(2016,2,1,12)}})[i],{"$set":{"processed_daily_data.main_fuel":main_fuel}})
-                # maindb.update_one(maindb.find({"ship_imo": int(self.ship_imo)})[i],{"$set":{"processed_daily_data.main_fuel":main_fuel}})
-                main_dict_list[i]['processed_daily_data']['main_fuel']=main_fuel
-                print("done")
-            except:
-                print("nopeeeee")
-                continue
-        return main_dict_list
-            
-
-
-    def update_sfoc(self,main_dict_list):
-        # maindata = maindb.find({"ship_imo": int(self.ship_imo),"processed_daily_data.rep_dt.processed":{"$gte":datetime(2016,2,1,12)}})
-        # stm_main =maindb.find({"ship_imo":self.ship_imo,"within_good_voyage_limit":True},{"processed_daily_data.stm_hrs.processed":1,"_id":0})
-        temp_list_2=[]
-        for k in range(0,len(main_dict_list)):
-            if main_dict_list[k]['within_good_voyage_limit']==True:
-                try:
-                    temp_list_2.append(main_dict_list[k]['processed_daily_data']['stm_hrs']['processed'])
-                except KeyError:
-                    temp_list_2.append(None)
-        temp_list_2=[x for x in temp_list_2 if x is not None]
-        stm_mean=round(np.mean(temp_list_2),2)
-        months_list=["m3","m6","m12","ly_m3","ly_m6","ly_m12"]
-        months_list2={"m3":"m3","m6":"m6","m12":"m12","ly_m3":"y_m3","ly_m6":"y_m6","ly_m12":"y_m12"}
-        Q_y={}
-        t_2_ucl={}
-        ewma_limit={}
-        for month in months_list:
-            if self.ship_configs['spe_limits']['main_fuel'][month] and pandas.isnull(self.ship_configs['spe_limits']['main_fuel'][month])==False and self.ship_configs['spe_limits']['pwr'][month] and pandas.isnull(self.ship_configs['spe_limits']['pwr'][month])==False and pandas.isnull(stm_mean)==False:
-                spe_alpha={}
-                for i in self.ship_configs['spe_limits']['main_fuel'][month]:
-                    spe_alpha[i]=(self.ship_configs['spe_limits']['main_fuel'][month][i]/self.ship_configs['spe_limits']['pwr'][month][i]/stm_mean)*1000
-                Q_y[month]=spe_alpha
-            else:
-                Q_y[month]=None
-
-            try:
-                if len(self.ship_configs['ewma_limits']['main_fuel'][month])>0 and len(self.ship_configs['ewma_limits']['pwr'][month])>0 and pandas.isnull(stm_mean)==False:
-                    ewma_alpha=[]
-                    for i in range(0,3):
-                        ewma_alpha.append((self.ship_configs['ewma_limits']['main_fuel'][month][i]/self.ship_configs['ewma_limits']['pwr'][month][i]/stm_mean)*1000)
-                    ewma_limit[month]=ewma_alpha
-            except:
-                ewma_limit[month]=None
-        
-        if pandas.isnull(self.ship_configs['t2_limits']['main_fuel'])==False and pandas.isnull(self.ship_configs['t2_limits']['pwr'])==False and pandas.isnull(stm_mean)==False:
-            for i in self.ship_configs['t2_limits']['main_fuel']:
-                t_2_ucl[i]=(self.ship_configs['t2_limits']['main_fuel'][i]/self.ship_configs['t2_limits']['pwr'][i]/stm_mean)*1000
-        else:
-            t_2_ucl=None
-        
-        self.ship_configs['spe_limits']['sfoc']=Q_y
-        self.ship_configs['t2_limits']['sfoc']=t_2_ucl
-        self.ship_configs['ewma_limits']['sfoc']=ewma_limit
-
-        # self.ship_configs_collection.update_one(self.ship_configs_collection.find({"ship_imo": int(self.ship_imo)})[0],{"$set":{"spe_limits.sfoc":Q_y,"t2_limits.sfoc":t_2_ucl,"ewma_limits.sfoc":ewma_limit}})   
-        print("ship_doneeeeeeeeee")
-
-
-        for i in range(0,len(main_dict_list)):
-            try:
-                print(i)
-                main_data=main_dict_list[i]
-                sfoc=main_data['processed_daily_data']['sfoc']
-                main_fuel=main_data['processed_daily_data']['main_fuel']
-                pwr=main_data['processed_daily_data']['pwr']
-                stm_hrs=main_data['processed_daily_data']['stm_hrs']['processed']
-                pred={}
-                spe_y={}
-                t_2={}
-                ewma={}
-                
-                
-                for month in months_list:
-                    if main_fuel['predictions'][month] and pandas.isnull(main_fuel['predictions'][month][1])==False and pwr['predictions'][month] and pandas.isnull(pwr['predictions'][month][1])==False and pandas.isnull(stm_hrs)==False:
-                        temp_list=[]
-                        if pandas.isnull(main_fuel['predictions'][month][0])==False or main_fuel['predictions'][month][0]!=None:
-                            first_div=main_fuel['predictions'][month][0]/pwr['predictions'][month][1]
-                            second_div=first_div/stm_hrs
-                            val=second_div*1000
-                            temp_list.append(val)
-                        else:
-                            temp_list.append(None)
-                        first_div=main_fuel['predictions'][month][1]/pwr['predictions'][month][1]
-                        second_div=first_div/stm_hrs
-                        val=second_div*1000
-                        temp_list.append(val)
-                        if pandas.isnull(main_fuel['predictions'][month][2])==False or main_fuel['predictions'][month][2]!=None :
-                            first_div=main_fuel['predictions'][month][2]/pwr['predictions'][month][1]
-                            second_div=first_div/stm_hrs
-                            val=second_div*1000
-                            temp_list.append(val)
-                        else:
-                            temp_list.append(None)
-                        pred[month]=temp_list
-                    else:
-                        pred[month]=[]
-                    sfoc['predictions']=pred
-
-                    if main_fuel['SPEy'][month] and pandas.isnull(main_fuel['SPEy'][month])==False and pwr['SPEy'][month] and pandas.isnull(pwr['SPEy'][month])==False and pandas.isnull(stm_hrs)==False:
-                        spe_y[month]=((main_fuel['SPEy'][month]/pwr['SPEy'][month])/stm_hrs)*1000
-                    else:
-                        spe_y[month]=None
-                    sfoc['SPEy']=spe_y
-
-                    if main_fuel['t2_initial'][month] and pandas.isnull(main_fuel['t2_initial'][month])==False and pwr['t2_initial'][month] and pandas.isnull(pwr['t2_initial'][month])==False and pandas.isnull(stm_hrs)==False:
-                        t_2[month]=((main_fuel['t2_initial'][month]/pwr['t2_initial'][month])/stm_hrs)*1000
-                    else:
-                        t_2[month]=None
-                    sfoc['t2_initial']=t_2
-
-                    try:
-                        if len(main_fuel['ewma'][month])>0 and len(pwr['ewma'][months_list2[month]])>0 and pandas.isnull(stm_hrs)==False:
-                            ewma_alpha2=[]
-                            for j in range(0,3):
-                                ewma_alpha2.append((main_fuel['ewma'][month][i]/pwr['ewma'][months_list2[month]][j]/stm_hrs)*1000)
-                            ewma[month]=ewma_alpha2
-                        else:
-                            ewma[month]=None
-                    except:
-                        ewma[month]=None
-                    sfoc['ewma']=ewma
-                    
-                    """if main_fuel['ucl_crit_beta'][month] and pandas.isnull(main_fuel['ucl_crit_beta'][month])==False and pwr['ucl_crit_beta'][month] and pandas.isnull(pwr['ucl_crit_beta'][month])==False and pandas.isnull(stm_hrs)==False:
-                        t_2_ucl[month]=((main_fuel['ucl_crit_beta'][month]/pwr['ucl_crit_beta'][month])/stm_mean)*1000
-                        if pandas.isnull(t_2[month])==False or t_2[month]!=None:
-                            if t_2[month]>t_2_ucl[month]:
-                                t_2_anamoly[month]=False
-                            else:                   
-                                t_2_anamoly[month]=True                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
-                        else:
-                            t_2_anamoly[month]=None
-                    else: 
-                        t_2_ucl[month]=None
-                        t_2_anamoly[month]=None
-                    sfoc['ucl_crit_beta']=t_2_ucl
-                    sfoc['t2_anamoly']=t_2_anamoly
-
-                    if main_fuel['Q_y'][month] and pandas.isnull(main_fuel['Q_y'][month][1])==False and pwr['Q_y'][month] and pandas.isnull(pwr['Q_y'][month][1])==False and pandas.isnull(stm_hrs)==False:
-                        temp_list1=[]
-                        temp_list2=[]
-                        if pandas.isnull(main_fuel['Q_y'][month][0])==False or main_fuel['Q_y'][month][0]!=None and pandas.isnull(pwr['Q_y'][month][0])==False or pwr['Q_y'][month][0]!=None:
-                            temp_list1.append(((main_fuel['Q_y'][month][0]/pwr['Q_y'][month][0])/stm_mean)*1000)
-                            if pandas.isnull(((main_fuel['Q_y'][month][0]/pwr['Q_y'][month][0])/stm_mean)*1000)==False and pandas.isnull(sfoc['SPEy'][month])==False:
-                                if (((main_fuel['Q_y'][month][0]/pwr['Q_y'][month][0])/stm_mean)*1000)<sfoc['SPEy'][month]:
-                                    temp_list2.append(False)
-                                else:
-                                    temp_list2.append(True)
-                            else:
-                                temp_list2.append(True)
-                        else:
-                            temp_list1.append(None)
-                            temp_list2.append(None)
-
-                        temp_list1.append(((main_fuel['Q_y'][month][1]/pwr['Q_y'][month][1])/stm_mean)*1000)
-                        if pandas.isnull(((main_fuel['Q_y'][month][1]/pwr['Q_y'][month][1])/stm_mean)*1000)==False and pandas.isnull(sfoc['SPEy'][month])==False:
-                            if (((main_fuel['Q_y'][month][1]/pwr['Q_y'][month][1])/stm_mean)*1000)<sfoc['SPEy'][month]:
-                                temp_list2.append(False)
-                            else:
-                                temp_list2.append(True)
-                        else:
-                            temp_list2.append(True)
-
-                        if pandas.isnull(main_fuel['Q_y'][month][2])==False or main_fuel['Q_y'][month][2]!=None and pandas.isnull(pwr['Q_y'][month][2])==False or pwr['Q_y'][month][2]!=None:
-                            temp_list1.append(((main_fuel['Q_y'][month][2]/pwr['Q_y'][month][2])/stm_mean)*1000)
-                            if pandas.isnull(((main_fuel['Q_y'][month][2]/pwr['Q_y'][month][2])/stm_mean)*1000)==False and pandas.isnull(sfoc['SPEy'][month])==False:
-                                if (((main_fuel['Q_y'][month][2]/pwr['Q_y'][month][2])/stm_mean)*1000)<sfoc['SPEy'][month]:
-                                    temp_list2.append(False)
-                                else:
-                                    temp_list2.append(True)
-                            else:
-                                temp_list2.append(True)
-                        else:
-                            temp_list1.append(None)
-                            temp_list2.append(None)
-                        Q_y[month]=temp_list1
-                        spe_anamoly[month]=temp_list2
-                    else:
-                        Q_y[month]=[]
-                        spe_anamoly[month]=[]
-                    sfoc['Q_y']=Q_y
-                    sfoc['spe_anamoly']=spe_anamoly"""
-                # self.maindb.update_one(self.maindb.find({"ship_imo": int(self.ship_imo),"processed_daily_data.rep_dt.processed":{"$gte":datetime(2016,2,1,12)}})[i],{"$set":{"processed_daily_data.sfoc":sfoc}})
-                # maindb.update_one(maindb.find({"ship_imo": int(self.ship_imo)})[i],{"$set":{"processed_daily_data.sfoc":sfoc}})
-                main_dict_list[i]['processed_daily_data']['sfoc']=sfoc
-                print("done")
-            except:
-                print("nope")
-                continue
-        return main_dict_list
-
-
-    def update_avg_hfo(self,main_dict_list):
-        # maindata = maindb.find({"ship_imo": int(self.ship_imo),"processed_daily_data.rep_dt.processed":{"$gte":datetime(2016,2,1,12)}})
-        # stm_main =maindb.find({"ship_imo":self.ship_imo,"within_good_voyage_limit":True},{"processed_daily_data.stm_hrs.processed":1,"_id":0})
-        temp_list_2=[]
-        for k in range(0,len(main_dict_list)):
-            if main_dict_list[k]['within_good_voyage_limit']==True:
-                try:
-                    temp_list_2.append(main_dict_list[k]['processed_daily_data']['stm_hrs']['processed'])
-                except KeyError:
-                    temp_list_2.append(None)
-        temp_list_2=[x for x in temp_list_2 if x is not None]
-        stm_mean=round(np.mean(temp_list_2),2)
-        months_list1=["m3","m6","m12","ly_m3","ly_m6","ly_m12"]
-        Q_y={}
-        t_2_ucl={}
-        ewma_limit={}
-        for month in months_list1:
-            if self.ship_configs['spe_limits']['main_fuel'][month] and pandas.isnull(self.ship_configs['spe_limits']['main_fuel'][month])==False and pandas.isnull(stm_mean)==False:
-                spe_alpha={}
-                for i in self.ship_configs['spe_limits']['main_fuel'][month]:
-                    spe_alpha[i]=self.ship_configs['spe_limits']['main_fuel'][month][i]*(24/stm_mean)
-                Q_y[month]=spe_alpha
-            else:
-                Q_y[month]=None
-
-            try:
-                if len(self.ship_configs['ewma_limits']['main_fuel'][month])>0 and  pandas.isnull(stm_mean)==False:
-                    ewma_alpha=[]
-                    for i in range(0,3):
-                        ewma_alpha.append(self.ship_configs['ewma_limits']['main_fuel'][month][i]*(24/stm_mean))
-                    ewma_limit[month]=ewma_alpha
-            except:
-                ewma_limit[month]=None
-        
-        if pandas.isnull(self.ship_configs['t2_limits']['main_fuel'])==False and pandas.isnull(stm_mean)==False:
-            for i in self.ship_configs['t2_limits']['main_fuel']:
-                t_2_ucl[i]=self.ship_configs['t2_limits']['main_fuel'][i]*(24/stm_mean)
-        else:
-            t_2_ucl=None
-        
-        self.ship_configs['spe_limits']['avg_hfo']=Q_y
-        self.ship_configs['t2_limits']['avg_hfo']=t_2_ucl
-        self.ship_configs['ewma_limits']['avg_hfo']=ewma_limit
-        self.ship_configs_collection.update_one(self.ship_configs_collection.find({"ship_imo": int(self.ship_imo)})[0],{"$set":{"spe_limits.avg_hfo":Q_y,"t2_limits.avg_hfo":t_2_ucl,"ewma_limits.avg_hfo":ewma_limit}})   
-        print("ship_doneeeeeeeeee")
-        
-        for i in range(0,len(main_dict_list)):
-            try:
-                print(i)
-                main_data=main_dict_list[i]
-                main_fuel_per_dst_m3=main_data['processed_daily_data']['main_fuel']['predictions']['m3']
-                main_fuel_per_dst_m6=main_data['processed_daily_data']['main_fuel']['predictions']['m6']
-                main_fuel_per_dst_m12=main_data['processed_daily_data']['main_fuel']['predictions']['m12']
-                main_fuel_per_dst_ly_m3=main_data['processed_daily_data']['main_fuel']['predictions']['ly_m3']
-                main_fuel_per_dst_ly_m6=main_data['processed_daily_data']['main_fuel']['predictions']['ly_m6']
-                main_fuel_per_dst_ly_m12=main_data['processed_daily_data']['main_fuel']['predictions']['ly_m12']
-
-                spe_m3=main_data['processed_daily_data']['main_fuel']['SPEy']['m3']
-                spe_m6=main_data['processed_daily_data']['main_fuel']['SPEy']['m6']
-                spe_m12=main_data['processed_daily_data']['main_fuel']['SPEy']['m12']
-                spe_ly_m3=main_data['processed_daily_data']['main_fuel']['SPEy']['ly_m3']
-                spe_ly_m6=main_data['processed_daily_data']['main_fuel']['SPEy']['ly_m6']
-                spe_ly_m12=main_data['processed_daily_data']['main_fuel']['SPEy']['ly_m12']
-
-                T_2_m3=main_data['processed_daily_data']['main_fuel']['t2_initial']['m3']
-                T_2_m6=main_data['processed_daily_data']['main_fuel']['t2_initial']['m6']
-                T_2_m12=main_data['processed_daily_data']['main_fuel']['t2_initial']['m12']
-                T_2_ly_m3=main_data['processed_daily_data']['main_fuel']['t2_initial']['ly_m3']
-                T_2_ly_m6=main_data['processed_daily_data']['main_fuel']['t2_initial']['ly_m6']
-                T_2_ly_m12=main_data['processed_daily_data']['main_fuel']['t2_initial']['ly_m12']
-
-                ewma_m3=main_data['processed_daily_data']['main_fuel']['ewma']['m3']
-                ewma_m6=main_data['processed_daily_data']['main_fuel']['ewma']['m6']
-                ewma_m12=main_data['processed_daily_data']['main_fuel']['ewma']['m12']
-                ewma_ly_m3=main_data['processed_daily_data']['main_fuel']['ewma']['ly_m3']
-                ewma_ly_m6=main_data['processed_daily_data']['main_fuel']['ewma']['ly_m6']
-                ewma_ly_m12=main_data['processed_daily_data']['main_fuel']['ewma']['ly_m12']
-
-                stm_hrs=main_data['processed_daily_data']['stm_hrs']['processed']
-                pred={}
-                spe_y={}
-                Q_y={}
-                t_2={}
-                ewma={}
-
-                months_list={"m3":main_fuel_per_dst_m3,"m6":main_fuel_per_dst_m6,"m12":main_fuel_per_dst_m12,"ly_m3":main_fuel_per_dst_ly_m3,"ly_m6":main_fuel_per_dst_ly_m6,"ly_m12":main_fuel_per_dst_ly_m12}
-                spe_list={"m3":spe_m3,"m6":spe_m6,"m12":spe_m12,"ly_m3":spe_ly_m3,"ly_m6":spe_ly_m6,"ly_m12":spe_ly_m12}
-                T_2_list={"m3":T_2_m3,"m6":T_2_m6,"m12":T_2_m12,"ly_m3":T_2_ly_m3,"ly_m6":T_2_ly_m6,"ly_m12":T_2_ly_m12}
-                ewma_list={"m3":ewma_m3,"m6":ewma_m6,"m12":ewma_m12,"ly_m3":ewma_ly_m3,"ly_m6":ewma_ly_m6,"ly_m12":ewma_ly_m12}
-                
-                avg_hfo=main_data['processed_daily_data']['avg_hfo']
-
-                for month in months_list:
-                    if months_list[month] and pandas.isnull(months_list[month][1])==False and pandas.isnull(stm_hrs)==False:
-                        
-                        temp_list=[]
-                        if pandas.isnull(months_list[month][0])==False or months_list[month][0]!=None:
-                            temp_list.append(months_list[month][0] * (24/stm_hrs))
-                        else:
-                            temp_list.append(None)
-                        temp_list.append(months_list[month][1] * (24/stm_hrs))
-                        if pandas.isnull(months_list[month][2])==False or months_list[month][2]!=None:
-                            temp_list.append(months_list[month][2] * (24/stm_hrs))
-                        else:
-                            temp_list.append(None)
-
-                        pred[month]=temp_list
-                    else:
-                        pred[month]=[]
-                    
-                    avg_hfo['predictions']=pred
-
-                    if spe_list[month] and pandas.isnull(spe_list[month])==False and pandas.isnull(stm_hrs)==False:
-                        spe_y[month]=spe_list[month] * (24/stm_hrs)
-                    else:
-                        spe_y[month]=None
-                    
-                    avg_hfo['SPEy']=spe_y
-
-                    if T_2_list[month] and pandas.isnull(T_2_list[month])==False and pandas.isnull(stm_hrs)==False:
-                        t_2[month]=T_2_list[month] * (24/stm_hrs)
-                    else:
-                        t_2[month]=None
-                    avg_hfo['t2_initial']=t_2
-
-                    try:
-                        if ewma_list[month]!=None and len(ewma_list[month])>0 and pandas.isnull(stm_hrs)==False:
-                            ewma_alpha=[]
-                            for j in ewma_list[month]:
-                                ewma_alpha.append(j*(24/stm_hrs))
-                            ewma[month]=ewma_alpha
-                        else:
-                            ewma[month]=None
-                    except:
-                        ewma[month]=None
-                    avg_hfo['ewma']=ewma
-
-
-
-                    """if Q_y_list[month] and pandas.isnull(Q_y_list[month][1])==False and pandas.isnull(stm_hrs)==False:
-                        temp_list1=[]
-                        if pandas.isnull(Q_y_list[month][0])==False or Q_y_list[month][0]!=None:
-                            temp_list1.append(Q_y_list[month][0] *  (24/stm_hrs))
-                        else:
-                            temp_list1.append(None)
-                        temp_list1.append(Q_y_list[month][1] *  (24/stm_hrs))
-                        if pandas.isnull(Q_y_list[month][2])==False or Q_y_list[month][2]!=None:
-                            temp_list1.append(Q_y_list[month][2] *  (24/stm_hrs))
-                        else:
-                            temp_list1.append(None)
-
-                        Q_y[month]=temp_list1
-                    else:
-                        Q_y[month]=[]
-
-                    avg_hfo['Q_y']=Q_y"""
-                    
-                # self.maindb.update_one(self.maindb.find({"ship_imo": int(self.ship_imo),"processed_daily_data.rep_dt.processed":{"$gte":datetime(2016,2,1,12)}})[i],{"$set":{"processed_daily_data.avg_hfo":avg_hfo}})
-                # maindb.update_one(maindb.find({"ship_imo": int(self.ship_imo)})[i],{"$set":{"processed_daily_data.avg_hfo":avg_hfo}})
-                main_dict_list[i]['processed_daily_data']['avg_hfo']=avg_hfo
-                print("done")      
-            except:
-                print("nopeee")
-                continue
-        return main_dict_list
     
     
     def ewma_limits(self,main_dict_list):
@@ -2342,7 +1782,7 @@ start_time = time.time()
 
 # daily_obj=DailyInsert('F:\Afzal_cs\Internship\Arvind data files\RTM FUEL.xlsx','F:\Afzal_cs\Internship\Arvind data files\RTM ENGINE.xlsx',9591301,True)
 # daily_obj.do_steps()
-obj=MainDB(9606821)
+obj=MainDB(9105916)
 obj.get_ship_configs()
 # obj.get_main_db(0)
 first_maindict=obj.ad_all()
@@ -2350,18 +1790,13 @@ first_maindict=obj.ad_all()
 # # #initialize maindb with handwritten formulas draftmean=(dft_aft+dt_fwd)/2 (dailydata)
 calc_i_cp_main_dict=obj.add_calc_i_cp(first_maindict)
 # # #adding calc _i _cp variable values in respective identifier example:speed_sog_calc=speed_sog{speed_sog_calc:value}
+# #updating equipment values 0 or 1 here
 lvl_two_main_dict=obj.maindb_lvl_two(calc_i_cp_main_dict)
 equipment_values_main_dict=obj.equipment_values(lvl_two_main_dict)
 
 
-
 temp_sister_vessswel_obj=obj.sister_vessel_pred(equipment_values_main_dict)
-
-
-# #updating equipment values 0 or 1 here
-# lvl_two_main_dict=obj.maindb_lvl_two(equipment_values_main_dict)
-# #vsl load change with respect to draftmean val
-# vsl_load_conversion_dict=obj.vsl_load_conversion(lvl_two_main_dict)
+# exit()
 # #same as ad_all (gets the value from maindb)
 base_dataframe_one=obj.create_base_dataframe(temp_sister_vessswel_obj,True)
 
@@ -2389,12 +1824,7 @@ obj.universal_indices_limits()
 obj.ewma_limits(indices_preds_main_dict)
 obj.indice_ewma_limit(indices_preds_main_dict)
 
-# main_fuel_main_dict=obj.update_main_fuel(indices_preds_main_dict)
-# #backcalculationg main fuel by given furlmula (all values which are created in predictions processe will be backcalculated with same formula)
-# sfoc_main_dict=obj.update_sfoc(main_fuel_main_dict)
-# # #backcalculating
-# avg_hfo_main_dict=obj.update_avg_hfo(sfoc_main_dict)
-# # #Backcalculating
+
 cp_msg_main_dict=obj.update_cp_msg(indices_preds_main_dict)
 final_main_dict=obj.anamolies_by_config(cp_msg_main_dict)
 create_maindb_update_shipconfig=obj.final_maindb_config(final_main_dict)
