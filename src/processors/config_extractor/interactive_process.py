@@ -4,6 +4,7 @@
 # from src.db.setup_mongo import connect_db
 from src.configurations.logging_config import CommonLogger
 from src.processors.config_extractor.configurator import Configurator
+import re
 # from src.helpers.check_status import check_status
 # from flask import request,jsonify
 # from pymongo import DESCENDING, MongoClient, ASCENDING
@@ -14,7 +15,7 @@ from src.processors.config_extractor.configurator import Configurator
 log = CommonLogger(__name__,debug=True).setup_logger()
 
 class InteractiveExtractor():
-    def __init__(self, ship_imo, X, Y, duration, load, Z=None, color=None, size=None, shape=None, typeofinput="input", **other_X):
+    def __init__(self, ship_imo, X, Y, duration, load, compare="None", Z=None, color=None, size=None, shape=None, typeofinput="input", **other_X):
         self.ship_imo = int(ship_imo)
         self.X = X
         self.Y = Y
@@ -26,6 +27,13 @@ class InteractiveExtractor():
         self.other_X = other_X
         self.typeofinput = typeofinput
         self.load = load
+        self.compare = compare
+        self.sisterorsimilar = None
+        x = re.search("[0-9]", self.compare)
+        if x:
+            self.sisterorsimilar = True
+        else:
+            self.sisterorsimilar = False
     
     def read_data(self):
         self.configuration = Configurator(self.ship_imo)
@@ -37,9 +45,11 @@ class InteractiveExtractor():
             other_dict[short_names[key]] = self.other_X[key]
         result={}
         if self.Z is not None:
+            compare_param = self.sisterorsimilar if self.sisterorsimilar else self.compare
+            sis_or_sim = self.compare if self.sisterorsimilar else ""
             if self.typeofinput == 'input':
                 try:
-                    X_name, Y_name, Z_name, X_list, Y_list, Z_list, actual_X_list, actual_Y_list, actual_Z_list = self.configuration.create_surface_data(self.X, self.Y, self.duration, self.Z, self.load, **self.other_X)
+                    X_name, Y_name, Z_name, X_list, Y_list, Z_list, actual_X_list, actual_Y_list, actual_Z_list = self.configuration.create_surface_data(self.X, self.Y, self.duration, self.Z, self.load, compare_param, sis_or_sim, **self.other_X)
                     # dataframe, X_name, Y_name, Z_name, X_list, Y_list, Z_list = self.configuration.create_dataframe(self.X, self.Y, self.duration, self.Z, **self.other_X)
                     # X1, Y1, pred_list = self.configuration.regress_for_constant_x(dataframe, self.X, self.Y, self.Z, 'input', **self.other_X)
                     result['Prediction'] = {
@@ -54,7 +64,7 @@ class InteractiveExtractor():
                     }
                     return X_name, Y_name, Z_name, result, other_dict
                 except ValueError:
-                    result = self.configuration.create_surface_data(self.X, self.Y, self.duration, self.Z, self.load, **self.other_X)
+                    result = self.configuration.create_surface_data(self.X, self.Y, self.duration, self.Z, self.load, compare_param, sis_or_sim, **self.other_X)
                     return result, other_dict
                 # result['Prediction'] = {
                 #     'x': X1,
@@ -69,7 +79,9 @@ class InteractiveExtractor():
                 # return X_name, Y_name, Z_name, result
             if self.typeofinput == 'target':
                 empty_x_constant_list = []
-                dataframe, X_name, Y_name, Z_name, X_list, Y_list, Z_list = self.configuration.create_dataframe(self.X, self.Y, self.duration,self.load, self.Z, **self.other_X)
+                compare_param = self.sisterorsimilar if self.sisterorsimilar else self.compare
+                sis_or_sim = self.compare if self.sisterorsimilar else ""
+                dataframe, X_name, Y_name, Z_name, X_list, Y_list, Z_list = self.configuration.create_dataframe(self.X, self.Y, self.duration,self.load, compare_param, sis_or_sim, self.Z, **self.other_X)
                 if len(set(X_list)) == 1 or len(set(X_list)) == 0:
                     X_empty = "{} (X variable) does not have values. Hence, a prediction cannot be made.".format(X_name)
                     return X_empty
@@ -83,21 +95,23 @@ class InteractiveExtractor():
                     for col in dataframe.columns:
                         if col not in list(self.other_X.keys()):
                             empty_x_constant_list.append(col)
-                    X1, Y1, pred_list = self.configuration.regress_for_constant_x(dataframe, self.X, self.Y, self.Z, **self.other_X)
+                    X1, Y1, pred_list, clean_X_list, clean_Y_list, clean_Z_list = self.configuration.regress_for_constant_x(dataframe, self.X, self.Y, self.Z, **self.other_X)
                     result['Prediction'] = {
                         'x': X1,
                         'y': pred_list,
                         'z': Y1
                     }
                     result['Actual Values'] = {
-                        'x': X_list,
-                        'y': Y_list,
-                        'z': Z_list
+                        'x': clean_X_list,
+                        'y': clean_Y_list,
+                        'z': clean_Z_list
                     }
                     return X_name, Y_name, Z_name, result, other_dict
         else:
             empty_x_constant_list = []
-            dataframe, X_name, Y_name, X_list, Y_list = self.configuration.create_dataframe(self.X, self.Y, self.duration, self.load, **self.other_X)
+            compare_param = self.sisterorsimilar if self.sisterorsimilar else self.compare
+            sis_or_sim = self.compare if self.sisterorsimilar else ""
+            dataframe, X_name, Y_name, X_list, Y_list = self.configuration.create_dataframe(self.X, self.Y, self.duration, self.load, compare_param, sis_or_sim, **self.other_X)
             print("X & Y LIST!!!!", set(X_list), set(Y_list))
             if len(set(X_list)) == 1 or len(set(X_list)) == 0:
                 X_empty = "{} (X variable) does not have values. Hence, a prediction cannot be made.".format(X_name)
@@ -109,7 +123,7 @@ class InteractiveExtractor():
                 for col in dataframe.columns:
                     if col not in list(self.other_X.keys()):
                         empty_x_constant_list.append(col)
-                X1, pred_list = self.configuration.regress_for_constant_x(dataframe, self.X, self.Y, **self.other_X)
+                X1, pred_list, clean_X_list, clean_Y_list = self.configuration.regress_for_constant_x(dataframe, self.X, self.Y, **self.other_X)
                 temp=['draft_mean', 'sea_st', 'trim']
                 # print(self.configuration.get_ship_stats(*temp))
                 # X1.sort()
@@ -121,7 +135,7 @@ class InteractiveExtractor():
                     'y': pred_list
                 }
                 result['Actual Values'] = {
-                    'x': X_list,
-                    'y': Y_list
+                    'x': clean_X_list,
+                    'y': clean_Y_list
                 }
                 return X_name, Y_name, result, other_dict
