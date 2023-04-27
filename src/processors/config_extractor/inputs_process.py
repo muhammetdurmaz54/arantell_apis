@@ -23,7 +23,9 @@ class Inputs():
         self.aws_secret = aws_secret
         self.bucket_name = bucket_name
         self.file_name = str(ship_imo) + subtype_of_input + type_of_input + '.txt'
-        self.object_key = ship_name + ' - ' + str(ship_imo) + '/' + subtype_of_input.capitalize() + '/' + type_of_input.capitalize() + '/' + self.file_name
+        self.object_key = str(ship_imo) + '/' + subtype_of_input.capitalize() + '/' + type_of_input.capitalize() + '/' + self.file_name
+        # self.file_name = '9591301' + 'noon' + 'engine' + '.txt'
+        # self.object_key = '9591301' + '/' + 'Noon' + '/' + 'Engine' + '/' + self.file_name
     
     def getSpreadsheetFromS3(self, how_many_days='7'):
         configuration = Configurator(self.ship_imo)
