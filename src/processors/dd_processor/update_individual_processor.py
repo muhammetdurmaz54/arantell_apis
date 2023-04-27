@@ -70,6 +70,7 @@ import functools
 from sklearn.cross_decomposition import PLSRegression
 from pymongo import ASCENDING,DESCENDING
 
+# from pyearth import Earth
 
 
 
@@ -290,36 +291,16 @@ class UpdateIndividualProcessors():
             else:
                 pred_list=None
                 spe=None
-                # crit_data=None
-                # crit_val_dynamic=None
                 t2_initial=None
-                # t2_final=None
-                # spe_limit_array=None
-                # spe_anamoly=None
-                # spe_y_limit_array=None
-                # t2_anamoly=None
                 ewma=None
                 cumsum_val=None
-                # ewma_ucl=None
-                # print(pred_list,spe,crit_data,crit_val_dynamic,t2_initial,t2_final,spe_limit_array)
-                # return pred_list,spe,crit_data,crit_val_dynamic,t2_initial,t2_final,spe_limit_array,spe_anamoly,spe_y_limit_array,t2_anamoly,length_dataframe,ewma,cumsum_val,ewma_ucl
                 return pred_list,spe,t2_initial,length_dataframe,ewma,cumsum_val
         else:
             pred_list=None
             spe=None
-            # crit_data=None
-            # crit_val_dynamic=None
             t2_initial=None
-            # t2_final=None
-            # spe_limit_array=None
-            # spe_anamoly=None
-            # spe_y_limit_array=None
-            # t2_anamoly=None
             ewma=None
             cumsum_val=None
-            # ewma_ucl=None
-            # print(pred_list,spe,crit_data,crit_val_dynamic,t2_initial,t2_final,spe_limit_array)
-            # return pred_list,spe,crit_data,crit_val_dynamic,t2_initial,t2_final,spe_limit_array,spe_anamoly,spe_y_limit_array,t2_anamoly,length_dataframe,ewma,cumsum_val,ewma_ucl
             return pred_list,spe,t2_initial,length_dataframe,ewma,cumsum_val
 
     def prediction_data(self,new_data,curr_data,identifier,main_data_dict,first_iter):
@@ -338,6 +319,16 @@ class UpdateIndividualProcessors():
                     # print("z_scoreeeeeeeeeee",new_data)
                     # exit()
 
+                # try:
+                #     earth=Earth(max_terms=500,max_degree=1)
+                #     fitted=earth.fit(new_data[x],new_data[y])
+                #     earth_var=True
+                # except:
+                #     earth_var=False
+                # print("Training data:",new_data[x])
+                # print("Training_data:",new_data[y])
+
+
 
 
                 data_today_temp=new_data.copy(deep=True)
@@ -355,6 +346,8 @@ class UpdateIndividualProcessors():
                             tempdict[i]=[None]
                     data_today=data_today.append(pandas.DataFrame(tempdict))
                     data_today=data_today.reset_index(drop=True)
+
+                
                 # print(new_data)
                 # print(data_today)
 
@@ -364,18 +357,20 @@ class UpdateIndividualProcessors():
             
                 # print(dataframe)
                 try:
-                    
-                    
-                    # print(new_data)
-                    # ewma_val=new_data[y].ewm(alpha=0.05,adjust=False).mean()
-                    # cum_sum=new_data[y].cumsum()
-                    # ewma=round(ewma_val.iloc[-1],2)
-                    # cumsum_val=cum_sum.iloc[-1]
-                    # print(round(ewma_val.iloc[-1],2))
-                    # print(cum_sum.iloc[-1])
-                    
-                    
-                    # X_train=dataframe[x]
+                    # try:
+                    #     if earth_var==True:
+                    #         # print("Testing:",data_today[x])
+                    #         # print("testing:",data_today[y])
+                    #         earth_pred=fitted.predict(data_today[x])
+                    #         # print(earth_pred)
+                    #         final_earth_pred=earth_pred[-1]
+                    #     else:
+                    #         final_earth_pred=None
+                        
+
+                    # except:
+                    #     final_earth_pred=None
+
                     training_dict={}
                     testing_dict={}
                     training_dataframe=pd.DataFrame(training_dict)
@@ -413,7 +408,7 @@ class UpdateIndividualProcessors():
                             X_train[i]=new_data[i]
                         try:
                             for j in data_today[i]:
-                                test_val=(j-mean_x_test)/std_x_test
+                                test_val=(j-mean_x)/std_x
                                 if pd.isnull(test_val)==False:
                                     test_x_list.append(test_val)
                                 else:
@@ -432,28 +427,7 @@ class UpdateIndividualProcessors():
                     Y_train=training_dataframe[y]
                     testing_dataframe[y]=test_y_list
                     Y_test=testing_dataframe
-                    
-                #     # pls_reg=PLSRegression(n_components=2)
-                #     # pls_reg.fit(X_train, dataframe[y])
-                    # linear=LinearRegression()
-                    # sample_weights=np.arange(1,len(X_test))
-                    # sample_df=pd.DataFrame({"weight":sample_weights})
-                    # # print(sample_df)
-                    # linear.fit(X_train,Y_train,sample_df['weight'])
-                    # pred_test=linear.predict(X_test)
-                    
-                    # print(pred_test)
-                    # rped=[]
-                    # for i in pred_test:
-                    #     val=(i*std_y)+mean_y
-                    #     rped.append(round(val,2))
-                    # show_dataframe=new_data
-                    
-                    # show_dataframe['weighted_pred']=rped
-                    # print(show_dataframe)
 
-                
-                    # exit()
                     # print(X_train)
                     # print(Y_train)
                     # print(X_test)
@@ -475,6 +449,10 @@ class UpdateIndividualProcessors():
                     for col in predcol:
                         val=(pred[col].iloc[-1]*std_y)+mean_y
                         pred_list.append(val)
+                    
+                    if pred_list[1]<0:
+                        pred_list[1]=0
+                        
                     # print(pred_list)
                     pred_temp=[]
                     for i in range(0,len(pred['Pred'])):
@@ -483,11 +461,11 @@ class UpdateIndividualProcessors():
                     # print(Y_test)
                     # print(pred)
                     # print(pred_list)
-                    # show_dataframe['current_pred']=pred_temp
-                    # show_dataframe.to_csv("pwr_pred.csv")
-                    # print(show_dataframe)
-                    spe=(pred['Pred'].iloc[-1]-Y_test[y].iloc[-1])**2
-                    # print(spe)
+                    if pred_list[1]<0:
+                        spe=(0-Y_test[y].iloc[-1])**2
+                    else:
+                        spe=(pred['Pred'].iloc[-1]-Y_test[y].iloc[-1])**2
+                    # print("speeeee",spe)
                     spe_dataframe=pd.DataFrame({})
                     spe_dataframe['spe']=(pred['Pred']-Y_test[y])**2
                     # print(spe_dataframe)
@@ -495,49 +473,22 @@ class UpdateIndividualProcessors():
                     spe_dataframe.loc[len(spe_dataframe)]=spe
                     new_spe_data=self.checkspe_limit(spe_dataframe)
                     new_spe_data=new_spe_data.tolist()
-                    # var_sped=np.var(spe_dataframe['spe'])
-                    # mean_var=np.mean(spe_dataframe['spe'])
                     mewma_alpha=[]
                     mewma_alpha.append(self.ship_configs['parameter_anamoly']['MEWMA_CUMSUM_alpha1']['alpha'])
                     mewma_alpha.append(self.ship_configs['parameter_anamoly']['MEWMA_CUMSUM_alpha2']['alpha'])
                     mewma_alpha.append(self.ship_configs['parameter_anamoly']['MEWMA_CUMSUM_alpha3']['alpha'])
                     ewma=[]
-                    # ewma_ucl=[]
-                    # mean_val=np.mean(spe_dataframe['spe'])
                     std_val=np.std(spe_dataframe['spe'])
                     ewma_obj=EWMA()
                     ewma_obj.fit(spe_dataframe['spe'],0.2,0)
                     for i in mewma_alpha:
                         L=st.norm.ppf(1-i)
                         ewma_val_cal,ewma_ucl_cal,ewma_lcl_cal=ewma_obj.ControlChart(L=L,sigma=std_val)
-                        # ewma_val_cal_2=spe_dataframe['spe'].ewm(alpha=0.05,adjust=False).mean()
                         ewma_val=ewma_val_cal[-1]
-                        # ewma_ucl_val=round(ewma_ucl_cal[-1],2)
                         ewma.append(ewma_val)
-                        # ewma_ucl.append(ewma_ucl_val)
                     
                     cum_sum=spe_dataframe['spe'].cumsum()
                     cumsum_val=cum_sum.iloc[-1]
-                    
-                    # h_val=2*(mean_var**2)/(var_sped)
-                    # g_val=(var_sped)/(2*(mean_var))
-                    
-                    # param_alpha=[]
-                    # param_alpha.append(self.ship_configs['parameter_anamoly']['SPE_alpha1']['alpha'])
-                    # param_alpha.append(self.ship_configs['parameter_anamoly']['SPE_alpha2']['alpha'])
-                    # param_alpha.append(self.ship_configs['parameter_anamoly']['SPE_alpha3']['alpha'])
-                    
-                    # spe_y_limit_array=[]
-                    # spe_anamoly=[]
-                    # for i in param_alpha:
-                    #     chi_val=st.chi2.ppf(1-i, h_val)
-                    #     spe_limit_g_val=g_val*chi_val
-                    #     spe_y_limit_array.append(spe_limit_g_val)
-                        
-                    #     if spe_limit_g_val < spe:
-                    #         spe_anamoly.append(False)
-                    #     elif spe_limit_g_val > spe:
-                    #         spe_anamoly.append(True)
                     
                 
                     pls_reg_2=PLSRegression(n_components=len(x))
@@ -551,30 +502,6 @@ class UpdateIndividualProcessors():
                     dis_listnew=[]
                     pls_spe=pls_dataframe.copy()
                     pls_spe = pls_spe.head(pls_spe.shape[0] - 1)
-                    
-
-                    # if len(x)>4:
-                    #     var_list=[]
-                    #     for i in range(4,len(pls_col)):
-                    #         var_list.append(np.var(pls_spe[pls_col[i]]))
-                    #     cube_list=[]
-                    #     for i in var_list:
-                    #         cube_list.append(i**3)
-                    #     theta_1=round(sum(var_list),3)
-                    #     theta_2 = round(functools.reduce(lambda i, j: i + j * j, [var_list[:1][0]**2]+var_list[1:]),3)
-                    #     g_val=theta_2/theta_1
-                    #     h_val=(theta_1**2)/theta_2
-                    #     for i in param_alpha:
-                    #         chi_val=st.chi2.ppf(1-i, h_val)
-                    #         spe_limit_g_val=g_val*chi_val
-                    #         spe_y_limit_array.append(spe_limit_g_val)
-                    #         if spe_limit_g_val < spe:
-                    #             spe_anamoly.append(False)
-                    #         elif spe_limit_g_val > spe:
-                    #             spe_anamoly.append(True)
-                    # else:
-                    #     spe_anamoly=None
-                    #     spe_y_limit_array=None
 
 
                     for i in range(0,len(pls_dataframe[pls_t2_list])):
@@ -593,183 +520,28 @@ class UpdateIndividualProcessors():
 
                     pls_dataframe['t_2']=dis_listnew
                     t2_initial=pls_dataframe['t_2'].iloc[-1]
-                    
-                    # m=static_length
-                    # p=4
-                    # cl=((m-1)**2)/m
-                    # numerator=p*(m -1)
-                    # denominator=m-p
-                    # multiplier=numerator/denominator
-                    # lcl=cl*(st.beta.ppf(0.01, p/2, (m - p - 1) / 2))
-                    # center=cl*(st.beta.ppf(0.5,p/2,(m-p-1)/2))
-                    # ucl=cl*(st.beta.ppf(0.75,p/2,(m-p-1)/2))
-                    # t_2limit=st.f.ppf(1-0.2,p,m-p)*multiplier
-
-                    # crit_data=t_2limit
-                    # if t2_initial>crit_data:
-                    #     t2_anamoly=False
-                    # else:
-                    #     t2_anamoly=True
-                    # crit_val_dynamic=None
-                    # t2_final=None
-
-
-                    # crit_val_dynamic=None
-                    # t2_final=None
-                    # spe_limit_array=None
-                    # print(spe,t2_initial)
-                    # return  pred_list,spe,crit_data,crit_val_dynamic,t2_initial,t2_final,spe_limit_array,spe_anamoly,spe_y_limit_array,t2_anamoly,length_dataframe,ewma,cumsum_val,ewma_ucl
                     return pred_list,spe,t2_initial,ewma,cumsum_val,new_spe_data,data_today_temp
 
-
-                    # pls_dataframe=pls_dataframe.drop(index=pls_dataframe[pls_dataframe['t_2'] > t_2limit].index)
-                    # if len(pls_dataframe)>=2:
-                    #     if dataframe.index[-1]==pls_dataframe.index[-1]:
-                    #         pls_dataframe=pls_dataframe.reset_index(drop=True)
-                    #         del pls_dataframe['t_2']
-                    #         dis_listnew=[]
-                            
-                    #         for i in range(0,len(pls_dataframe[pls_t2_list])):
-                    #             data=np.array(pls_dataframe[pls_t2_list])
-                    #             X_feat=np.array(pls_dataframe[pls_t2_list].iloc[[i]])
-                    #             mean=np.mean(data,axis=0)
-                    #             X_feat_mean=X_feat-mean
-                    #             data=np.transpose(data)
-                    #             data=data.astype(float)
-                    #             cov=np.cov(data,bias=False)
-                    #             inv_cov=np.linalg.pinv(cov)
-                    #             tem1=np.dot(X_feat_mean,inv_cov)
-                    #             temp2=np.dot(tem1,np.transpose(X_feat_mean))
-                    #             m_dis=np.sqrt(temp2[0][0])
-                    #             dis_listnew.append(m_dis)
-
-                    #         pls_dataframe['t_2']=dis_listnew
-                    #         t2_final=pls_dataframe['t_2'].iloc[-1].round(3)
-                    #         m=len(pls_dataframe)
-                    #         p=2
-                    #         if m>p:
-                    #             dfn=m-p-1
-                    #             dfd=p*(m-2)
-                    #             cl=(p*(m-1))/(m-p)
-                    #             f_val_left=st.f.ppf(0.10,dfn,dfd)*cl
-                    #             f_val_right=st.f.ppf(1-0.10,dfn,dfd)*cl
-                    #             f_val_two=st.f.ppf((1-0.10)/2,dfn,dfd)*cl
-                    #             crit_val_dynamic=f_val_right
-                            
-                    #         else:
-                    #             crit_val_dynamic=None
-                    #         # print(pred_list,spe,crit_data,crit_val_dynamic,t2_initial,t2_final,spe_limit_array)
-                    #         return pred_list,spe,crit_data,crit_val_dynamic,t2_initial,t2_final,spe_limit_array,spe_anamoly,spe_y_limit_array
-                            
-                    #     else:
-                    #         new_dataframe=pd.DataFrame(columns=dataframe.columns)
-                    #         for i in pls_dataframe.index:
-                    #             new_dataframe=new_dataframe.append(dataframe.iloc[i])
-                    #         new_dataframe=new_dataframe.append(tempdataframe)
-                    #         new_dataframe=new_dataframe.reset_index(drop=True)
-                    #         pls_reg_new=PLSRegression(n_components=len(x))
-                    #         pls_reg_new.fit(new_dataframe[x],new_dataframe[y])
-                    #         pls_col_list=[]
-                            
-                    #         for i in range(1,len(x)+1):
-                    #             pls_col_list.append("plsscore"+str(i))
-                    #         new_pls_dataframe=pd.DataFrame(data=pls_reg_new.x_scores_,columns=pls_col_list)
-                    #         new_pls_dataframe[y]=new_dataframe[y]
-                    #         dis_listnew=[]
-                    #         for i in range(0,len(new_pls_dataframe[pls_t2_list])):
-                    #             data=np.array(new_pls_dataframe[pls_t2_list])
-                    #             X_feat=np.array(new_pls_dataframe[pls_t2_list].iloc[[i]])
-                    #             mean=np.mean(data,axis=0)
-                    #             X_feat_mean=X_feat-mean
-                    #             data=np.transpose(data)
-                    #             data=data.astype(float)
-                    #             cov=np.cov(data,bias=False)
-                    #             inv_cov=np.linalg.pinv(cov)
-                    #             tem1=np.dot(X_feat_mean,inv_cov)
-                    #             temp2=np.dot(tem1,np.transpose(X_feat_mean))
-                    #             m_dis=np.sqrt(temp2[0][0])
-                    #             dis_listnew.append(m_dis)
-
-                    #         new_pls_dataframe['t_2']=dis_listnew
-
-
-                    #         m=len(new_pls_dataframe)
-                    #         p=2
-                    #         if m>p:
-                    #             dfn=m-p-1
-                    #             dfd=p*(m-2)
-                    #             cl=(p*(m-1))/(m-p)
-                    #             f_val_left=st.f.ppf(0.10,dfn,dfd)*cl
-                    #             f_val_right=st.f.ppf(1-0.10,dfn,dfd)*cl
-                    #             f_val_two=st.f.ppf((1-0.10)/2,dfn,dfd)*cl
-                    #             crit_val_dynamic=f_val_right
-                    #         else:
-                    #             crit_val_dynamic=None
-                    #         t2_final=new_pls_dataframe['t_2'].iloc[-1].round(3)
-                    #     # print(pred_list,spe,crit_data,crit_val_dynamic,t2_initial,t2_final,spe_limit_array)
-                    #     return pred_list,spe,crit_data,crit_val_dynamic,t2_initial,t2_final,spe_limit_array,spe_anamoly,spe_y_limit_array
-                    # else:
-                    #     crit_val_dynamic=None
-                    #     t2_final=None
-                    #     # print(pred_list,spe,crit_data,crit_val_dynamic,t2_initial,t2_final,spe_limit_array)
-                    #     return pred_list,spe,crit_data,crit_val_dynamic,t2_initial,t2_final,spe_limit_array,spe_anamoly,spe_y_limit_array
                 except:
                     pred_list=None
                     spe=None
-                    # crit_data=None
-                    # crit_val_dynamic=None
                     t2_initial=None
-                    # t2_final=None
-                    # spe_limit_array=None
-                    # spe_anamoly=None
-                    # spe_y_limit_array=None
-                    # t2_anamoly=None
                     ewma=None
                     cumsum_val=None
                     new_spe_data=None
                     data_today_temp=None
-                    # ewma_ucl=None
-                    # print(pred_list,spe,crit_data,crit_val_dynamic,t2_initial,t2_final,spe_limit_array)
-                    # return pred_list,spe,crit_data,crit_val_dynamic,t2_initial,t2_final,spe_limit_array,spe_anamoly,spe_y_limit_array,t2_anamoly,length_dataframe,ewma,cumsum_val,ewma_ucl
                     return pred_list,spe,t2_initial,ewma,cumsum_val,new_spe_data,data_today_temp
 
             else:
                 pred_list=None
                 spe=None
-                # crit_data=None
-                # crit_val_dynamic=None
                 t2_initial=None
-                # t2_final=None
-                # spe_limit_array=None
-                # spe_anamoly=None
-                # spe_y_limit_array=None
-                # t2_anamoly=None
                 ewma=None
                 cumsum_val=None
                 new_spe_data=None
                 data_today_temp=None
-                # ewma_ucl=None
-                # print(pred_list,spe,crit_data,crit_val_dynamic,t2_initial,t2_final,spe_limit_array)
-                    # return pred_list,spe,crit_data,crit_val_dynamic,t2_initial,t2_final,spe_limit_array,spe_anamoly,spe_y_limit_array,t2_anamoly,length_dataframe,ewma,cumsum_val,ewma_ucl
                 return pred_list,spe,t2_initial,ewma,cumsum_val,new_spe_data,data_today_temp
 
-        # else:
-        #     pred_list=None
-        #     spe=None
-        #     # crit_data=None
-        #     # crit_val_dynamic=None
-        #     t2_initial=None
-        #     # t2_final=None
-        #     # spe_limit_array=None
-        #     # spe_anamoly=None
-        #     # spe_y_limit_array=None
-        #     # t2_anamoly=None
-        #     ewma=None
-        #     cumsum_val=None
-        #     # ewma_ucl=None
-        #     # print(pred_list,spe,crit_data,crit_val_dynamic,t2_initial,t2_final,spe_limit_array)
-        #     # return pred_list,spe,crit_data,crit_val_dynamic,t2_initial,t2_final,spe_limit_array,spe_anamoly,spe_y_limit_array,t2_anamoly,length_dataframe,ewma,cumsum_val,ewma_ucl
-        #     return pred_list,spe,t2_initial,length_dataframe,ewma,cumsum_val
 
     def base_prediction_processor(self,dataframe,currdate,identifier,main_data_dict):
         pred={}
@@ -786,111 +558,56 @@ class UpdateIndividualProcessors():
         ewma={}
         cumsum={}
         ewma_ucl={}
+
+
         m3_pred,m3_spe,m3_t2_initial,length_dataframe_m3,ewma_m3,cumsum_m3=self.prediction(dataframe,currdate,3,None,identifier,main_data_dict)
-        
         pred['m3']=m3_pred
         spe['m3']=m3_spe
-        # crit_data['m3']=m3_crit_data
-        # crit_val_dynamic['m3']=m3_crit_val_dynamic
         t2_initial['m3']=m3_t2_initial
-        # t2_final['m3']=m3_t2_final
-        # spe_limit_array['m3']=m3_spe_limit
-        # spe_anamoly['m3']=spe_m3_anamoly
-        # spe_y_limit_array['m3']=spe_y_limit_array_m3
-        # t2_anamoly['m3']=t2_anamoly_m3
         length_dataframe['m3']=length_dataframe_m3
         ewma['m3']=ewma_m3
         cumsum['m3']=cumsum_m3
-        # ewma_ucl['m3']=ewma_ucl_m3
-        # print(pred,spe,ewma,cumsum,t2_initial)
-        # print(pred)
-        # print(spe_limit_array)
-        # exit()
+
         m6_pred,m6_spe,m6_t2_initial,length_dataframe_m6,ewma_m6,cumsum_m6=self.prediction(dataframe,currdate,6,None,identifier,main_data_dict)
         pred['m6']=m6_pred
         spe['m6']=m6_spe
-        # crit_data['m6']=m6_crit_data
-        # crit_val_dynamic['m6']=m6_crit_val_dynamic
         t2_initial['m6']=m6_t2_initial
-        # t2_final['m6']=m6_t2_final
-        # spe_limit_array['m6']=m6_spe_limit
-        # spe_anamoly['m6']=spe_m6_anamoly
-        # spe_y_limit_array['m6']=spe_y_limit_array_m6
-        # t2_anamoly['m6']=t2_anamoly_m6
         length_dataframe['m6']=length_dataframe_m6
         ewma['m6']=ewma_m6
         cumsum['m6']=cumsum_m6
-        # ewma_ucl['m6']=ewma_ucl_m6
-        # exit()
+
         m12_pred,m12_spe,m12_t2_initial,length_dataframe_m12,ewma_m12,cumsum_m12=self.prediction(dataframe,currdate,12,None,identifier,main_data_dict)
         pred['m12']=m12_pred
         spe['m12']=m12_spe
-        # crit_data['m12']=m12_crit_data
-        # crit_val_dynamic['m12']=m12_crit_val_dynamic
         t2_initial['m12']=m12_t2_initial
-        # t2_final['m12']=m12_t2_final
-        # spe_limit_array['m12']=m12_spe_limit
-        # spe_anamoly['m12']=spe_m12_anamoly
-        # spe_y_limit_array['m12']=spe_y_limit_array_m12
-        # t2_anamoly['m12']=t2_anamoly_m12
         length_dataframe['m12']=length_dataframe_m12
         ewma['m12']=ewma_m12
         cumsum['m12']=cumsum_m12
-        # ewma_ucl['m12']=ewma_ucl_m12
-        # exit()
+
         ly_m3_pred,ly_m3_spe,ly_m3_t2_initial,length_dataframe_ly_m3,ewma_ly_m3,cumsum_ly_m3=self.prediction(dataframe,currdate,None,3,identifier,main_data_dict)
         pred['ly_m3']=ly_m3_pred
         spe['ly_m3']=ly_m3_spe
-        # crit_data['ly_m3']=ly_m3_crit_data
-        # crit_val_dynamic['ly_m3']=ly_m3_crit_val_dynamic
         t2_initial['ly_m3']=ly_m3_t2_initial
-        # t2_final['ly_m3']=ly_m3_t2_final
-        # spe_limit_array['ly_m3']=ly_m3_spe_limit
-        # spe_anamoly['ly_m3']=spe_ly_m3_anamoly
-        # spe_y_limit_array['ly_m3']=spe_y_limit_array_ly_m3
-        # t2_anamoly['ly_m3']=t2_anamoly_ly_m3
         length_dataframe['ly_m3']=length_dataframe_ly_m3
         ewma['ly_m3']=ewma_ly_m3
         cumsum['ly_m3']=cumsum_ly_m3
-        # ewma_ucl['ly_m3']=ewma_ucl_ly_m3
 
-        # exit()
         ly_m6_pred,ly_m6_spe,ly_m6_t2_initial,length_dataframe_ly_m6,ewma_ly_m6,cumsum_ly_m6=self.prediction(dataframe,currdate,None,6,identifier,main_data_dict)
         pred['ly_m6']=ly_m6_pred
         spe['ly_m6']=ly_m6_spe
-        # crit_data['ly_m6']=ly_m6_crit_data
-        # crit_val_dynamic['ly_m6']=ly_m6_crit_val_dynamic
         t2_initial['ly_m6']=ly_m6_t2_initial
-        # t2_final['ly_m6']=ly_m6_t2_final
-        # spe_limit_array['ly_m6']=ly_m6_spe_limit
-        # spe_anamoly['ly_m6']=spe_ly_m6_anamoly
-        # spe_y_limit_array['ly_m6']=spe_y_limit_array_ly_m6
-        # t2_anamoly['ly_m6']=t2_anamoly_ly_m6
         length_dataframe['ly_m6']=length_dataframe_ly_m6
         ewma['ly_m6']=ewma_ly_m6
         cumsum['ly_m6']=cumsum_ly_m6
-        # ewma_ucl['ly_m6']=ewma_ucl_ly_m6
 
         ly_m12_pred,ly_m12_spe,ly_m12_t2_initial,length_dataframe_ly_m12,ewma_ly_m12,cumsum_ly_m12=self.prediction(dataframe,currdate,None,12,identifier,main_data_dict)
         pred['ly_m12']=ly_m12_pred
         spe['ly_m12']=ly_m12_spe
-        # crit_data['ly_m12']=ly_m12_crit_data
-        # crit_val_dynamic['ly_m12']=ly_m12_crit_val_dynamic
         t2_initial['ly_m12']=ly_m12_t2_initial
-        # t2_final['ly_m12']=ly_m12_t2_final
-        # spe_limit_array['ly_m12']=ly_m12_spe_limit
-        # spe_anamoly['ly_m12']=spe_ly_m12_anamoly
-        # spe_y_limit_array['ly_m12']=spe_y_limit_array_ly_m12
-        # t2_anamoly['ly_m12']=t2_anamoly_ly_m12
         length_dataframe['ly_m12']=length_dataframe_ly_m12
         ewma['ly_m12']=ewma_ly_m12
         cumsum['ly_m12']=cumsum_ly_m12
-        # ewma_ucl['ly_m12']=ewma_ucl_ly_m12
-
-        # print(spe_limit_array)
-        # print(pred)
-        # exit()
-        
+        # print("pred:",pred)
         return pred,spe,t2_initial,length_dataframe,ewma,cumsum
 
 
@@ -913,10 +630,7 @@ class LRPI:
         self.MSE = np.power(self.y_train.subtract(X_train_fit), 2).sum(axis=0) / (self.X_train.shape[0] - self.X_train.shape[1] - 1)
         self.X_train.loc[:, 'const_one'] = 1
         self.XTX_inv = np.linalg.pinv(np.dot(np.transpose(self.X_train.values.astype(float)) , self.X_train.values.astype(float)))
-        # print(self.XTX_inv)
-        # print("transpose of training:",np.transpose(self.X_train.values.astype(float)))
-        # print("dot of transpose training and training values:",np.dot(np.transpose(self.X_train.values.astype(float)) , self.X_train.values.astype(float)))
-        # print(self.XTX_inv)
+   
 
     def predict(self, X_test):
         self.X_test = pd.DataFrame(X_test)
@@ -987,12 +701,3 @@ class EWMA:
             ucl[i] = self.mean + L*sigma*np.sqrt((self.lamda / (2 - self.lamda))*(1-(1-self.lamda)**(I[i])))
             lcl[i] = self.mean - L*sigma*np.sqrt((self.lamda / (2 - self.lamda))*(1-(1-self.lamda)**(I[i])))
         return self.z,ucl,lcl
-        # print(self.z,ucl,lcl)
-        # plt.figure(figsize=(15,5))
-        # plt.plot(self.z,marker="o",color="k",label="$Z_i$")
-        # plt.plot([self.mean]*len(self.X),color="k",alpha=0.35)
-        # plt.plot(ucl,color="r",label="UCL {}".format(ucl[len(ucl)-1].round(2)))
-        # plt.plot(lcl,color="r",label="LCL {}".format(lcl[len(lcl)-1].round(2)))
-        # plt.title("EWMA Conrol Chart")
-        # plt.legend(loc="upper left")
-        # plt.show()
