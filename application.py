@@ -21,7 +21,10 @@ from src.processors.config_extractor.run_maindb import MainDbRunner
 from src.processors.config_extractor.handle_login import Login
 from src.processors.config_extractor.change_password_process import Change_Password
 from src.processors.config_extractor.dailyReport_issues import DailyIssueExtractor
-from src.processors.config_extractor.drydock_process import drydock
+from src.processors.config_extractor.dry_dock_process import drydock
+from src.processors.config_extractor.ais_data_process import AisData
+from src.processors.config_extractor.performance_process import Performance
+from src.processors.config_extractor.reports_voyage_performance import ReportsVoyagePerformance
 from bson.json_util import loads
 from flask_cors import cross_origin, CORS
 import zipfile
@@ -152,7 +155,7 @@ def get_generic_group():
     # result = configuration.get_dict_for_ships()
     result = configuration.get_generic_group_selection()
     groupnames = configuration.get_list_of_groupnames()
-    print(groupnames)
+
     return {'Result': result, "Groups": groupnames}
 
 @application.route('/getSisterVessels', methods=['GET'])
@@ -189,13 +192,21 @@ def get_dependent_parameters_list():
     result = configuration.get_dependent_parameters(id)
     return {'Result': result}
 
+@application.route('/voyage_options', methods=['GET'])
+@cross_origin()
+def getVoyageOptions():
+    ship_imo = request.args['ship_imo']
+    configuration = Configurator(int(ship_imo))
+    result = configuration.create_voyage_options_list()
+    return {'Options': result}
+
 @application.route('/trends', methods=['GET', 'POST'])
 @cross_origin()
 def getTrends():
     ''' Handle requests from the Trends Page'''
     args=request.args
     # formargs = request.form
-    print(args)
+    # print(args)
     ship_imo = args['ship_imo']
     group = args['group']
     duration = args['duration']
@@ -204,7 +215,7 @@ def getTrends():
     anomalies = args['anomalies'] if 'anomalies' in args else "true"
     noonorlogs = args['noonorlogs'] if 'noonorlogs' in args else "noon"
     indi_params = args['individual_params'] if 'individual_params' in args else ""
-    print(indi_params)
+    # print(indi_params)
     individual_parameters=['rep_dt']
     if indi_params == "":
         individual_parameters = ['rep_dt']
@@ -214,7 +225,7 @@ def getTrends():
         indi_params = indi_params.replace('[','').replace(']','').split(',')
         for i in indi_params:
             individual_parameters.append(i)
-    print("INDIVIDUAL PARAMETERS !!!!!!!", individual_parameters)
+    # print("INDIVIDUAL PARAMETERS !!!!!!!", individual_parameters)
     # individual_parameters_list = individual_parameters.replace(']', '').replace('[', '').split(',')
     # print(type(individual_parameters))
     # print("INDIVIDUAL B4!!!!!!!!", individual_parameters)
@@ -232,7 +243,7 @@ def getTrends():
         if include_outliers == 'true':
             print("START DO STEPS")
             if 'Lastyear' in duration:
-                groupList, mainresult, expresult, lowerresult, upperresult, lyexpresult, lylowerresult, lyupperresult, outlierresult, loaded_ballast_list, spedict, spelimitdict, t2dict, t2limitdict, ewmadict, ewmalimitdict, spe_messages_dict, subgroup_dict, outlier_messages_dict, weather_data, short_names = res.do_steps()
+                groupList, mainresult, expresult, lowerresult, upperresult, lyexpresult, lylowerresult, lyupperresult, outlierresult, loaded_ballast_list, spedict, spelimitdict, t2dict, t2limitdict, ewmadict, ewmalimitdict, spe_messages_dict, subgroup_dict, outlier_messages_dict, weather_data, short_names, sisterexpected = res.do_steps()
                 print("END DO STEPS")
                 height = res.get_chart_height(groupList)
                 fuelConsRes = res.process_fuel_consumption()
@@ -250,15 +261,31 @@ def getTrends():
                     # y_position = res.get_Y_position()
                     height_after = res.get_height_of_chart_after_double_click(groupList)
                     # y_position_after = res.get_Y_position_after_double_click()
-                    returnDict = {"group": groupList, "mainres": mainresult, "Expected": expresult, "Lower": lowerresult, "Upper": upperresult, "LY_Expected": lyexpresult, "LY_Lower": lylowerresult, "LY_Upper": lyupperresult, 'Outlier': outlierresult, "Fuel Consumption": fuelConsRes, "Chart Height": height, "Chart Height after Double Click": height_after, "Variables List": variables_list, 'Ballast or Loaded': loaded_ballast_list, 'SPE': spedict, 'SPE Limit': spelimitdict, 'T2': t2dict, 'T2 Limit': t2limitdict, 'EWMA': ewmadict, 'EWMA Limit': ewmalimitdict, "Short Names": short_names, "SPE Messages": spe_messages_dict, "Subgroup Dictionary": subgroup_dict, "Outlier Messages": outlier_messages_dict, "Weather": weather_data}
+                    returnDict = {"group": groupList, "mainres": mainresult, "Expected": expresult, "Lower": lowerresult,
+                        "Upper": upperresult, "LY_Expected": lyexpresult, "LY_Lower": lylowerresult, "LY_Upper": lyupperresult,
+                        'Outlier': outlierresult, "Fuel Consumption": fuelConsRes, "Chart Height": height,
+                        "Chart Height after Double Click": height_after, "Variables List": variables_list,
+                        'Ballast or Loaded': loaded_ballast_list, 'SPE': spedict, 'SPE Limit': spelimitdict,
+                        'T2': t2dict, 'T2 Limit': t2limitdict, 'EWMA': ewmadict, 'EWMA Limit': ewmalimitdict,
+                        "Short Names": short_names, "SPE Messages": spe_messages_dict, "Subgroup Dictionary": subgroup_dict,
+                        "Outlier Messages": outlier_messages_dict, "Weather": weather_data, "SisterOrSimilarExpected": sisterexpected
+                    }
                 else:
-                    returnDict = {"group": groupList, "mainres": mainresult, "Expected": expresult, "Lower": lowerresult, "Upper": upperresult, "LY_Expected": lyexpresult, "LY_Lower": lylowerresult, "LY_Upper": lyupperresult, 'Outlier': outlierresult, "Fuel Consumption": fuelConsRes, "Chart Height": height, "Variables List": variables_list, 'Ballast or Loaded': loaded_ballast_list, 'SPE': spedict, 'SPE Limit': spelimitdict, 'T2': t2dict, 'T2 Limit': t2limitdict, 'EWMA': ewmadict, 'EWMA Limit': ewmalimitdict, "Short Names": short_names, "SPE Messages": spe_messages_dict, "Subgroup Dictionary": subgroup_dict, "Outlier Messages": outlier_messages_dict, "Weather": weather_data}
+                    returnDict = {"group": groupList, "mainres": mainresult, "Expected": expresult, "Lower": lowerresult,
+                    "Upper": upperresult, "LY_Expected": lyexpresult, "LY_Lower": lylowerresult, "LY_Upper": lyupperresult,
+                    'Outlier': outlierresult, "Fuel Consumption": fuelConsRes, "Chart Height": height,
+                    "Variables List": variables_list, 'Ballast or Loaded': loaded_ballast_list, 'SPE': spedict,
+                    'SPE Limit': spelimitdict, 'T2': t2dict, 'T2 Limit': t2limitdict, 'EWMA': ewmadict,
+                    'EWMA Limit': ewmalimitdict, "Short Names": short_names, "SPE Messages": spe_messages_dict,
+                    "Subgroup Dictionary": subgroup_dict, "Outlier Messages": outlier_messages_dict, "Weather": weather_data,
+                    "SisterOrSimilarExpected": sisterexpected
+                }
                     
                 # print(groupList)
                 # print(mainresult)
                 return returnDict
             else:
-                groupList, mainresult, expresult, lowerresult, upperresult, outlierresult, loaded_ballast_list, spedict, spelimitdict, t2dict, t2limitdict, ewmadict, ewmalimitdict, spe_messages_dict, subgroup_dict, outlier_messages_dict, weather_data, short_names = res.do_steps()
+                groupList, mainresult, expresult, lowerresult, upperresult, outlierresult, loaded_ballast_list, spedict, spelimitdict, t2dict, t2limitdict, ewmadict, ewmalimitdict, spe_messages_dict, subgroup_dict, outlier_messages_dict, weather_data, short_names, sisterexpected = res.do_steps()
                 print("END DO STEPS")
                 height = res.get_chart_height(groupList)
                 fuelConsRes = res.process_fuel_consumption()
@@ -276,16 +303,30 @@ def getTrends():
                     # y_position = res.get_Y_position()
                     height_after = res.get_height_of_chart_after_double_click(groupList)
                     # y_position_after = res.get_Y_position_after_double_click()
-                    returnDict = {"group": groupList, "mainres": mainresult, "Expected": expresult, "Lower": lowerresult, "Upper": upperresult, 'Outlier': outlierresult, "Fuel Consumption": fuelConsRes, "Chart Height": height, "Chart Height after Double Click": height_after, "Variables List": variables_list, 'Ballast or Loaded': loaded_ballast_list, 'SPE': spedict, 'SPE Limit': spelimitdict, 'T2': t2dict, 'T2 Limit': t2limitdict, 'EWMA': ewmadict, 'EWMA Limit': ewmalimitdict, "Short Names": short_names, "SPE Messages": spe_messages_dict, "Subgroup Dictionary": subgroup_dict, "Outlier Messages": outlier_messages_dict, "Weather": weather_data}
+                    returnDict = {"group": groupList, "mainres": mainresult, "Expected": expresult, "Lower": lowerresult,
+                        "Upper": upperresult, 'Outlier': outlierresult, "Fuel Consumption": fuelConsRes, "Chart Height": height,
+                        "Chart Height after Double Click": height_after, "Variables List": variables_list,
+                        'Ballast or Loaded': loaded_ballast_list, 'SPE': spedict, 'SPE Limit': spelimitdict, 'T2': t2dict,
+                        'T2 Limit': t2limitdict, 'EWMA': ewmadict, 'EWMA Limit': ewmalimitdict, "Short Names": short_names,
+                        "SPE Messages": spe_messages_dict, "Subgroup Dictionary": subgroup_dict,
+                        "Outlier Messages": outlier_messages_dict, "Weather": weather_data, "SisterOrSimilarExpected": sisterexpected
+                    }
                 else:
-                    returnDict = {"group": groupList, "mainres": mainresult, "Expected": expresult, "Lower": lowerresult, "Upper": upperresult, 'Outlier': outlierresult, "Fuel Consumption": fuelConsRes, "Chart Height": height, "Variables List": variables_list, 'Ballast or Loaded': loaded_ballast_list, 'SPE': spedict, 'SPE Limit': spelimitdict, 'T2': t2dict, 'T2 Limit': t2limitdict, 'EWMA': ewmadict, 'EWMA Limit': ewmalimitdict, "Short Names": short_names, "SPE Messages": spe_messages_dict, "Subgroup Dictionary": subgroup_dict, "Outlier Messages": outlier_messages_dict, "Weather": weather_data}
+                    returnDict = {"group": groupList, "mainres": mainresult, "Expected": expresult, "Lower": lowerresult,
+                    "Upper": upperresult, 'Outlier': outlierresult, "Fuel Consumption": fuelConsRes, "Chart Height": height,
+                    "Variables List": variables_list, 'Ballast or Loaded': loaded_ballast_list, 'SPE': spedict,
+                    'SPE Limit': spelimitdict, 'T2': t2dict, 'T2 Limit': t2limitdict, 'EWMA': ewmadict,
+                    'EWMA Limit': ewmalimitdict, "Short Names": short_names, "SPE Messages": spe_messages_dict,
+                    "Subgroup Dictionary": subgroup_dict, "Outlier Messages": outlier_messages_dict, "Weather": weather_data,
+                    "SisterOrSimilarExpected": sisterexpected
+                }
                     
                 # print(groupList)
                 # print(mainresult)
                 return returnDict
         else:
             if 'Lastyear' in duration:
-                groupList, mainresult, expresult, lowerresult, upperresult, lyexpresult, lylowerresult, lyupperresult, loaded_ballast_list, spedict, spelimitdict, t2dict, t2limitdict, ewmadict, ewmalimitdict, spe_messages_dict, subgroup_dict, weather_data, short_names = res.do_steps()
+                groupList, mainresult, expresult, lowerresult, upperresult, lyexpresult, lylowerresult, lyupperresult, loaded_ballast_list, spedict, spelimitdict, t2dict, t2limitdict, ewmadict, ewmalimitdict, spe_messages_dict, subgroup_dict, weather_data, short_names, sisterexpected = res.do_steps()
                 height = res.get_chart_height(groupList)
                 fuelConsRes = res.process_fuel_consumption()
                 # individual_params = res.individual_parameters()
@@ -302,15 +343,29 @@ def getTrends():
                     # y_position = res.get_Y_position()
                     height_after = res.get_height_of_chart_after_double_click(groupList)
                     # y_position_after = res.get_Y_position_after_double_click()
-                    returnDict = {"group": groupList, "mainres": mainresult, "Expected": expresult, "Lower": lowerresult, "Upper": upperresult, "LY_Expected": lyexpresult, "LY_Lower": lylowerresult, "LY_Upper": lyupperresult, "Fuel Consumption": fuelConsRes, "Chart Height": height, "Chart Height after Double Click": height_after, "Variables List": variables_list, 'Ballast or Loaded': loaded_ballast_list, 'SPE': spedict, 'SPE Limit': spelimitdict, 'T2': t2dict, 'T2 Limit': t2limitdict, 'EWMA': ewmadict, 'EWMA Limit': ewmalimitdict, "Short Names": short_names, "SPE Messages": spe_messages_dict, "Subgroup Dictionary": subgroup_dict, "Weather": weather_data}
+                    returnDict = {"group": groupList, "mainres": mainresult, "Expected": expresult, "Lower": lowerresult,
+                        "Upper": upperresult, "LY_Expected": lyexpresult, "LY_Lower": lylowerresult, "LY_Upper": lyupperresult,
+                        "Fuel Consumption": fuelConsRes, "Chart Height": height, "Chart Height after Double Click": height_after,
+                        "Variables List": variables_list, 'Ballast or Loaded': loaded_ballast_list, 'SPE': spedict,
+                        'SPE Limit': spelimitdict, 'T2': t2dict, 'T2 Limit': t2limitdict, 'EWMA': ewmadict,
+                        'EWMA Limit': ewmalimitdict, "Short Names": short_names, "SPE Messages": spe_messages_dict,
+                        "Subgroup Dictionary": subgroup_dict, "Weather": weather_data, "SisterOrSimilarExpected": sisterexpected
+                    }
                 else:
-                    returnDict = {"group": groupList, "mainres": mainresult, "Expected": expresult, "Lower": lowerresult, "Upper": upperresult, "LY_Expected": lyexpresult, "LY_Lower": lylowerresult, "LY_Upper": lyupperresult, "Fuel Consumption": fuelConsRes, "Chart Height": height, "Variables List": variables_list, 'Ballast or Loaded': loaded_ballast_list, 'SPE': spedict, 'SPE Limit': spelimitdict, 'T2': t2dict, 'T2 Limit': t2limitdict, 'EWMA': ewmadict, 'EWMA Limit': ewmalimitdict, "Short Names": short_names, "SPE Messages": spe_messages_dict, "Subgroup Dictionary": subgroup_dict, "Weather": weather_data}
+                    returnDict = {"group": groupList, "mainres": mainresult, "Expected": expresult, "Lower": lowerresult,
+                        "Upper": upperresult, "LY_Expected": lyexpresult, "LY_Lower": lylowerresult, "LY_Upper": lyupperresult,
+                        "Fuel Consumption": fuelConsRes, "Chart Height": height, "Variables List": variables_list,
+                        'Ballast or Loaded': loaded_ballast_list, 'SPE': spedict, 'SPE Limit': spelimitdict, 'T2': t2dict,
+                        'T2 Limit': t2limitdict, 'EWMA': ewmadict, 'EWMA Limit': ewmalimitdict, "Short Names": short_names,
+                        "SPE Messages": spe_messages_dict, "Subgroup Dictionary": subgroup_dict, "Weather": weather_data,
+                        "SisterOrSimilarExpected": sisterexpected
+                }
                     
                 # print(groupList)
                 # print(mainresult)
                 return returnDict
             else:
-                groupList, mainresult, expresult, lowerresult, upperresult, loaded_ballast_list, spedict, spelimitdict, t2dict, t2limitdict, ewmadict, ewmalimitdict, spe_messages_dict, subgroup_dict, weather_data, short_names = res.do_steps()
+                groupList, mainresult, expresult, lowerresult, upperresult, loaded_ballast_list, spedict, spelimitdict, t2dict, t2limitdict, ewmadict, ewmalimitdict, spe_messages_dict, subgroup_dict, weather_data, short_names, sisterexpected = res.do_steps()
                 height = res.get_chart_height(groupList)
                 fuelConsRes = res.process_fuel_consumption()
                 # individual_params = res.individual_parameters()
@@ -327,9 +382,22 @@ def getTrends():
                     # y_position = res.get_Y_position()
                     height_after = res.get_height_of_chart_after_double_click(groupList)
                     # y_position_after = res.get_Y_position_after_double_click()
-                    returnDict = {"group": groupList, "mainres": mainresult, "Expected": expresult, "Lower": lowerresult, "Upper": upperresult, "Fuel Consumption": fuelConsRes, "Chart Height": height, "Chart Height after Double Click": height_after, "Variables List": variables_list, 'Ballast or Loaded': loaded_ballast_list, 'SPE': spedict, 'SPE Limit': spelimitdict, 'T2': t2dict, 'T2 Limit': t2limitdict, 'EWMA': ewmadict, 'EWMA Limit': ewmalimitdict, "Short Names": short_names, "SPE Messages": spe_messages_dict, "Subgroup Dictionary": subgroup_dict, "Weather": weather_data}
+                    returnDict = {"group": groupList, "mainres": mainresult, "Expected": expresult, "Lower": lowerresult,
+                        "Upper": upperresult, "Fuel Consumption": fuelConsRes, "Chart Height": height,
+                        "Chart Height after Double Click": height_after, "Variables List": variables_list,
+                        'Ballast or Loaded': loaded_ballast_list, 'SPE': spedict, 'SPE Limit': spelimitdict,
+                        'T2': t2dict, 'T2 Limit': t2limitdict, 'EWMA': ewmadict, 'EWMA Limit': ewmalimitdict,
+                        "Short Names": short_names, "SPE Messages": spe_messages_dict, "Subgroup Dictionary": subgroup_dict,
+                        "Weather": weather_data, "SisterOrSimilarExpected": sisterexpected
+                    }
                 else:
-                    returnDict = {"group": groupList, "mainres": mainresult, "Expected": expresult, "Lower": lowerresult, "Upper": upperresult, "Fuel Consumption": fuelConsRes, "Chart Height": height, "Variables List": variables_list, 'Ballast or Loaded': loaded_ballast_list, 'SPE': spedict, 'SPE Limit': spelimitdict, 'T2': t2dict, 'T2 Limit': t2limitdict, 'EWMA': ewmadict, 'EWMA Limit': ewmalimitdict, "Short Names": short_names, "SPE Messages": spe_messages_dict, "Subgroup Dictionary": subgroup_dict, "Weather": weather_data}
+                    returnDict = {"group": groupList, "mainres": mainresult, "Expected": expresult, "Lower": lowerresult, 
+                        "Upper": upperresult, "Fuel Consumption": fuelConsRes, "Chart Height": height,
+                        "Variables List": variables_list, 'Ballast or Loaded': loaded_ballast_list, 'SPE': spedict,
+                        'SPE Limit': spelimitdict, 'T2': t2dict, 'T2 Limit': t2limitdict, 'EWMA': ewmadict,
+                        'EWMA Limit': ewmalimitdict, "Short Names": short_names, "SPE Messages": spe_messages_dict,
+                        "Subgroup Dictionary": subgroup_dict, "Weather": weather_data, "SisterOrSimilarExpected": sisterexpected
+                    }
                     
                 # print(groupList)
                 # print(mainresult)
@@ -399,10 +467,12 @@ def getTrendsIntervention():
     ship_imo = args['ship_imo']
     dry_dock_period = args['dry_dock_period']
     evaluation_period = args['evaluation_period']
+    performance_type = args['performance_type']
 
-    eval_data, short_names, group, chart_height = drydock(dry_dock_period, evaluation_period, ship_imo)
+    eval_data, short_names, group, chart_height, ref_data_period, eval_data_period, order_of_loss_avg, shapes, subgroup_names = drydock(dry_dock_period, evaluation_period, ship_imo, performance_type)
 
-    return {"Evaluation Data": eval_data, "Short Names": short_names, "Group": group, "Height": chart_height}
+    return {"Evaluation Data": eval_data, "Short Names": short_names, "Group": group, "Height": chart_height, 'Trigger Period': ref_data_period, 'Effect Period': eval_data_period,
+            "Loss Avg Order": order_of_loss_avg, "Shapes": shapes, 'Subgroup Names': subgroup_names}
 
 @application.route('/dailyreport', methods=['GET'])
 @cross_origin()
@@ -444,6 +514,18 @@ def getDailyIssues():
     return {"Category List": category_list, "Category Dictionary": category_data, 'Sub Category Dictionary': subcategory_data, 'Dates': dateList, "Latest Result": latestRes, 'Daily Report Column Headers': column_headers, 'Anomaly List': anomalyList, 'Static Data': static_data, 'Charter Party Values': charter_party_values, 'Charter Party Prediction Values': charter_party_prediction_values, "Compliance Messages": compliance_messages, "List of Vessel Particulars": listOfVesselParticulars, "Issues Count": issuesCount}
 
 
+@application.route('/ais_data', methods=['GET'])
+@cross_origin()
+def getAisData():
+    args = request.args
+    ship_imo = args['ship_imo']
+
+    res = AisData(ship_imo)
+
+    valueList, ais_params, weather_params = res.process_data()
+    return {'Ais': valueList, 'Ais List': ais_params, 'Weather List': weather_params}
+
+
 @application.route('/interactive', methods=['GET'])
 @cross_origin()
 def getInteractive():
@@ -452,6 +534,7 @@ def getInteractive():
     X = args['X']
     Y = args['Y']
     duration = args['duration']
+    compare = args['compare'] if 'compare' in args else "None"
     stringConstantNames = args['constantNames']
     stringConstantValues = args['constantValues']
     listConstantNames = stringConstantNames.replace(']', '').replace('[', '').split(',')
@@ -469,7 +552,7 @@ def getInteractive():
     if args.get('Z') != None:
         Z = args['Z']
         # res = InteractiveExtractor(ship_imo, X, Y, duration, Z, typeofinput, **other_X)
-        res = InteractiveExtractor(ship_imo=ship_imo, X=X, Y=Y, duration=duration, load=load, Z=Z, typeofinput=typeofinput, **other_X)
+        res = InteractiveExtractor(ship_imo=ship_imo, X=X, Y=Y, duration=duration, load=load, compare=compare, Z=Z, typeofinput=typeofinput, **other_X)
         if typeofinput == 'input':
             try:
                 x_name, y_name, z_name, result, other_dict = res.read_data()
@@ -488,7 +571,7 @@ def getInteractive():
                 resp = make_response(result, 400)
                 return resp
     else:
-        res = InteractiveExtractor(ship_imo=ship_imo, X=X, Y=Y, duration=duration, load=load, typeofinput=typeofinput, **other_X)
+        res = InteractiveExtractor(ship_imo=ship_imo, X=X, Y=Y, duration=duration, load=load, compare=compare, typeofinput=typeofinput, **other_X)
         try:
             x_name, y_name, result, other_dict = res.read_data()
             return {"X_name": x_name, "Y_name": y_name, "Result": result, "Other Dict": other_dict}
@@ -813,7 +896,84 @@ def putSpreadsheet():
     return json_df
 
 
+@application.route('/performance/actual_baseline_foc', methods=['GET'])
+@cross_origin()
+def performance_actual_baseline_foc():
+    ship_imo = request.args['ship_imo']
+
+    obj = Performance(int(ship_imo), 'actual_baseline_foc')
+    baseline_values_ballast, baseline_values_loaded, fuel_cons_values_ballast, fuel_cons_values_loaded, x_axis_list_ballast, x_axis_list_loaded = obj.process_data()
+
+    return {
+        'Loaded': {
+            'Baseline': baseline_values_loaded, 'Fuel Cons Values': fuel_cons_values_loaded, 'X axis': x_axis_list_loaded
+        },
+        'Ballast': {
+            'Baseline': baseline_values_ballast, 'Fuel Cons Values': fuel_cons_values_ballast, 'X axis': x_axis_list_ballast
+        }
+    }
+
+@application.route('/performance/actual_baseline_foc_speed', methods=['GET'])
+@cross_origin()
+def performance_actual_baseline_foc_speed():
+    ship_imo = request.args['ship_imo']
+
+    obj = Performance(ship_imo, 'actual_baseline_foc_speed')
+    baseline_values_speed_ballast, baseline_values_speed_loaded, fuel_cons_values_speed_ballast, fuel_cons_values_speed_loaded, speed_values_ballast, speed_values_loaded = obj.process_data()
+
+    return {
+        'Loaded': {
+            'Baseline': baseline_values_speed_loaded, 'Fuel Cons Values': fuel_cons_values_speed_loaded, 'Speed Values': speed_values_loaded
+        },
+        'Ballast': {
+            'Baseline': baseline_values_speed_ballast, 'Fuel Cons Values': fuel_cons_values_speed_ballast, 'Speed Values': speed_values_ballast
+        }
+    }
+
+@application.route('/performance/deviation', methods=['GET'])
+@cross_origin()
+def performance_deviation():
+    ship_imo = request.args['ship_imo']
+
+    obj = Performance(ship_imo, 'deviation')
+    percentage_values_ballast, percentage_values_loaded, date_list_ballast, date_list_loaded, loaded_shapes, ballast_shapes = obj.process_data()
+
+    return {
+        'Loaded': {
+            'Percentage Values': percentage_values_loaded, 'Date': date_list_loaded, 'Shape': loaded_shapes
+        },
+        'Ballast': {
+            'Percentage Values': percentage_values_ballast, 'Date': date_list_ballast, 'Shape': ballast_shapes
+        }
+    }
+
+@application.route('/performance/table', methods=['GET'])
+@cross_origin()
+def table_data():
+    ship_imo = request.args['ship_imo']
+
+    obj = Performance(ship_imo, 'table')
+    table_loaded, table_ballast, column_headers = obj.process_data()
+
+    return {
+        'Loaded': table_loaded,
+        'Ballast': table_ballast,
+        'Headers': column_headers
+    }
+
+@application.route('/reports/voyage_performance', methods=['GET'])
+@cross_origin()
+def voyage_performance():
+    ship_imo = request.args['ship_imo']
+    voyage = request.args['voyage']
+
+    obj = ReportsVoyagePerformance(ship_imo, voyage)
+    result = obj.process_data()
+
+    return {"Result": result}
+
+
 
 if __name__ == '__main__':
-    application.run(debug=True)
-    # application.run(host='0.0.0.0')
+    # application.run(debug=True)
+    application.run(host='0.0.0.0')
