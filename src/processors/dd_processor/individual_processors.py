@@ -48,6 +48,21 @@ class IndividualProcessors():
         for k, v in beaufort.items():
             if int(x) <= v:
                 return k
+            
+    def to_wind_velocity(self,x):
+    #Takes w_force(observed) as input, converts into knots scale
+        beaufort = {0: 0,
+                1: 1.5,
+                2: 5,
+                3: 8.5,
+                4: 13.5,
+                5: 19,
+                6: 24.5,
+                7: 30.5}  
+
+        for k, v in beaufort.items():
+            if int(x) == k:
+                return v
 
     def to_degree(self,x):
     #converts degrees in 16 scale format to angles
@@ -331,6 +346,7 @@ class IndividualProcessors():
         try:
             base_dict=base_dict
             # base_dict['reported']=self.to_degree(self.daily_data['data']['w_dir'].strip())
+            base_dict['reported']=self.daily_data['data']['w_dir']
             base_dict['processed']=base_dict['reported']
             base_dict['is_read']=True
             base_dict['is_processed']=False
@@ -338,17 +354,74 @@ class IndividualProcessors():
             base_dict['processed']=None
         return base_dict       
         
+    # def w_dir_rel_processor(self,base_dict):
+    #     try:
+    #         base_dict=base_dict
+    #         wind_dir_deg=self.to_degree(self.daily_data['data']['w_dir'].strip())
+    #         base_dict['processed']=wind_dir_deg - self.daily_data['data']['vessel_head']
+    #         base_dict['is_read']=True
+    #         base_dict['is_processed']=False
+    #     except:
+    #         base_dict['processed']=None
+    #     return base_dict 
+
     def w_dir_rel_processor(self,base_dict):
         try:
             base_dict=base_dict
             wind_dir_deg=self.to_degree(self.daily_data['data']['w_dir'].strip())
-            base_dict['processed']=wind_dir_deg - self.daily_data['data']['vessel_head']
-            base_dict['is_read']=True
-            base_dict['is_processed']=False
+            numerator=self.to_wind_velocity(self.daily_data['data']['w_force'])*math.sin(math.radians(wind_dir_deg-self.daily_data['data']['vessel_head']))
+            velocity=self.to_wind_velocity(self.daily_data['data']['w_force'])
+            try:
+                speed_sog=self.daily_data['data']['speed_sog']
+            except:
+                speed_sog=None
+            if pandas.isnull(self.daily_data['data']['stm_hrs'])==False and pandas.isnull(self.daily_data['data']['dst_last'])==False and pandas.isnull(speed_sog)==True:
+                if self.daily_data['data']['stm_hrs']==0:
+                    speed_sog=self.daily_data['data']['dst_last']/0.1
+                else:
+                    speed_sog=self.daily_data['data']['dst_last']/self.daily_data['data']['stm_hrs']
+           
+            denominator=speed_sog+(self.to_wind_velocity(self.daily_data['data']['w_force'])*math.cos(math.radians(wind_dir_deg-self.daily_data['data']['vessel_head'])))
+            
+            m=0
+            if denominator<0:
+                m=1
+            base_dict['processed']=math.atan(numerator/denominator)*57.3+(180*m)
+            base_dict['is_read']=False
+            base_dict['is_processed']=True
         except:
             base_dict['processed']=None
+            base_dict['is_read']=False
+            base_dict['is_processed']=False
+        # print("w_dir_rel",base_dict['processed'])
         return base_dict          
-        
+    
+
+    def w_rel_velocity_processor(self,base_dict):
+        try:
+            base_dict=base_dict
+            wind_dir_deg=self.to_degree(self.daily_data['data']['w_dir'].strip())
+            base_dict['processed']=math.sqrt(self.to_wind_velocity(self.daily_data['data']['w_force'])**2+self.daily_data['data']['speed_sog']**2+self.to_wind_velocity(self.daily_data['data']['w_force'])*self.daily_data['data']['speed_sog']*math.cos(math.radians(wind_dir_deg-self.daily_data['data']['vessel_head'])))
+            base_dict['is_read']=False
+            base_dict['is_processed']=True
+        except:
+            try:
+                if pandas.isnull(self.daily_data['data']['stm_hrs'])==False and pandas.isnull(self.daily_data['data']['dst_last'])==False:
+                    if self.daily_data['data']['stm_hrs']==0:
+                        speed_sog_calc=self.daily_data['data']['dst_last']/0.1
+                        wind_dir_deg=self.to_degree(self.daily_data['data']['w_dir'].strip())
+                        base_dict['processed']=math.sqrt(self.to_wind_velocity(self.daily_data['data']['w_force'])**2+speed_sog_calc**2+self.to_wind_velocity(self.daily_data['data']['w_force'])*speed_sog_calc*math.cos(math.radians(wind_dir_deg-self.daily_data['data']['vessel_head'])))
+                    else:
+                        speed_sog_calc=self.daily_data['data']['dst_last']/self.daily_data['data']['stm_hrs']
+                        wind_dir_deg=self.to_degree(self.daily_data['data']['w_dir'].strip())
+                        base_dict['processed']=math.sqrt(self.to_wind_velocity(self.daily_data['data']['w_force'])**2+speed_sog_calc**2+self.to_wind_velocity(self.daily_data['data']['w_force'])*speed_sog_calc*math.cos(math.radians(wind_dir_deg-self.daily_data['data']['vessel_head'])))
+                base_dict['is_read']=False
+                base_dict['is_processed']=True
+            except:
+                base_dict['processed']=None
+        # print("w_rel_velocity",base_dict['processed'])
+        return base_dict 
+    
     # def curknots_processor(self,base_dict):                 
     #     return self.base_individual_processor('curknots',base_dict)
 
@@ -357,62 +430,121 @@ class IndividualProcessors():
 
     def current_dir_rel_processor(self,base_dict):
         try:
-            base_dict=base_dict
             report=self.daily_data['data']['curfavag']
-            if report==None:
-                base_dict['processed']="Null"
-            elif report=="F" or report=="f" or report=="+":
-                base_dict['processed']=0
-            elif report=="A" or report=="a" or report=="-":
-                base_dict['processed']=180
+            if pandas.isnull(report)==True or report.strip()=="":
+                current_dir_rel=0
+                base_dict['processed']=current_dir_rel
             else:
-                base_dict['processed']=report   
-            base_dict['is_read']=False
-            base_dict['is_processed']=True     
+                if report=="F" or report=="f" or report=="+":
+                    current_dir_rel=180
+                elif report=="A" or report=="a" or report=="-":
+                    current_dir_rel=0
+                elif report==0 or report==180:
+                    current_dir_rel=report 
+                else:    
+                    vessel_head=self.daily_data['data']['vessel_head']
+                    current_dir_rel=self.to_degree(report)-vessel_head
+                base_dict['processed']=current_dir_rel
+                base_dict['is_read']=True
+                base_dict['is_processed']=False
         except:
             base_dict['processed']=None
+        # print("current_dir_rel",base_dict['processed'])
         return base_dict
 
+    # def current_rel_0_processor(self,base_dict):
+    #     try:
+    #         base_dict=base_dict
+    #         report=self.daily_data['data']['curfavag']
+    #         curknots=self.daily_data['data']['curknots']
+    #         if report==None and curknots==None:
+    #             base_dict['processed']="Null"
+    #         elif report=="F" or report=="f" or report=="+":
+    #             current_dir_rel=0
+    #             base_dict['processed']=round(curknots*(math.cos(current_dir_rel/57.3)),3)
+    #         elif report=="A" or report=="a" or report=="-":
+    #             current_dir_rel=180
+    #             base_dict['processed']=round(curknots*(math.cos(current_dir_rel/57.3)),3)
+    #         elif type(report)==int or type(report)==float:
+    #             base_dict['processed']=base_dict['processed']=round(curknots*(math.cos(report/57.3)),3)
+    #         base_dict['is_read']=False
+    #         base_dict['is_processed']=True
+    #     except:
+    #         base_dict['processed']=None
+    #     return base_dict
     def current_rel_0_processor(self,base_dict):
         try:
-            base_dict=base_dict
             report=self.daily_data['data']['curfavag']
             curknots=self.daily_data['data']['curknots']
-            if report==None and curknots==None:
-                base_dict['processed']="Null"
-            elif report=="F" or report=="f" or report=="+":
+            # print("report",report)
+            if pandas.isnull(report)==True or report.strip()=="":
                 current_dir_rel=0
-                base_dict['processed']=round(curknots*(math.cos(current_dir_rel/57.3)),3)
-            elif report=="A" or report=="a" or report=="-":
-                current_dir_rel=180
-                base_dict['processed']=round(curknots*(math.cos(current_dir_rel/57.3)),3)
-            elif type(report)==int or type(report)==float:
-                base_dict['processed']=base_dict['processed']=round(curknots*(math.cos(report/57.3)),3)
-            base_dict['is_read']=False
-            base_dict['is_processed']=True
+            else:
+                if report=="F" or report=="f" or report=="+":
+                    current_dir_rel=180
+                elif report=="A" or report=="a" or report=="-":
+                    current_dir_rel=0
+                elif report==0 or report==180:
+                    current_dir_rel=report 
+                else:    
+                    vessel_head=self.daily_data['data']['vessel_head']
+                    current_dir_rel=self.to_degree(report)-vessel_head
+            # print("current_dir_rel",current_dir_rel)
+            base_dict['processed']=round(curknots*(math.cos(math.radians(current_dir_rel))))
+            base_dict['is_read']=True
+            base_dict['is_processed']=False
+            # print(report,processed)
         except:
             base_dict['processed']=None
+        # print("current_dir_rel_0",base_dict['processed'])
         return base_dict
 
+    # def current_rel_90_processor(self,base_dict):
+    #     try:
+    #         base_dict=base_dict
+    #         report=self.daily_data['data']['curfavag']
+    #         curknots=self.daily_data['data']['curknots']
+    #         if report==None:
+    #             base_dict['processed']="Null"
+    #         elif report=="F" or report=="f" or report=="+":
+    #             current_dir_rel=0
+    #             base_dict['processed']=round(curknots*(math.sin(current_dir_rel/57.3)),3)
+    #         elif report=="A" or report=="a" or report=="-":
+    #             current_dir_rel=180
+    #             base_dict['processed']=round(curknots*(math.sin(current_dir_rel/57.3)),3)
+    #         elif type(report)==int or type(report)==float:
+    #             base_dict['processed']=base_dict['processed']=round(curknots*(math.sin(report/57.3)),3)
+    #         base_dict['is_read']=False
+    #         base_dict['is_processed']=True
+    #     except:
+    #         base_dict['processed']=None
+    #     return base_dict
+    
     def current_rel_90_processor(self,base_dict):
         try:
-            base_dict=base_dict
             report=self.daily_data['data']['curfavag']
             curknots=self.daily_data['data']['curknots']
-            if report==None:
-                base_dict['processed']="Null"
-            elif report=="F" or report=="f" or report=="+":
+            # print("report",report)
+            if pandas.isnull(report)==True or report.strip()=="":
                 current_dir_rel=0
-                base_dict['processed']=round(curknots*(math.sin(current_dir_rel/57.3)),3)
-            elif report=="A" or report=="a" or report=="-":
-                current_dir_rel=180
-                base_dict['processed']=round(curknots*(math.sin(current_dir_rel/57.3)),3)
-            elif type(report)==int or type(report)==float:
-                base_dict['processed']=base_dict['processed']=round(curknots*(math.sin(report/57.3)),3)
-            base_dict['is_read']=False
-            base_dict['is_processed']=True
+            else:
+                if report=="F" or report=="f" or report=="+":
+                    current_dir_rel=180
+                elif report=="A" or report=="a" or report=="-":
+                    current_dir_rel=0
+                elif report==0 or report==180:
+                    current_dir_rel=report 
+                else:    
+                    vessel_head=self.daily_data['data']['vessel_head']
+                    current_dir_rel=self.to_degree(report)-vessel_head
+            # print("current_dir_rel",current_dir_rel)
+            base_dict['processed']=round(curknots*(math.sin(math.radians(current_dir_rel))))
+            base_dict['is_read']=True
+            base_dict['is_processed']=False
+            # print(report,processed)
         except:
             base_dict['processed']=None
+        # print("current_dir_rel_90",base_dict['processed'])
         return base_dict
 
     # def swell_processor(self,base_dict):
@@ -468,30 +600,92 @@ class IndividualProcessors():
 
         return base_dict
     
-    def w_rel_0_processor(self,base_dict):
-        try:
+    # def w_rel_0_processor(self,base_dict):
+    #     try:
+    #         base_dict=base_dict
+    #         wind_dir_deg=self.to_degree(self.daily_data['data']['w_dir'].strip())
+    #         w_dir_rel=wind_dir_deg - self.daily_data['data']['vessel_head']           
+    #         base_dict['processed']=math.cos(w_dir_rel/57.3)     
+    #         base_dict['is_read']=False
+    #         base_dict['is_processed']=True
+    #     except:
+    #         base_dict['processed']=None
+    #     return base_dict
+    
+    def w_rel_0_processor(self,base_dict):   
+        try:    
             base_dict=base_dict
-            wind_dir_deg=self.to_degree(self.daily_data['data']['w_dir'].strip())
-            w_dir_rel=wind_dir_deg - self.daily_data['data']['vessel_head']           
-            base_dict['processed']=math.cos(w_dir_rel/57.3)     
+            dir_deg=self.to_degree(self.daily_data['data']['w_dir'].strip())
+            try:
+                base_dict=base_dict
+                wind_dir_deg=self.to_degree(self.daily_data['data']['w_dir'].strip())
+                w_rel_velocity=math.sqrt(self.to_wind_velocity(self.daily_data['data']['w_force'])**2+self.daily_data['data']['speed_sog']**2+self.to_wind_velocity(self.daily_data['data']['w_force'])*self.daily_data['data']['speed_sog']*math.cos(math.radians(wind_dir_deg-self.daily_data['data']['vessel_head'])))
+                
+            except:
+                try:
+                    if pandas.isnull(self.daily_data['data']['stm_hrs'])==False and pandas.isnull(self.daily_data['data']['dst_last'])==False:
+                        if self.daily_data['data']['stm_hrs']==0:
+                            speed_sog_calc=self.daily_data['data']['dst_last']/0.1
+                            wind_dir_deg=self.to_degree(self.daily_data['data']['w_dir'].strip())
+                            w_rel_velocity=math.sqrt(self.to_wind_velocity(self.daily_data['data']['w_force'])**2+speed_sog_calc**2+self.to_wind_velocity(self.daily_data['data']['w_force'])*speed_sog_calc*math.cos(math.radians(wind_dir_deg-self.daily_data['data']['vessel_head'])))
+                        else:
+                            speed_sog_calc=self.daily_data['data']['dst_last']/self.daily_data['data']['stm_hrs']
+                            wind_dir_deg=self.to_degree(self.daily_data['data']['w_dir'].strip())
+                            w_rel_velocity=math.sqrt(self.to_wind_velocity(self.daily_data['data']['w_force'])**2+speed_sog_calc**2+self.to_wind_velocity(self.daily_data['data']['w_force'])*speed_sog_calc*math.cos(math.radians(wind_dir_deg-self.daily_data['data']['vessel_head'])))
+                    
+                except:
+                    w_rel_velocity=None
+            base_dict['processed']=math.cos(math.radians(dir_deg)) *w_rel_velocity
             base_dict['is_read']=False
             base_dict['is_processed']=True
+                
         except:
             base_dict['processed']=None
+        # print("w_rel_0",base_dict['processed'])
         return base_dict
         
+    # def w_rel_90_processor(self,base_dict):
+    #     try:
+    #         base_dict=base_dict    
+    #         wind_dir_deg=self.to_degree(self.daily_data['data']['w_dir'].strip())
+    #         w_dir_rel=wind_dir_deg - self.daily_data['data']['vessel_head']
+    #         base_dict['processed']=math.sin(w_dir_rel/57.3)
+    #         base_dict['is_read']=False
+    #         base_dict['is_processed']=True
+    #     except:
+    #         base_dict['processed']=None
+    #     return base_dict
+
     def w_rel_90_processor(self,base_dict):
         try:
-            base_dict=base_dict    
-            wind_dir_deg=self.to_degree(self.daily_data['data']['w_dir'].strip())
-            w_dir_rel=wind_dir_deg - self.daily_data['data']['vessel_head']
-            base_dict['processed']=math.sin(w_dir_rel/57.3)
+            base_dict=base_dict
+            dir_deg=self.to_degree(self.daily_data['data']['w_dir'].strip())
+            try:
+                base_dict=base_dict
+                wind_dir_deg=self.to_degree(self.daily_data['data']['w_dir'].strip())
+                w_rel_velocity=math.sqrt(self.to_wind_velocity(self.daily_data['data']['w_force'])**2+self.daily_data['data']['speed_sog']**2+self.to_wind_velocity(self.daily_data['data']['w_force'])*self.daily_data['data']['speed_sog']*math.cos(math.radians(wind_dir_deg-self.daily_data['data']['vessel_head'])))
+                
+            except:
+                try:
+                    if pandas.isnull(self.daily_data['data']['stm_hrs'])==False and pandas.isnull(self.daily_data['data']['dst_last'])==False:
+                        if self.daily_data['data']['stm_hrs']==0:
+                            speed_sog_calc=self.daily_data['data']['dst_last']/0.1
+                            wind_dir_deg=self.to_degree(self.daily_data['data']['w_dir'].strip())
+                            w_rel_velocity=math.sqrt(self.to_wind_velocity(self.daily_data['data']['w_force'])**2+speed_sog_calc**2+self.to_wind_velocity(self.daily_data['data']['w_force'])*speed_sog_calc*math.cos(math.radians(wind_dir_deg-self.daily_data['data']['vessel_head'])))
+                        else:
+                            speed_sog_calc=self.daily_data['data']['dst_last']/self.daily_data['data']['stm_hrs']
+                            wind_dir_deg=self.to_degree(self.daily_data['data']['w_dir'].strip())
+                            w_rel_velocity=math.sqrt(self.to_wind_velocity(self.daily_data['data']['w_force'])**2+speed_sog_calc**2+self.to_wind_velocity(self.daily_data['data']['w_force'])*speed_sog_calc*math.cos(math.radians(wind_dir_deg-self.daily_data['data']['vessel_head'])))
+                    
+                except:
+                    w_rel_velocity=None
+            base_dict['processed']=math.sin(math.radians(dir_deg))*w_rel_velocity
             base_dict['is_read']=False
             base_dict['is_processed']=True
         except:
             base_dict['processed']=None
+        # print("w_rel_90",base_dict['processed'])
         return base_dict
-
     # def rep_dt_processor(self,base_dict):                        
     #     return self.base_individual_processor('rep_dt',base_dict)
 
@@ -714,9 +908,9 @@ class IndividualProcessors():
         if report==None:
             base_dict['processed']="Null"
         elif report=="F" or report=="f" or report=="+":
-            base_dict['processed']=0
+            current_dir_rel=180
         elif report=="A" or report=="a" or report=="-":
-            base_dict['processed']=180
+            current_dir_rel=0
         else:
             base_dict['processed']=report
         base_dict['is_read']=True
@@ -751,6 +945,7 @@ class IndividualProcessors():
             base_dict['processed']=None
             base_dict['is_read']=False
             base_dict['is_processed']=False
+        # print("speed_sog_calc",base_dict['processed'])
         return base_dict
 
     def speed_sog_i_processor(self,base_dict):
@@ -761,37 +956,74 @@ class IndividualProcessors():
         base_dict['is_processed']=False
         return base_dict
 
+    # def speed_stw_calc_processor(self,base_dict):
+    #     # self.speed_stw=None
+    #     #curfavag is given direction(N E W S) convert to degree and subtract vessel head(spe3ed sog - cos(subtractedvalue)) and curfavag none by default currentdir rel =0
+    #     try:
+    #         base_dict=base_dict  
+    #         speed_sog=None    
+    #         if pandas.isnull(self.daily_data['data']['stm_hrs'])==False and pandas.isnull(self.daily_data['data']['dst_last'])==False:
+    #             if self.daily_data['data']['stm_hrs']==0:
+    #                 speed_sog=self.daily_data['data']['dst_last']/0.1
+    #             else:
+    #                 speed_sog=self.daily_data['data']['dst_last']/self.daily_data['data']['stm_hrs']
+    #         report=self.daily_data['data']['curfavag']
+    #         curknots=self.daily_data['data']['curknots']
+    #         if report==None:
+    #             base_dict['processed']=speed_sog
+    #         elif report=="F" or report=="f" or report=="+" or report=="" or report==" " or report=="  " or report=="   ":
+    #             current_dir_rel=180
+    #             base_dict['processed']=speed_sog-round(curknots*(math.cos(current_dir_rel/57.3)),3)
+    #         elif report=="A" or report=="a" or report=="-":
+    #             current_dir_rel=0
+    #             base_dict['processed']=speed_sog-round(curknots*(math.cos(current_dir_rel/57.3)),3)
+    #         else:
+    #             try:
+    #                 current_dir_rel=self.daily_data['data']['current_dir_rel']
+    #                 base_dict['processed']=speed_sog-round(curknots*(math.cos(current_dir_rel/57.3)),3)
+    #             except:
+    #                 base_dict['processed']=speed_sog
+    #         base_dict['is_read']=False
+    #         base_dict['is_processed']=True
+    #     except:
+    #         base_dict['processed']=None
+    #     # self.speed_stw=base_dict['processed']
+    #     return base_dict
+
     def speed_stw_calc_processor(self,base_dict):
-        # self.speed_stw=None
+        # speed_stw=None
+        #curfavag is given direction(N E W S) convert to degree and subtract vessel head(spe3ed sog - cos(subtractedvalue)) and curfavag none by default currentdir rel =0
         try:
-            base_dict=base_dict  
             speed_sog=None    
             if pandas.isnull(self.daily_data['data']['stm_hrs'])==False and pandas.isnull(self.daily_data['data']['dst_last'])==False:
                 if self.daily_data['data']['stm_hrs']==0:
                     speed_sog=self.daily_data['data']['dst_last']/0.1
                 else:
                     speed_sog=self.daily_data['data']['dst_last']/self.daily_data['data']['stm_hrs']
+            
             report=self.daily_data['data']['curfavag']
+            
             curknots=self.daily_data['data']['curknots']
-            if report==None:
-                base_dict['processed']=speed_sog
-            elif report=="F" or report=="f" or report=="+" or report=="" or report==" " or report=="  " or report=="   ":
+            if pandas.isnull(report)==True or report.strip()=="":
                 current_dir_rel=0
-                base_dict['processed']=speed_sog-round(curknots*(math.cos(current_dir_rel/57.3)),3)
-            elif report=="A" or report=="a" or report=="-":
-                current_dir_rel=180
-                base_dict['processed']=speed_sog-round(curknots*(math.cos(current_dir_rel/57.3)),3)
+                base_dict['processed']=speed_sog-round(curknots*(math.cos(math.radians(current_dir_rel))))
             else:
-                try:
-                    current_dir_rel=self.daily_data['data']['current_dir_rel']
-                    base_dict['processed']=speed_sog-round(curknots*(math.cos(current_dir_rel/57.3)),3)
-                except:
-                    base_dict['processed']=speed_sog
-            base_dict['is_read']=False
-            base_dict['is_processed']=True
+                if report=="F" or report=="f" or report=="+":
+                    current_dir_rel=180
+                elif report=="A" or report=="a" or report=="-":
+                    current_dir_rel=0
+                elif report==0 or report==180:
+                    current_dir_rel=report 
+                else:    
+                    vessel_head=self.daily_data['data']['vessel_head']
+                    current_dir_rel=self.to_degree(report)-vessel_head
+                base_dict['processed']=speed_sog-round(curknots*(math.cos(math.radians(current_dir_rel))))
+                base_dict['is_read']=True
+                base_dict['is_processed']=False
+            # print(report,processed)
         except:
             base_dict['processed']=None
-        # self.speed_stw=base_dict['processed']
+        # print("speed_stw_calc",base_dict['processed'])
         return base_dict
 
     def speed_stw_i_processor(self,base_dict):
