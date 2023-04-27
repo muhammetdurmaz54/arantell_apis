@@ -1,21 +1,22 @@
-import sys
+# import sys
 
 from pandas.core.dtypes.missing import isnull 
 # sys.path.insert(1,"D:\\Internship\\Repository\\Aranti\\arantell_apis")
 from src.db.setup_mongo import connect_db
 from src.configurations.logging_config import CommonLogger
 from src.helpers.check_status import check_status
-from src.db.schema.ship import Ship
+# from src.db.schema.ship import Ship
 import pandas as pd
 import numpy as np
 from mongoengine import *
 from pymongo import MongoClient
 import os
-
+from dotenv import load_dotenv
+load_dotenv()
 log = CommonLogger(__name__,debug=True).setup_logger()
 # client = MongoClient("mongodb://localhost:27017/aranti")
 # db=client.get_database("aranti")
-client = MongoClient("mongodb+srv://iamuser:iamuser@democluster.lw5i0.mongodb.net/test")
+client = MongoClient(os.getenv("MONGODB_ATLAS"))
 db=client.get_database("aranti")
 
 
