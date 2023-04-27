@@ -11,7 +11,7 @@ from src.configurations.logging_config import CommonLogger
 from src.helpers.check_status import check_status
 from src.db.schema.ship import Ship # importing ship config schema
 from src.db.schema.ddschema import DailyData  # importing dd schema
-from mongoengine import *
+# from mongoengine import *
 from datetime import datetime
 import pandas as pd
 import numpy as np
@@ -68,7 +68,7 @@ class DailyInsert:
 
         j=0
         for i in tabs:
-            tempdata = pd.read_excel(file_loc,sheet_name=i,skiprows = [1, 2, 3]).fillna("  ")
+            tempdata = pd.read_excel(file_loc,sheet_name=i,skiprows = [1, 2, 3],engine='openpyxl').fillna("  ")
             if "rep_dt" and "timestamp" in tempdata.columns:
                 dataframe_dicts["eng_"+str(j)]=tempdata
                 if len(dataframe_dicts["eng_"+str(j)]['rep_dt'])>len(maindata['rep_dt']):
@@ -96,7 +96,7 @@ class DailyInsert:
             if self.logs==True:
                 fuel=self.logs_data_generate(self.fuel)
             elif self.logs==False:
-                fuel = pd.read_excel(self.fuel,skiprows = [1, 2, 3]).fillna("  ")
+                fuel = pd.read_excel(self.fuel,skiprows = [1, 2, 3],engine='openpyxl').fillna("  ")
                 fuel = fuel.drop_duplicates(subset=["rep_dt"])
                 fuel=fuel.reset_index(drop=True)
             fuel=fuel[fuel.rep_dt != np.NaN]
@@ -107,7 +107,7 @@ class DailyInsert:
             if self.logs==True:
                 eng=self.logs_data_generate(self.eng)
             elif self.logs==False:
-                eng = pd.read_excel(self.eng,skiprows = [1, 2, 3]).fillna("  ")
+                eng = pd.read_excel(self.eng,skiprows = [1, 2, 3],engine='openpyxl').fillna("  ")
                 eng = eng.drop_duplicates(subset=["rep_dt"])
                 eng=eng.reset_index(drop=True)
             eng=eng[eng.rep_dt != np.NaN]
@@ -389,7 +389,8 @@ class DailyInsert:
 
 
         elif self.fuel!=None and self.eng==None:
-            fuel = pd.read_excel(self.fuel).fillna("")
+            
+            fuel = pd.read_excel(self.fuel,skiprows = [1, 2, 3],engine='openpyxl').fillna("")
         
             database=self.db.get_database("aranti")
             ship_configs_collection=database.get_collection("ship")
@@ -397,6 +398,7 @@ class DailyInsert:
             daily_data_collection =database.get_collection("daily_data")
 
             try :
+                
                 ship_imo=self.ship_configs['ship_imo']
                 if ship_imo==self.imo:
                     ship_name=self.ship_configs['ship_name']
@@ -437,8 +439,8 @@ class DailyInsert:
                                     if merg11[rep_dt_col][j] in dates_unique:
                                         if self.override==True:
                                             print("override true")
-                                            # daily_data_collection.delete_one({"ship_imo": self.imo,"data.rep_dt":merg11[rep_dt_col][j]})
-                                            # print("deleted")
+                                            daily_data_collection.delete_one({"ship_imo": self.imo,"data.rep_dt":merg11[rep_dt_col][j]})
+                                            print("deleted")
                                             daily_data_collection.insert_one(daily_nav).inserted_id
                                             print("inserted")
                                         else:
@@ -457,7 +459,7 @@ class DailyInsert:
         
 
         elif self.fuel==None and self.eng!=None:
-            eng = pd.read_excel(self.eng).fillna("")
+            eng = pd.read_excel(self.eng,skiprows = [1, 2, 3],engine='openpyxl').fillna("")
             database=self.db.get_database("aranti")
             ship_configs_collection=database.get_collection("ship")
             self.ship_configs = ship_configs_collection.find({"ship_imo": self.imo})[0]
@@ -597,7 +599,7 @@ class DailyInsert:
         s3.upload_file(self.eng, Bucket="input-templates", Key=self.eng_object_key)
 
 
-obj=DailyInsert('F:\Afzal_cs\Internship\Arvind data files\9606821noonfuel.xlsx','F:\Afzal_cs\Internship\Arvind data files\9606821noonengine.xlsx',9606821,False,True)
+obj=DailyInsert('F:\Afzal_cs\Internship\Arvind data files\9205926noonfuel.xlsx','F:\Afzal_cs\Internship\Arvind data files\9205926noonengine.xlsx',9205926,False,True)
 # # obj=DailyInsert('F:\Afzal_cs\Internship\Arvind data files\RTM FUEL.xlsx',None,9591301,True)
 # # obj=DailyInsert(None,'F:\Afzal_cs\Internship\Arvind data files\RTM ENGINE.xlsx',9591301,True)
 obj.do_steps()
