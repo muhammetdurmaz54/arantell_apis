@@ -8,7 +8,7 @@ sys.path.insert(1,"F:\\Afzal_cs\\Internship\\arantell_apis-main")
 from src.db.setup_mongo import connect_db
 from src.configurations.logging_config import CommonLogger
 from src.helpers.check_status import check_status
-from mongoengine import *
+# from mongoengine import *
 from datetime import datetime
 import pandas as pd
 import numpy as np
