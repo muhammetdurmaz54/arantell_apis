@@ -1,4 +1,21 @@
 
+processor/dd_processor:
+	daily_maindb_three.py
+	drydock_process.py
+	indices_processor.py
+	individual_processor_lvl_two.py
+	individual_processors.py
+	maindb_three.py
+	maintainance_forms.py
+	outlier_two.py
+	outlier.py
+	sister_vessel_prediction.py
+	Universal_indice_limits.py
+	universal_limit.py
+	update_individual_processor.py
+
+
+
 config_extrcator/configurator.py(for react app)
 config_extractor/extract_config_new.pay(processing and inserting configurator excel sheet)
 dd_extractor/extractor_new(historical raw data insertion)
