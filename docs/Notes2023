@@ -7,5 +7,9 @@ dd_processor/daily_maindbthree.py(maind db process for fronternd)
 dd_processor/maindb_three.py(maindb process for historical data)
 
 these are main files of each folder other files are inherited/called inside these files
+Above functions are implemented in following files
+maindbthree/dailymaindbthree (maindb process) from dd_processor folder, extractornew/dailyextractor from dd_extractor folder and extractconfignew from configextractor folder
+
+
 
 
