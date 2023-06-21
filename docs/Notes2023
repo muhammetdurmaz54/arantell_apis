@@ -1,0 +1,51 @@
+
+processor/dd_processor:
+	daily_maindb_three.py
+	drydock_process.py
+	indices_processor.py
+	individual_processor_lvl_two.py
+	individual_processors.py
+	maindb_three.py
+	maintainance_forms.py
+	outlier_two.py
+	outlier.py
+	sister_vessel_prediction.py
+	Universal_indice_limits.py
+	universal_limit.py
+	update_individual_processor.py
+
+
+
+config_extrcator/configurator.py(for react app)
+config_extractor/extract_config_new.pay(processing and inserting configurator excel sheet)
+dd_extractor/extractor_new(historical raw data insertion)
+dd_extractor/daily_extractor(frontend daily raw data insertion)
+dd_processor/daily_maindbthree.py(maind db process for fronternd)
+dd_processor/maindb_three.py(maindb process for historical data)
+
+these are main files of each folder other files are inherited/called inside these files
+Above functions are implemented in following files
+maindbthree/dailymaindbthree (maindb process) from dd_processor folder, extractornew/dailyextractor from dd_extractor folder and extractconfignew from configextractor folder
+
+processors/config_extractor/extract_config_new.py
+	configurator excel file is read and stored in mongodb. this is the file that contains all info of ship static and formulas type of data,
+	all identifiers, its limits, source identifiers groups etc.
+
+
+
+processors/dd_extractor/extractor_new.py  and processors/dd_extractor/daily_extractor.py
+	extractor_new.py is for historical data and daily_extractor is for daily inputs through frontend. this contains reading historical,
+	 data(both nav and eng) and stores raw data in mongodb. reading is done through all identifiers and its source identifiers available 
+	through configurator that is inserted in mongodb previously in extract_config_new.py. this process inserts only raw data, no processing is done here.
+
+
+processors/dd_processor/maindb_three.py  and  processors/dd_processor/daily_maindbthree.py
+	maindb_three.py is for historical data and daily_maindbthree is for daily inputs through frontend. This reads from daily raw data inserted previously 
+	and calculations are done with respect to formulas hardcoded and available in configurator for derived identifiers. Outliers ML predictions spe ewma etc is calculated here.
+	
+
+
+extract_config_new and extractor_new/daily_extractor does not have any extra files inherited but maindb_three/daily_maindbthree has multiple files called int it.
+all three fiules have the sequence of fucntion calling at bottom of its code 
+
+
