@@ -16,7 +16,7 @@ load_dotenv()
 log = CommonLogger(__name__,debug=True).setup_logger()
 # client = MongoClient("mongodb://localhost:27017/aranti")
 # db=client.get_database("aranti")
-client = MongoClient(os.getenv("MONGODB_ATLAS"))
+client = MongoClient(os.getenv("MONGODB_ATLAS")) 
 db=client.get_database("aranti")
 
 
