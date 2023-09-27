@@ -32,17 +32,17 @@ class DailyIssueExtractor():
         self.configuration = Configurator(self.ship_imo)
         self.ship_config = self.configuration.get_ship_configs()
         self.main_db = self.configuration.get_main_data()
-        categoryList, categoryDict, column_headers = self.configuration.get_category_dict()
+        categoryList, categoryDict, column_headers = self.configuration.get_category_dict("issues")
         subcategoryDict = self.configuration.get_subcategory_dict()
         # shortNameDict = self.configuration.create_short_names_dictionary()
         equipment_list, parameter_list = self.configuration.get_Equipment_and_Parameter_list()
         static_data_for_charter_party = self.configuration.get_static_data_for_charter_party()
 
-        for header in column_headers.keys():
-            if 'Reported' in column_headers[header]:
-                index_reported = column_headers[header].index('Reported')
-                if 'Occurrence' not in column_headers[header]:
-                    column_headers[header].insert(index_reported+1, 'Occurrence')
+        # for header in column_headers.keys():
+        #     if 'Reported' in column_headers[header]:
+        #         index_reported = column_headers[header].index('Reported')
+        #         if 'Occurrence' not in column_headers[header]:
+        #             column_headers[header].insert(index_reported+1, 'Occurrence')
         
         # anomalyList=[]
         dateList=[]
@@ -103,7 +103,7 @@ class DailyIssueExtractor():
             if len(temp) > 0:
                 subcategoryDictData[j] = temp
         subcategoryDictDataDecimal = self.configuration.get_decimal_control_on_daily_values(subcategoryDictData)
-
+        
         for key in categoryDict['data'][0].keys():
             tempList=[]
             for i in range(0, len(categoryDict['data'][0][key])):
@@ -113,22 +113,21 @@ class DailyIssueExtractor():
                         tempList.append(tempDict)
             if len(tempList) > 0:
                 categoryDictData[key] = tempList
+
         newVesselParticulars={}
         for key in subcategoryDict['Vessel Particulars'].keys():
             if subcategoryDict['Vessel Particulars'][key]['name'] != "" and subcategoryDict['Vessel Particulars'][key]['value'] != "":
                 newVesselParticulars[key] = subcategoryDict['Vessel Particulars'][key]
         categoryDictData['VESSEL PARTICULARS'] = [{'Vessel Particulars': newVesselParticulars}]
-
+       
         # print("ISSUES", categoryDictData)
         newCategoryDictData = self.create_only_issues(categoryDictData)
-
         listOfVesselParticularKeys = list(newVesselParticulars.keys())
 
         # anomalyList = self.getAnomalyList(categoryDictData)
         
         # categoryDictDataDecimal = self.configuration.get_decimal_control_on_daily_values(categoryDictData)
         new_category_dict = self.get_corrected_daily_data(categoryDict=categoryDict, categoryDictData=newCategoryDictData)
-
         outlier_list, operational_list, spe_list = self.get_parameters_with_issues(newCategoryDictData)
         week_list = self.get_date_range(dateList, self.dateString) if self.dateString != "" else self.get_date_range(dateList, dateList[-1])
         outlier_dict, operational_dict, spe_dict = self.read_date_for_range_of_dates(week_list, outlier_list, operational_list, spe_list)
@@ -228,12 +227,26 @@ class DailyIssueExtractor():
                                 if issues_dict[category][i][subcategory][j]['within_outlier_limits']['m6'] == False:
                                     index_list.append(j)
                                     # within_outlier_limits_flag = True
+                                elif issues_dict[category][i][subcategory][j]['within_outlier_limits']['m12'] == False:
+                                    index_list.append(j)
                                 
                                 # elif within_outlier_limits_flag == False and pd.isnull(issues_dict[category][i][subcategory][j]['within_operational_limits']['m6']) == False:
                                 elif issues_dict[category][i][subcategory][j]['within_operational_limits']['m6'] == False:
                                     index_list.append(j)
                                     # within_operational_flag = True
-                                elif pd.isnull(issues_dict[category][i][subcategory][j]['spe_messages']['m6'][2]) == False:
+                                elif issues_dict[category][i][subcategory][j]['within_operational_limits']['m12'] == False:
+                                    index_list.append(j)
+                                elif 'spe_messages' in issues_dict[category][i][subcategory][j] and 'm6' in issues_dict[category][i][subcategory][j]['spe_messages'] and pd.isnull(issues_dict[category][i][subcategory][j]['spe_messages']['m6'][2]) == False:
+                                    index_list.append(j)
+                                elif 'spe_messages' in issues_dict[category][i][subcategory][j] and 'm6' in issues_dict[category][i][subcategory][j]['spe_messages'] and pd.isnull(issues_dict[category][i][subcategory][j]['spe_messages']['m6'][1]) == False:
+                                    index_list.append(j)
+                                elif 'spe_messages' in issues_dict[category][i][subcategory][j] and 'm6' in issues_dict[category][i][subcategory][j]['spe_messages'] and pd.isnull(issues_dict[category][i][subcategory][j]['spe_messages']['m6'][0]) == False:
+                                    index_list.append(j)
+                                elif 'spe_messages' in issues_dict[category][i][subcategory][j] and 'm12' in issues_dict[category][i][subcategory][j]['spe_messages'] and pd.isnull(issues_dict[category][i][subcategory][j]['spe_messages']['m12'][2]) == False:
+                                    index_list.append(j)
+                                elif 'spe_messages' in issues_dict[category][i][subcategory][j] and 'm12' in issues_dict[category][i][subcategory][j]['spe_messages'] and pd.isnull(issues_dict[category][i][subcategory][j]['spe_messages']['m12'][1]) == False:
+                                    index_list.append(j)
+                                elif 'spe_messages' in issues_dict[category][i][subcategory][j] and 'm12' in issues_dict[category][i][subcategory][j]['spe_messages'] and pd.isnull(issues_dict[category][i][subcategory][j]['spe_messages']['m12'][0]) == False:
                                     index_list.append(j)
                             except KeyError:
                                 # index_list.append(j)
@@ -302,9 +315,25 @@ class DailyIssueExtractor():
                             try:
                                 if categoryDictData[category][i][subcategory][j]['within_outlier_limits']['m6'] == False:
                                     outlier_list.append(categoryDictData[category][i][subcategory][j]['identifier'])
+                                elif categoryDictData[category][i][subcategory][j]['within_outlier_limits']['m12'] == False:
+                                    outlier_list.append(categoryDictData[category][i][subcategory][j]['identifier'])
+
                                 elif categoryDictData[category][i][subcategory][j]['within_operational_limits']['m6'] == False:
                                     operational_list.append(categoryDictData[category][i][subcategory][j]['identifier'])
-                                elif pd.isnull(categoryDictData[category][i][subcategory][j]['spe_messages']['m6'][2]) == False:
+                                elif categoryDictData[category][i][subcategory][j]['within_operational_limits']['m12'] == False:
+                                    operational_list.append(categoryDictData[category][i][subcategory][j]['identifier'])
+
+                                elif 'spe_messages' in categoryDictData[category][i][subcategory][j] and pd.isnull(categoryDictData[category][i][subcategory][j]['spe_messages']) == False and pd.isnull(categoryDictData[category][i][subcategory][j]['spe_messages']['m6'][2]) == False:
+                                    spe_list.append(categoryDictData[category][i][subcategory][j]['identifier'])
+                                elif 'spe_messages' in categoryDictData[category][i][subcategory][j] and pd.isnull(categoryDictData[category][i][subcategory][j]['spe_messages']) == False and pd.isnull(categoryDictData[category][i][subcategory][j]['spe_messages']['m6'][1]) == False:
+                                    spe_list.append(categoryDictData[category][i][subcategory][j]['identifier'])
+                                elif 'spe_messages' in categoryDictData[category][i][subcategory][j] and pd.isnull(categoryDictData[category][i][subcategory][j]['spe_messages']) == False and pd.isnull(categoryDictData[category][i][subcategory][j]['spe_messages']['m6'][0]) == False:
+                                    spe_list.append(categoryDictData[category][i][subcategory][j]['identifier'])
+                                elif 'spe_messages' in categoryDictData[category][i][subcategory][j] and pd.isnull(categoryDictData[category][i][subcategory][j]['spe_messages']) == False and pd.isnull(categoryDictData[category][i][subcategory][j]['spe_messages']['m12'][2]) == False:
+                                    spe_list.append(categoryDictData[category][i][subcategory][j]['identifier'])
+                                elif 'spe_messages' in categoryDictData[category][i][subcategory][j] and pd.isnull(categoryDictData[category][i][subcategory][j]['spe_messages']) == False and pd.isnull(categoryDictData[category][i][subcategory][j]['spe_messages']['m12'][1]) == False:
+                                    spe_list.append(categoryDictData[category][i][subcategory][j]['identifier'])
+                                elif 'spe_messages' in categoryDictData[category][i][subcategory][j] and pd.isnull(categoryDictData[category][i][subcategory][j]['spe_messages']) == False and pd.isnull(categoryDictData[category][i][subcategory][j]['spe_messages']['m12'][0]) == False:
                                     spe_list.append(categoryDictData[category][i][subcategory][j]['identifier'])
                             except KeyError:
                                 print("EXCEPT")
@@ -359,6 +388,9 @@ class DailyIssueExtractor():
                     if doc['processed_daily_data'][param]['within_outlier_limits']['m6'] == False:
                         print("OUTLIER")
                         count = count + 1
+                    elif doc['processed_daily_data'][param]['within_outlier_limits']['m12'] == False:
+                        print("OUTLIER")
+                        count = count + 1
             outlier_dict[param] = count
         
         for param in operational_list:
@@ -378,8 +410,10 @@ class DailyIssueExtractor():
                     if doc['processed_daily_data'][param]['within_operational_limits']['m6'] == False:
                         print("OPERATIONAL")
                         count = count + 1
+                    elif doc['processed_daily_data'][param]['within_operational_limits']['m12'] == False:
+                        print("OPERATIONAL")
+                        count = count + 1
             operational_dict[param] = count
-        
         for param in spe_list:
             count=0
             for date in date_range_list:
@@ -394,11 +428,25 @@ class DailyIssueExtractor():
                         '_id': 0
                     }
                 ):
-                    if pd.isnull(doc['processed_daily_data'][param]['spe_messages']['m6'][2]) == False:
+                    if 'spe_messages' in doc['processed_daily_data'][param] and 'm6' in doc['processed_daily_data'][param]['spe_messages'] and pd.isnull(doc['processed_daily_data'][param]['spe_messages']['m6'][2]) == False:
+                        print("SPE")
+                        count = count + 1
+                    elif 'spe_messages' in doc['processed_daily_data'][param] and 'm6' in doc['processed_daily_data'][param]['spe_messages'] and pd.isnull(doc['processed_daily_data'][param]['spe_messages']['m6'][1]) == False:
+                        print("SPE")
+                        count = count + 1
+                    elif 'spe_messages' in doc['processed_daily_data'][param] and 'm6' in doc['processed_daily_data'][param]['spe_messages'] and pd.isnull(doc['processed_daily_data'][param]['spe_messages']['m6'][0]) == False:
+                        print("SPE")
+                        count = count + 1
+                    elif 'spe_messages' in doc['processed_daily_data'][param] and 'm12' in doc['processed_daily_data'][param]['spe_messages'] and pd.isnull(doc['processed_daily_data'][param]['spe_messages']['m12'][2]) == False:
+                        print("SPE")
+                        count = count + 1
+                    elif 'spe_messages' in doc['processed_daily_data'][param] and 'm12' in doc['processed_daily_data'][param]['spe_messages'] and pd.isnull(doc['processed_daily_data'][param]['spe_messages']['m12'][1]) == False:
+                        print("SPE")
+                        count = count + 1
+                    elif 'spe_messages' in doc['processed_daily_data'][param] and 'm12' in doc['processed_daily_data'][param]['spe_messages'] and pd.isnull(doc['processed_daily_data'][param]['spe_messages']['m12'][0]) == False:
                         print("SPE")
                         count = count + 1
             spe_dict[param] = count
-
         return outlier_dict, operational_dict, spe_dict
     
     def put_frequency_in_data(self, categoryDictData, outlierdict, operationaldict, spedict):
