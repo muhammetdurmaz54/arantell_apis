@@ -1745,61 +1745,61 @@ class MainDB():
 
 
 
-start_time = time.time()
+# start_time = time.time()
 
-# daily_obj=DailyInsert('F:\Afzal_cs\Internship\Arvind data files\RTM FUEL.xlsx','F:\Afzal_cs\Internship\Arvind data files\RTM ENGINE.xlsx',9591301,True)
-# daily_obj.do_steps()
-# maindb = database.get_collection("Main_db")
+# # daily_obj=DailyInsert('F:\Afzal_cs\Internship\Arvind data files\RTM FUEL.xlsx','F:\Afzal_cs\Internship\Arvind data files\RTM ENGINE.xlsx',9591301,True)
+# # daily_obj.do_steps()
+# # maindb = database.get_collection("Main_db")
 
-# maindb.delete_many({"ship_imo": 9591301,"processed_daily_data.rep_dt.processed":datetime(2017,1,1,12)})
-obj=MainDB(9592301,2400,datetime.strptime('04-08-2022 12:00:00','%d-%m-%Y %H:%M:%S'))
-obj.get_ship_configs()
-# obj.get_main_db(0)
-first_maindict=obj.ad_all()
-# #initialize maindb with handwritten formulas draftmean=(dft_aft+dt_fwd)/2 (dailydata)
-calc_i_cp_main_dict=obj.add_calc_i_cp(first_maindict)
+# # maindb.delete_many({"ship_imo": 9591301,"processed_daily_data.rep_dt.processed":datetime(2017,1,1,12)})
+# obj=MainDB(9592301,2400,datetime.strptime('04-08-2022 12:00:00','%d-%m-%Y %H:%M:%S'))
+# obj.get_ship_configs()
+# # obj.get_main_db(0)
+# first_maindict=obj.ad_all()
+# # #initialize maindb with handwritten formulas draftmean=(dft_aft+dt_fwd)/2 (dailydata)
+# calc_i_cp_main_dict=obj.add_calc_i_cp(first_maindict)
 
-lvl_two_main_dict=obj.maindb_lvl_two(calc_i_cp_main_dict)
-# #adding calc _i _cp variable values in respective identifier example:speed_sog_calc=speed_sog{speed_sog_calc:value}
-equipment_values_main_dict=obj.equipment_values(lvl_two_main_dict)
-# #same as ad_all (gets the value from maindb)
-# #initial population done (remove date condition on find  before uploading in aws)
+# lvl_two_main_dict=obj.maindb_lvl_two(calc_i_cp_main_dict)
+# # #adding calc _i _cp variable values in respective identifier example:speed_sog_calc=speed_sog{speed_sog_calc:value}
+# equipment_values_main_dict=obj.equipment_values(lvl_two_main_dict)
+# # #same as ad_all (gets the value from maindb)
+# # #initial population done (remove date condition on find  before uploading in aws)
 
-temp_sister_vessswel_obj=obj.sister_vessel_pred(equipment_values_main_dict)
-
-
-base_dataframe_one=obj.create_base_dataframe(temp_sister_vessswel_obj)
-# # creates dataframe of all identifiers (currently all good vayage true)
-outlier_main_dict=obj.update_outlier_maindb_alldoc(base_dataframe_one)
-# #outlier (both outlier 1 and 2 inside this) and (remove date condition on find  before uploading in aws)
-good_voyage_main_dict=obj.update_good_voyage(outlier_main_dict)
-# #good voyage tag created here essential for predictions process
-# base_dataframe_two=obj.create_base_dataframe(good_voyage_main_dict)    #not needed in dailydata processing bcz it is added for historical process(two phase creating dataframe once when good data voyage was not called and one after called)
-# #call again bcz after running good voyage function now good voyage values will be false in some rows so good data for prediction will be selected now
-preds_main_dict=obj.update_maindb_predictions_alldoc(good_voyage_main_dict)
-# #predictions, spe, t2, ewma, cumsum all done here (remove date condition on find  before uploading in aws)
-main_fuel_spe=obj.update_main_fuel_spe(preds_main_dict)
-
-sfoc_spe=obj.update_sfoc_spe(main_fuel_spe)
-
-avg_hfo_spe=obj.update_avg_hfo_spe(sfoc_spe)
+# temp_sister_vessswel_obj=obj.sister_vessel_pred(equipment_values_main_dict)
 
 
-indices_preds_main_dict=obj.update_indices(avg_hfo_spe)
-# #creating indices as well as prediction, spe, t2, mewma, mcumsum, all done here
+# base_dataframe_one=obj.create_base_dataframe(temp_sister_vessswel_obj)
+# # # creates dataframe of all identifiers (currently all good vayage true)
+# outlier_main_dict=obj.update_outlier_maindb_alldoc(base_dataframe_one)
+# # #outlier (both outlier 1 and 2 inside this) and (remove date condition on find  before uploading in aws)
+# good_voyage_main_dict=obj.update_good_voyage(outlier_main_dict)
+# # #good voyage tag created here essential for predictions process
+# # base_dataframe_two=obj.create_base_dataframe(good_voyage_main_dict)    #not needed in dailydata processing bcz it is added for historical process(two phase creating dataframe once when good data voyage was not called and one after called)
+# # #call again bcz after running good voyage function now good voyage values will be false in some rows so good data for prediction will be selected now
+# preds_main_dict=obj.update_maindb_predictions_alldoc(good_voyage_main_dict)
+# # #predictions, spe, t2, ewma, cumsum all done here (remove date condition on find  before uploading in aws)
+# main_fuel_spe=obj.update_main_fuel_spe(preds_main_dict)
 
-uni_limit=obj.universal_limit(indices_preds_main_dict)
-uni_indice_limit=obj.universal_indices_limits(uni_limit)
-ewma_limit=obj.ewma_limits(uni_indice_limit)
-indice_ewma=obj.indice_ewma_limit(ewma_limit)
+# sfoc_spe=obj.update_sfoc_spe(main_fuel_spe)
+
+# avg_hfo_spe=obj.update_avg_hfo_spe(sfoc_spe)
 
 
-cp_msg_main_dict=obj.update_cp_msg(indice_ewma)
-final_main_dict=obj.anamolies_by_config(cp_msg_main_dict)
-create_maindb_update_shipconfig=obj.final_maindb_config(final_main_dict)
+# indices_preds_main_dict=obj.update_indices(avg_hfo_spe)
+# # #creating indices as well as prediction, spe, t2, mewma, mcumsum, all done here
 
-#temporarily added for checking spe and ewma using a diferent dataframe and formula
-# done till here  
+# uni_limit=obj.universal_limit(indices_preds_main_dict)
+# uni_indice_limit=obj.universal_indices_limits(uni_limit)
+# ewma_limit=obj.ewma_limits(uni_indice_limit)
+# indice_ewma=obj.indice_ewma_limit(ewma_limit)
 
-end_time=time.time()
-print(end_time-start_time)
+
+# cp_msg_main_dict=obj.update_cp_msg(indice_ewma)
+# final_main_dict=obj.anamolies_by_config(cp_msg_main_dict)
+# create_maindb_update_shipconfig=obj.final_maindb_config(final_main_dict)
+
+# #temporarily added for checking spe and ewma using a diferent dataframe and formula
+# # done till here  
+
+# end_time=time.time()
+# print(end_time-start_time)
