@@ -9,6 +9,7 @@ import openpyxl
 import zipfile
 import pandas as pd
 from src.processors.config_extractor.configurator import Configurator
+from botocore.client import Config
 '''
     ship_name - ship_imo/Logs or Noon/Engine or Fuel/ship_imo:logsornoon:engineorfuel.txt
     ATM Book - 9591301/Logs/Engine/9591301logsengine.txt
@@ -377,8 +378,9 @@ class Inputs():
         # for i in range(len(keys)):
         #     for j in range(len(body_json[keys[i]])):
         #         ws.cell(row=j+2, column=i+1, value=body_json[keys[i]][j])
+        config = Config(connect_timeout=5, retries={'max_attempts': 0})
 
-        s3 = boto3.client('s3', aws_access_key_id=self.aws_id, aws_secret_access_key=self.aws_secret)
+        s3 = boto3.client('s3', aws_access_key_id=self.aws_id, aws_secret_access_key=self.aws_secret, config=config)
         # with open(body_json, 'rb') as f:
         try:
             s3.put_object(Body=body_json, Bucket=self.bucket_name, Key=self.object_key)
