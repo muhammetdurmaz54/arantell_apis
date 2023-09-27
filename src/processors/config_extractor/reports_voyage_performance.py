@@ -159,22 +159,35 @@ class ReportsVoyagePerformance():
         configuration = self.instantiate_configurator()
         percentage_values_ballast = configuration.get_percentage_difference_for_all_values(self.voyage, False)
         percentage_values_loaded = configuration.get_percentage_difference_for_all_values(self.voyage, True)
-
+        
         loaded_10, loaded_90, ballast_10, ballast_90 = self.divide_graph_10_90_percentage(percentage_values_ballast, percentage_values_loaded)
-
+        try:
+            max_percentile_loaded=max(percentage_values_loaded)
+        except:
+            max_percentile_loaded=None
+        try:
+            max_percentile_ballast=max(percentage_values_ballast)
+        except:
+            max_percentile_ballast=None
         # To account for the discrepancy that arises due to taking percentage of the maximum values
-        if 0 < min(percentage_values_loaded) and 0 < loaded_10:
-            loaded_y0 = 0
-        elif min(percentage_values_loaded) < loaded_10:
-            loaded_y0 = min(percentage_values_loaded)
-        else:
+        try:
+            if 0 < min(percentage_values_loaded) and 0 < loaded_10:
+                loaded_y0 = 0
+            elif min(percentage_values_loaded) < loaded_10:
+                loaded_y0 = min(percentage_values_loaded)
+            else:
+                loaded_y0 = loaded_10
+        except:
             loaded_y0 = loaded_10
 
-        if 0 < min(percentage_values_ballast) and 0 < ballast_10:
-            ballast_y0 = 0
-        elif min(percentage_values_ballast) < ballast_10:
-            ballast_y0 = min(percentage_values_ballast)
-        else:
+        try:
+            if 0 < min(percentage_values_ballast) and 0 < ballast_10:
+                ballast_y0 = 0
+            elif min(percentage_values_ballast) < ballast_10:
+                ballast_y0 = min(percentage_values_ballast)
+            else:
+                ballast_y0 = ballast_10
+        except:
             ballast_y0 = ballast_10
 
 
@@ -200,7 +213,7 @@ class ReportsVoyagePerformance():
                 # 'y0': min(percentage_values_loaded),
                 # 'y1': max(percentage_values_loaded),
                 'y0': loaded_10,
-                'y1': max(percentage_values_loaded),
+                'y1': max_percentile_loaded,
                 'fillcolor': 'rgb(255, 0, 0)',
                 'opacity': 0.2,
                 'line': {'width': 0}
@@ -228,7 +241,7 @@ class ReportsVoyagePerformance():
                 # 'y0': min(percentage_values_ballast),
                 # 'y1': max(percentage_values_ballast),
                 'y0': ballast_10,
-                'y1': max(percentage_values_ballast),
+                'y1': max_percentile_ballast,
                 'fillcolor': 'rgb(255, 0, 0)',
                 'opacity': 0.2,
                 'line': {'width': 0}
@@ -252,11 +265,24 @@ class ReportsVoyagePerformance():
             :return: <number> Returns the 10% and the 90% mark values for both the
                             ballast and loaded lists.
         '''
-
-        loaded_10 = (max(loaded_values) * 10) / 100
-        loaded_90 = (max(loaded_values) * 90) / 100
-
-        ballast_10 = (max(ballast_values) * 10) / 100
-        ballast_90 = (max(ballast_values) * 90) / 100
+        # print("kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk")
+        # print(loaded_values)
+        # print(ballast_values)
+        try:
+            loaded_10 = (max(loaded_values) * 10) / 100
+        except:
+            loaded_10 = None
+        try:
+            loaded_90 = (max(loaded_values) * 90) / 100
+        except:
+            loaded_90 = None
+        try:
+            ballast_10 = (max(ballast_values) * 10) / 100
+        except:
+            ballast_10 = None
+        try:
+            ballast_90 = (max(ballast_values) * 90) / 100
+        except:
+            ballast_90 = None
 
         return loaded_10, loaded_90, ballast_10, ballast_90
