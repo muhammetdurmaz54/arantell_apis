@@ -4,11 +4,13 @@ from time import process_time_ns
 from src.db.setup_mongo import connect_db
 from src.configurations.logging_config import CommonLogger
 from src.processors.config_extractor.configurator import Configurator
+from src.processors.config_extractor.vti_process import vti_process
 from src.helpers.check_status import check_status
 from flask import request,jsonify
 from pymongo import DESCENDING, MongoClient, ASCENDING
 from bson.json_util import dumps, loads
 import numpy as np
+import pandas as pd
 from datetime import datetime
 
 log = CommonLogger(__name__,debug=True).setup_logger()
@@ -31,7 +33,7 @@ class DailyReportExtractor():
         self.configuration = Configurator(self.ship_imo)
         self.ship_config = self.configuration.get_ship_configs()
         self.main_db = self.configuration.get_main_data()
-        categoryList, categoryDict, column_headers = self.configuration.get_category_dict()
+        categoryList, categoryDict, column_headers = self.configuration.get_category_dict("dailydata")
         subcategoryDict = self.configuration.get_subcategory_dict()
         # shortNameDict = self.configuration.create_short_names_dictionary()
         equipment_list, parameter_list = self.configuration.get_Equipment_and_Parameter_list()
@@ -49,6 +51,7 @@ class DailyReportExtractor():
             },
             {
                 'processed_daily_data.rep_dt.processed': 1,
+                'processed_daily_data.source.processed': 1,
                 'final_rep_dt': 1,
                 '_id': 0
             }
@@ -120,8 +123,16 @@ class DailyReportExtractor():
         # categoryDictDataDecimal = self.configuration.get_decimal_control_on_daily_values(categoryDictData)
         new_category_dict = self.get_corrected_daily_data(categoryDict=categoryDict, categoryDictData=categoryDictData)
         # print(new_category_dict)
-        
-        return categoryList, new_category_dict, column_headers, subcategoryDict, dateList, categoryDictData, issues, static_data_for_charter_party, charter_party_values, charter_party_prediction_values, compliance_messages, listOfVesselParticularKeys, issuesCount
+        latest_vti,latest_avg_vti= vti_process(int(self.ship_imo))
+        # print("resssssssssssssssssssssssssssssssssssssssssssssssss",latestResult)
+        if 'source' in latestResult['processed_daily_data']:
+            source=latestResult['processed_daily_data']['source']['processed']
+            if pd.isnull(source):
+                source=None
+        else:
+            source=None
+        # print("resssssssssssssssssssssssssssssssssssssssssssssssss",source)
+        return categoryList, new_category_dict, column_headers, subcategoryDict, dateList, categoryDictData, issues, static_data_for_charter_party, charter_party_values, charter_party_prediction_values, compliance_messages, listOfVesselParticularKeys, issuesCount, latest_vti, latest_avg_vti,source
 
 
         # return categoryDict, column_headers, subcategoryDict, dateList, latestRes
