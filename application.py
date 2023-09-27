@@ -2,7 +2,7 @@ import sys
 import os
 from dotenv import load_dotenv
 # sys.path.insert(1,"D:\\Internship\\Repository\\Aranti\\arantell_apis")
-from flask import Flask, app, request, flash, redirect, url_for, make_response
+from flask import Flask, app, request, flash, redirect, url_for, make_response,jsonify
 from werkzeug.utils import secure_filename
 from flask_pymongo import PyMongo, MongoClient
 # from pymongo import MongoClient
@@ -15,7 +15,7 @@ from src.processors.config_extractor.inputs_process import Inputs
 from src.processors.config_extractor.configurator import Configurator
 from src.processors.config_extractor.extract_config_new import ConfigExtractor
 from src.processors.dd_extractor.extractor_new import DailyInsert
-from src.processors.dd_processor.maindb import MainDB
+from src.processors.dd_processor.maindb_three import MainDB
 from src.processors.dd_extractor.daily_extractor import DailyDataExtractor
 from src.processors.config_extractor.run_maindb import MainDbRunner
 from src.processors.config_extractor.handle_login import Login
@@ -25,6 +25,8 @@ from src.processors.config_extractor.dry_dock_process import drydock
 from src.processors.config_extractor.ais_data_process import AisData
 from src.processors.config_extractor.performance_process import Performance
 from src.processors.config_extractor.reports_voyage_performance import ReportsVoyagePerformance
+from src.processors.config_extractor.selected_period_report import SelectedPeriod
+from src.processors.config_extractor.gpt_functions import run_conversation
 from bson.json_util import loads
 from flask_cors import cross_origin, CORS
 import zipfile
@@ -35,6 +37,10 @@ import datetime
 import botocore
 from flask_celery import make_celery
 from flask_compress import Compress #version 1.13
+import openai
+import time
+
+
 
 load_dotenv()
 
@@ -243,7 +249,7 @@ def getTrends():
         if include_outliers == 'true':
             print("START DO STEPS")
             if 'Lastyear' in duration:
-                groupList, mainresult, expresult, lowerresult, upperresult, lyexpresult, lylowerresult, lyupperresult, outlierresult, loaded_ballast_list, spedict, spelimitdict, t2dict, t2limitdict, ewmadict, ewmalimitdict, spe_messages_dict, subgroup_dict, outlier_messages_dict, weather_data, short_names, sisterexpected = res.do_steps()
+                groupList, mainresult, expresult, lowerresult, upperresult, lyexpresult, lylowerresult, lyupperresult, outlierresult, loaded_ballast_list, spedict, spelimitdict, t2dict, t2limitdict, ewmadict, ewmalimitdict, spe_messages_dict, subgroup_dict, outlier_messages_dict, weather_data, short_names, sisterexpected, sister_or_similar_name = res.do_steps()
                 print("END DO STEPS")
                 height = res.get_chart_height(groupList)
                 fuelConsRes = res.process_fuel_consumption()
@@ -268,7 +274,8 @@ def getTrends():
                         'Ballast or Loaded': loaded_ballast_list, 'SPE': spedict, 'SPE Limit': spelimitdict,
                         'T2': t2dict, 'T2 Limit': t2limitdict, 'EWMA': ewmadict, 'EWMA Limit': ewmalimitdict,
                         "Short Names": short_names, "SPE Messages": spe_messages_dict, "Subgroup Dictionary": subgroup_dict,
-                        "Outlier Messages": outlier_messages_dict, "Weather": weather_data, "SisterOrSimilarExpected": sisterexpected
+                        "Outlier Messages": outlier_messages_dict, "Weather": weather_data, "SisterOrSimilarExpected": sisterexpected,
+                        "SisterOrSimilarName": sister_or_similar_name
                     }
                 else:
                     returnDict = {"group": groupList, "mainres": mainresult, "Expected": expresult, "Lower": lowerresult,
@@ -278,14 +285,14 @@ def getTrends():
                     'SPE Limit': spelimitdict, 'T2': t2dict, 'T2 Limit': t2limitdict, 'EWMA': ewmadict,
                     'EWMA Limit': ewmalimitdict, "Short Names": short_names, "SPE Messages": spe_messages_dict,
                     "Subgroup Dictionary": subgroup_dict, "Outlier Messages": outlier_messages_dict, "Weather": weather_data,
-                    "SisterOrSimilarExpected": sisterexpected
+                    "SisterOrSimilarExpected": sisterexpected, "SisterOrSimilarName": sister_or_similar_name
                 }
                     
                 # print(groupList)
                 # print(mainresult)
                 return returnDict
             else:
-                groupList, mainresult, expresult, lowerresult, upperresult, outlierresult, loaded_ballast_list, spedict, spelimitdict, t2dict, t2limitdict, ewmadict, ewmalimitdict, spe_messages_dict, subgroup_dict, outlier_messages_dict, weather_data, short_names, sisterexpected = res.do_steps()
+                groupList, mainresult, expresult, lowerresult, upperresult, outlierresult, loaded_ballast_list, spedict, spelimitdict, t2dict, t2limitdict, ewmadict, ewmalimitdict, spe_messages_dict, subgroup_dict, outlier_messages_dict, weather_data, short_names, sisterexpected, sister_or_similar_name = res.do_steps()
                 print("END DO STEPS")
                 height = res.get_chart_height(groupList)
                 fuelConsRes = res.process_fuel_consumption()
@@ -309,7 +316,8 @@ def getTrends():
                         'Ballast or Loaded': loaded_ballast_list, 'SPE': spedict, 'SPE Limit': spelimitdict, 'T2': t2dict,
                         'T2 Limit': t2limitdict, 'EWMA': ewmadict, 'EWMA Limit': ewmalimitdict, "Short Names": short_names,
                         "SPE Messages": spe_messages_dict, "Subgroup Dictionary": subgroup_dict,
-                        "Outlier Messages": outlier_messages_dict, "Weather": weather_data, "SisterOrSimilarExpected": sisterexpected
+                        "Outlier Messages": outlier_messages_dict, "Weather": weather_data, "SisterOrSimilarExpected": sisterexpected,
+                        "SisterOrSimilarName": sister_or_similar_name
                     }
                 else:
                     returnDict = {"group": groupList, "mainres": mainresult, "Expected": expresult, "Lower": lowerresult,
@@ -318,7 +326,7 @@ def getTrends():
                     'SPE Limit': spelimitdict, 'T2': t2dict, 'T2 Limit': t2limitdict, 'EWMA': ewmadict,
                     'EWMA Limit': ewmalimitdict, "Short Names": short_names, "SPE Messages": spe_messages_dict,
                     "Subgroup Dictionary": subgroup_dict, "Outlier Messages": outlier_messages_dict, "Weather": weather_data,
-                    "SisterOrSimilarExpected": sisterexpected
+                    "SisterOrSimilarExpected": sisterexpected, "SisterOrSimilarName": sister_or_similar_name
                 }
                     
                 # print(groupList)
@@ -326,7 +334,7 @@ def getTrends():
                 return returnDict
         else:
             if 'Lastyear' in duration:
-                groupList, mainresult, expresult, lowerresult, upperresult, lyexpresult, lylowerresult, lyupperresult, loaded_ballast_list, spedict, spelimitdict, t2dict, t2limitdict, ewmadict, ewmalimitdict, spe_messages_dict, subgroup_dict, weather_data, short_names, sisterexpected = res.do_steps()
+                groupList, mainresult, expresult, lowerresult, upperresult, lyexpresult, lylowerresult, lyupperresult, loaded_ballast_list, spedict, spelimitdict, t2dict, t2limitdict, ewmadict, ewmalimitdict, spe_messages_dict, subgroup_dict, weather_data, short_names, sisterexpected, sister_or_similar_name = res.do_steps()
                 height = res.get_chart_height(groupList)
                 fuelConsRes = res.process_fuel_consumption()
                 # individual_params = res.individual_parameters()
@@ -349,7 +357,8 @@ def getTrends():
                         "Variables List": variables_list, 'Ballast or Loaded': loaded_ballast_list, 'SPE': spedict,
                         'SPE Limit': spelimitdict, 'T2': t2dict, 'T2 Limit': t2limitdict, 'EWMA': ewmadict,
                         'EWMA Limit': ewmalimitdict, "Short Names": short_names, "SPE Messages": spe_messages_dict,
-                        "Subgroup Dictionary": subgroup_dict, "Weather": weather_data, "SisterOrSimilarExpected": sisterexpected
+                        "Subgroup Dictionary": subgroup_dict, "Weather": weather_data, "SisterOrSimilarExpected": sisterexpected,
+                        "SisterOrSimilarName": sister_or_similar_name
                     }
                 else:
                     returnDict = {"group": groupList, "mainres": mainresult, "Expected": expresult, "Lower": lowerresult,
@@ -358,14 +367,14 @@ def getTrends():
                         'Ballast or Loaded': loaded_ballast_list, 'SPE': spedict, 'SPE Limit': spelimitdict, 'T2': t2dict,
                         'T2 Limit': t2limitdict, 'EWMA': ewmadict, 'EWMA Limit': ewmalimitdict, "Short Names": short_names,
                         "SPE Messages": spe_messages_dict, "Subgroup Dictionary": subgroup_dict, "Weather": weather_data,
-                        "SisterOrSimilarExpected": sisterexpected
+                        "SisterOrSimilarExpected": sisterexpected, "SisterOrSimilarName": sister_or_similar_name
                 }
                     
                 # print(groupList)
                 # print(mainresult)
                 return returnDict
             else:
-                groupList, mainresult, expresult, lowerresult, upperresult, loaded_ballast_list, spedict, spelimitdict, t2dict, t2limitdict, ewmadict, ewmalimitdict, spe_messages_dict, subgroup_dict, weather_data, short_names, sisterexpected = res.do_steps()
+                groupList, mainresult, expresult, lowerresult, upperresult, loaded_ballast_list, spedict, spelimitdict, t2dict, t2limitdict, ewmadict, ewmalimitdict, spe_messages_dict, subgroup_dict, weather_data, short_names, sisterexpected, sister_or_similar_name = res.do_steps()
                 height = res.get_chart_height(groupList)
                 fuelConsRes = res.process_fuel_consumption()
                 # individual_params = res.individual_parameters()
@@ -388,7 +397,7 @@ def getTrends():
                         'Ballast or Loaded': loaded_ballast_list, 'SPE': spedict, 'SPE Limit': spelimitdict,
                         'T2': t2dict, 'T2 Limit': t2limitdict, 'EWMA': ewmadict, 'EWMA Limit': ewmalimitdict,
                         "Short Names": short_names, "SPE Messages": spe_messages_dict, "Subgroup Dictionary": subgroup_dict,
-                        "Weather": weather_data, "SisterOrSimilarExpected": sisterexpected
+                        "Weather": weather_data, "SisterOrSimilarExpected": sisterexpected, "SisterOrSimilarName": sister_or_similar_name
                     }
                 else:
                     returnDict = {"group": groupList, "mainres": mainresult, "Expected": expresult, "Lower": lowerresult, 
@@ -396,7 +405,8 @@ def getTrends():
                         "Variables List": variables_list, 'Ballast or Loaded': loaded_ballast_list, 'SPE': spedict,
                         'SPE Limit': spelimitdict, 'T2': t2dict, 'T2 Limit': t2limitdict, 'EWMA': ewmadict,
                         'EWMA Limit': ewmalimitdict, "Short Names": short_names, "SPE Messages": spe_messages_dict,
-                        "Subgroup Dictionary": subgroup_dict, "Weather": weather_data, "SisterOrSimilarExpected": sisterexpected
+                        "Subgroup Dictionary": subgroup_dict, "Weather": weather_data, "SisterOrSimilarExpected": sisterexpected,
+                        "SisterOrSimilarName": sister_or_similar_name
                     }
                     
                 # print(groupList)
@@ -478,10 +488,11 @@ def getTrendsIntervention():
 @cross_origin()
 def getDailyReport():
     args = request.args
+    print("argsss",args)
     ship_imo = args['ship_imo']
     id = args['id']
     res = DailyReportExtractor(ship_imo, id)
-    category_list, category_data, column_headers, subcategory_data, dateList, latestRes, anomalyList, static_data, charter_party_values, charter_party_prediction_values, compliance_messages, listOfVesselParticulars, issuesCount = res.process_data()
+    category_list, category_data, column_headers, subcategory_data, dateList, latestRes, anomalyList, static_data, charter_party_values, charter_party_prediction_values, compliance_messages, listOfVesselParticulars, issuesCount,latest_vti, latest_avg_vti, source = res.process_data()
     
     return {"Category List": category_list, "Category Dictionary": category_data, 'Sub Category Dictionary': subcategory_data, 'Dates': dateList, "Latest Result": latestRes, 'Daily Report Column Headers': column_headers, 'Anomaly List': anomalyList, 'Static Data': static_data, 'Charter Party Values': charter_party_values, 'Charter Party Prediction Values': charter_party_prediction_values, "Compliance Messages": compliance_messages, "List of Vessel Particulars": listOfVesselParticulars, "Issues Count": issuesCount}
 
@@ -494,10 +505,12 @@ def getSpecificDailyReport():
     id = args['id']
     res = DailyReportExtractor(ship_imo, id, dateString)
 
-    category_list, category_data, column_headers, subcategory_data, dateList, latestRes, anomalyList, static_data, charter_party_values, charter_party_prediction_values, compliance_messages, listOfVesselParticulars, issuesCount = res.process_data()
+    category_list, category_data, column_headers, subcategory_data, dateList, latestRes, anomalyList, static_data, charter_party_values, charter_party_prediction_values, compliance_messages, listOfVesselParticulars, issuesCount, latest_vti, latest_avg_vti, source = res.process_data()
     # historicalresult = res.read_data_for_specific_date(dateString)
-
-    return {"Category List": category_list, "Category Dictionary": category_data, 'Sub Category Dictionary': subcategory_data, 'Dates': dateList, "Latest Result": latestRes, 'Daily Report Column Headers': column_headers, 'Anomaly List': anomalyList, 'Static Data': static_data, 'Charter Party Values': charter_party_values, 'Charter Party Prediction Values': charter_party_prediction_values, "Compliance Messages": compliance_messages, "List of Vessel Particulars": listOfVesselParticulars, "Issues Count": issuesCount}
+    print(category_data)
+    print(category_list)
+    print("column_headersdailydata",column_headers)
+    return {"Category List": category_list, "Category Dictionary": category_data, 'Sub Category Dictionary': subcategory_data, 'Dates': dateList, "Latest Result": latestRes, 'Daily Report Column Headers': column_headers, 'Anomaly List': anomalyList, 'Static Data': static_data, 'Charter Party Values': charter_party_values, 'Charter Party Prediction Values': charter_party_prediction_values, "Compliance Messages": compliance_messages, "List of Vessel Particulars": listOfVesselParticulars, "Issues Count": issuesCount, "latest_vti":latest_vti,"latest_avg_vti":latest_avg_vti,"source":source}
 
 @application.route('/dailyissues', methods=['GET'])
 @cross_origin()
@@ -510,7 +523,9 @@ def getDailyIssues():
 
     category_list, category_data, column_headers, subcategory_data, dateList, latestRes, anomalyList, static_data, charter_party_values, charter_party_prediction_values, compliance_messages, listOfVesselParticulars, issuesCount = res.process_data()
     # historicalresult = res.read_data_for_specific_date(dateString)
-
+    print(category_data)
+    print(category_list)
+    print("column_headersdailyissuess",column_headers)
     return {"Category List": category_list, "Category Dictionary": category_data, 'Sub Category Dictionary': subcategory_data, 'Dates': dateList, "Latest Result": latestRes, 'Daily Report Column Headers': column_headers, 'Anomaly List': anomalyList, 'Static Data': static_data, 'Charter Party Values': charter_party_values, 'Charter Party Prediction Values': charter_party_prediction_values, "Compliance Messages": compliance_messages, "List of Vessel Particulars": listOfVesselParticulars, "Issues Count": issuesCount}
 
 
@@ -972,8 +987,50 @@ def voyage_performance():
 
     return {"Result": result}
 
+@application.route('/reports/selected_period', methods=["GET"])
+@cross_origin()
+def selected_period():
+    ship_imo = request.args['ship_imo']
+    fromDate = request.args['fromDate']
+    toDate = request.args['toDate']
+
+    obj = SelectedPeriod(ship_imo, fromDate, toDate)
+    outliers, operationals, spe, outlier_res, operational_res, spe_res = obj.process_data()
+
+    return {'Outliers': outliers, 'Operational': operationals, 'SPE': spe,
+            'Outlier Exp': outlier_res, 'Operational Exp': operational_res,
+            'SPE Exp': spe_res
+            }
+
+@application.route('/reports/get_dates', methods=["GET"])
+@cross_origin()
+def get_available_dates():
+    ship_imo = request.args['ship_imo']
+
+    obj = SelectedPeriod(ship_imo, "", "")
+
+    dates = obj.get_available_dates()
+
+    return {'Dates': dates}
+
+
+# ak codes from here
+@application.route('/api/chat', methods=['POST'])
+@cross_origin()
+def chat():
+    start_time = time.time()
+    user_text = request.json['text']
+    reply=run_conversation(user_text)["choices"][0]["message"]['content']
+    
+    end_time=time.time()
+    print(end_time-start_time)
+    return jsonify({"reply": reply, "graphUrl": None}) # Replace None with your graph URL if needed
+
+
+
+
 
 
 if __name__ == '__main__':
-    # application.run(debug=True)
-    application.run(host='0.0.0.0')
+    application.run(debug=True)
+    # application.run(host='0.0.0.0')
