@@ -314,8 +314,35 @@ class IndividualProcessors():
     # def dst_last_processor(self,base_dict):            
     #     return self.base_individual_processor('dst_last',base_dict)  
 
-    # def stm_hrs_processor(self,base_dict):
-    #     return self.base_individual_processor('stm_hrs',base_dict)            
+    def stm_hrs_processor(self,base_dict):
+        try:
+            base_dict=base_dict
+            if "stm_hrs" not in self.daily_data['data'] or  ("stm_hrs" in self.daily_data['data'] and pandas.isnull(self.daily_data['data']['stm_hrs'])==True):
+                if pandas.isnull(self.daily_data['data']['hrs_full_speed'])==False:
+                    hrs_full_speed=self.daily_data['data']['hrs_full_speed']
+                else:
+                    hrs_full_speed=0
+                if pandas.isnull(self.daily_data['data']['hrs_eco_speed'])==False:
+                    hrs_eco_speed=self.daily_data['data']['hrs_eco_speed']
+                else:
+                    hrs_eco_speed=0
+                if pandas.isnull(self.daily_data['data']['hrs_slow_speed'])==False:
+                    hrs_slow_speed=self.daily_data['data']['hrs_slow_speed']
+                else:
+                    hrs_slow_speed=0
+                if hrs_full_speed==0 and hrs_eco_speed==0 and hrs_slow_speed==0:
+                    base_dict['processed']=None
+                else:
+                    base_dict['processed']=hrs_full_speed+hrs_eco_speed+hrs_slow_speed
+                base_dict['is_read']=True
+                base_dict['is_processed']=True
+            else:
+                base_dict['processed']=base_dict['reported']
+                base_dict['is_read']=True
+                base_dict['is_processed']=False
+        except:
+            base_dict['processed']=None
+        return base_dict            
 
     # def speed_sog_processor(self,base_dict):
     #     return self.base_individual_processor('speed_sog',base_dict)
