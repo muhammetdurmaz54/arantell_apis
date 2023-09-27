@@ -596,7 +596,7 @@ def drydock(dry_dock_period,eval_data_period,imo,performance_type):
     
     if performance_type == 'maintainance_trigger':
         speed_min = min(min(eval_dict['speed_stw_calc_loss']), min(eval_dict['speed_stw_calc_loss_avg']))
-        pwr_min = min(min(eval_dict['pwr_loss']), min(eval_dict['pwr_loss_avg']))
+        pwr_max = max(max(eval_dict['pwr_loss']), max(eval_dict['pwr_loss_avg']))
         fuel_min = min(min(eval_dict['main_fuel_per_dst_rise']), min(eval_dict['main_fuel_per_dst_rise_avg']))
         shapes = [
             # For Speed
@@ -606,7 +606,7 @@ def drydock(dry_dock_period,eval_data_period,imo,performance_type):
                 'yref': 'y4',
                 'x0': 0,
                 'x1': 1,
-                'y0': speed_min,
+                'y0': 0,
                 'y1': 3,
                 'fillcolor': 'green',
                 'opacity': 0.2,
@@ -631,8 +631,8 @@ def drydock(dry_dock_period,eval_data_period,imo,performance_type):
                 'yref': 'y5',
                 'x0': 0,
                 'x1': 1,
-                'y0': pwr_min,
-                'y1': 1,
+                'y0': 0,
+                'y1': 4,
                 'fillcolor': 'green',
                 'opacity': 0.2,
                 'line': {'width': 0}
@@ -643,8 +643,8 @@ def drydock(dry_dock_period,eval_data_period,imo,performance_type):
                 'yref': 'y5',
                 'x0': 0,
                 'x1': 1,
-                'y0': 1,
-                'y1': 6,
+                'y0': 4,
+                'y1': pwr_max,
                 'fillcolor': 'orange',
                 'opacity': 0.2,
                 'line': {'width': 0}
