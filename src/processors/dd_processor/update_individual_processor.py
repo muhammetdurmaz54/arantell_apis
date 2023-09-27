@@ -468,7 +468,26 @@ class UpdateIndividualProcessors():
                     # print("speeeee",spe)
                     spe_dataframe=pd.DataFrame({})
                     spe_dataframe['spe']=(pred['Pred']-Y_test[y])**2
-                    # print(spe_dataframe)
+                    # print("spe_dataframeeeee",spe_dataframe)
+                    if identifier=="main_fuel_per_dst":
+                        Y_test['spe']=spe_dataframe['spe']
+                        Y_test['pred']=pred['Pred']
+                        for ind in range(0,len(Y_test)):
+                            if Y_test[identifier][ind]<Y_test['pred'][ind]:
+                                Y_test['spe'][ind]=0
+                                if ind==len(Y_test)-1:
+                                    spe=0
+                        spe_dataframe['spe']=Y_test['spe']
+                    if identifier=="speed_sog" or identifier=="speed_sog_calc" or identifier=="speed_stw" or identifier=="speed_stw_calc":
+                        Y_test['spe']=spe_dataframe['spe']
+                        Y_test['pred']=pred['Pred']
+                        for ind in range(0,len(Y_test)):
+                            if Y_test[identifier][ind]>Y_test['pred'][ind]:
+                                Y_test['spe'][ind]=0
+                                if ind==len(Y_test)-1:
+                                    spe=0
+                        spe_dataframe['spe']=Y_test['spe']
+                    print("speeeeeeeeeeee",spe)
                     spe_dataframe = spe_dataframe.head(spe_dataframe.shape[0] - 1)
                     spe_dataframe.loc[len(spe_dataframe)]=spe
                     new_spe_data=self.checkspe_limit(spe_dataframe)
