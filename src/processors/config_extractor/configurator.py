@@ -47,11 +47,24 @@ daily_report_column_headers = {
     'WEATHER PARAMETERS': ["Name", "Unit", "Reported", "AIS/MET", "Statement", "API_DATA"],
     'DISTANCE AND TIME': ["Name", "Unit", "Reported", "AIS", "Expected", "Statement", "API_DATA"],
     'VESSEL POSITION': ["Name", "Reported", "AIS", "Expected"],
-    'FUEL OIL CONSUMPTION': common_header,
-    'MAIN ENGINE': common_header,
-    'GENERATOR': common_header,
-    'AUXILLIARIES': common_header,
+    'FUEL OIL CONSUMPTION': ['Name', "Unit", 'Reported', 'Expected', 'Statement', 'Cause', 'P'],
+    'MAIN ENGINE': ['Name', "Unit", 'Reported', 'Expected', 'Statement', 'Cause', 'P'],
+    'GENERATOR': ['Name', "Unit", 'Reported', 'Expected', 'Statement', 'Cause', 'P'],
+    'AUXILLIARIES': ['Name', "Unit", 'Reported', 'Expected', 'Statement', 'Cause', 'P'],
     'INDICES': ['Name', "Unit", 'Calculated', 'Expected', 'Threshold', 'Statement', 'Cause', 'Feedback']
+}
+daily_issues_column_headers = {
+    'VESSEL PARTICULARS': ["Name", "Constant"],
+    'VESSEL STATUS': ["Name", "Unit", "Reported", "Occurrence","Expected", "Charter Pty", "Statement"],
+    'CHANGE IN SPEED': ["Name", "Unit", "Reported", "Occurrence","Expected", "Statement"],
+    'WEATHER PARAMETERS': ["Name", "Unit", "Reported","Occurrence", "AIS/MET", "Statement", "API_DATA"],
+    'DISTANCE AND TIME': ["Name", "Unit", "Reported","Occurrence", "AIS", "Expected", "Statement", "API_DATA"],
+    'VESSEL POSITION': ["Name", "Reported","Occurrence", "AIS", "Expected"],
+    'FUEL OIL CONSUMPTION': ['Name', "Unit", 'Reported',"Occurrence", 'Expected', 'Statement', 'P'],
+    'MAIN ENGINE': ['Name', "Unit", 'Reported',"Occurrence", 'Expected', 'Statement', 'P'],
+    'GENERATOR': ['Name', "Unit", 'Reported',"Occurrence", 'Expected', 'Statement', 'P'],
+    'AUXILLIARIES': ['Name', "Unit", 'Reported',"Occurrence", 'Expected', 'Statement', 'P'],
+    'INDICES': ['Name', "Unit", 'Calculated', 'Expected', 'Threshold', 'Statement', 'Feedback']
 }
 position_of_collapsible_category = {
     'VESSEL PARTICULARS': 0,
@@ -97,7 +110,7 @@ weather_data_identifier_mapping = {
 
 FOC_identifier_mapping = {
     "Date (yyyy-mm-dd)": 'final_rep_dt',
-    "24 h Corrected F.O.C (t)": 'main_lsfo', #doubtful
+    "24 h Corrected F.O.C (t)": 'main_fuel', #doubtful
     "Weather corrected Baseline (t)": '',
     "Torque Rich Index": '',
     "Difference (%)": '',
@@ -510,6 +523,7 @@ class Configurator():
         check_list=[]
         for i in range(len(sorted_group)):
             tempName = 'spe_' + sorted_group[i]['name']
+            print(tempName)
 
             if tempName in spekeylist:
                 if sorted_group[i]['block_number'] == 1:
@@ -521,6 +535,7 @@ class Configurator():
                     temp['short_names'] = 'SPE ' + sorted_group[i]['short_names']
                     newgroup.append(temp)
                 else:
+                    print(newgroup)
                     if 'spe_' in newgroup[-1]['name']:
                         if name_and_block_dict[sorted_group[i]['name']] == name_and_block_dict[newgroup[-2]['name']]:
                             sorted_group[i]['block_number'] = newgroup[-2]['block_number']
@@ -1419,7 +1434,7 @@ class Configurator():
         
     
     ''' Functions for Daily Report processing '''
-    def get_category_dict(self):
+    def get_category_dict(self,callfrom):
         ''' Returns a dictionary containing category as the key and the list of subcategories in that category as the value'''
         # single = tempRes[0]
         #print(type(self.ship_configs))
@@ -1427,7 +1442,10 @@ class Configurator():
         catDict={}
         catList=[]
         categoryDict={}
-        column_headers = daily_report_column_headers
+        if callfrom=='issues':
+            column_headers = daily_issues_column_headers
+        else:
+            column_headers = daily_report_column_headers
 
         for var in singledata.keys():
             try:
@@ -3609,13 +3627,20 @@ class Configurator():
 
         maindb_collection = self.get_main_data()
 
-        for doc in maindb_collection.find({'ship_imo': int(self.ship_imo)}, {'processed_daily_data.voyage': 1, 'processed_daily_data.speed_stw.processed': 1}).sort('final_rep_dt', ASCENDING):
-            if doc['processed_daily_data']['voyage']['processed'] == voyage + ' L' and loaded == True:
+        for doc in maindb_collection.find({'ship_imo': int(self.ship_imo)}, {'processed_daily_data.voyage': 1, 'processed_daily_data.speed_stw.processed': 1,'processed_daily_data.speed_stw_calc.processed': 1}).sort('final_rep_dt', ASCENDING):
+            if doc['processed_daily_data']['voyage']['processed'] == voyage + ' L' and loaded == True and pd.isnull(doc['processed_daily_data']['speed_stw']['processed'])==False:
                 count_loaded = count_loaded + 1
                 sum_speed_when_loaded = sum_speed_when_loaded + doc['processed_daily_data']['speed_stw']['processed']
-            elif doc['processed_daily_data']['voyage']['processed'] == voyage + 'B' and loaded == False:
+            elif doc['processed_daily_data']['voyage']['processed'] == voyage + 'B' and loaded == False and pd.isnull(doc['processed_daily_data']['speed_stw']['processed'])==False:
                 count_ballast = count_ballast + 1
                 sum_speed_when_ballast = sum_speed_when_ballast + doc['processed_daily_data']['speed_stw']['processed']
+
+            elif doc['processed_daily_data']['voyage']['processed'] == voyage + ' L' and loaded == True and pd.isnull(doc['processed_daily_data']['speed_stw_calc']['processed'])==False:
+                count_loaded = count_loaded + 1
+                sum_speed_when_loaded = sum_speed_when_loaded + doc['processed_daily_data']['speed_stw_calc']['processed']
+            elif doc['processed_daily_data']['voyage']['processed'] == voyage + 'B' and loaded == False and pd.isnull(doc['processed_daily_data']['speed_stw_calc']['processed'])==False:
+                count_ballast = count_ballast + 1
+                sum_speed_when_ballast = sum_speed_when_ballast + doc['processed_daily_data']['speed_stw_calc']['processed']
         
         if loaded == True:
             try:
@@ -3665,35 +3690,35 @@ class Configurator():
 
             for doc in maindb_collection.find(
                 {'ship_imo': int(self.ship_imo)},
-                {'processed_daily_data.voyage.processed': 1, 'processed_daily_data.main_lsfo.processed': 1, 'processed_daily_data.stm_hrs.processed': 1}
+                {'processed_daily_data.voyage.processed': 1, 'processed_daily_data.main_fuel.processed': 1, 'processed_daily_data.stm_hrs.processed': 1}
             ).sort('final_rep_dt', ASCENDING):
                 if doc['processed_daily_data']['voyage']['processed'] == voyage_string:
-                    if pd.isnull(doc['processed_daily_data']['main_lsfo']['processed']) == False and pd.isnull(doc['processed_daily_data']['stm_hrs']['processed']) == False:
-                        foc = (doc['processed_daily_data']['main_lsfo']['processed'] * 24) / doc['processed_daily_data']['stm_hrs']['processed']
+                    if pd.isnull(doc['processed_daily_data']['main_fuel']['processed']) == False and pd.isnull(doc['processed_daily_data']['stm_hrs']['processed']) == False:
+                        foc = (doc['processed_daily_data']['main_fuel']['processed'] * 24) / doc['processed_daily_data']['stm_hrs']['processed']
                         foc_list.append(self.makeDecimal(foc))
                     else:
                         foc_list.append("")
                 elif doc['processed_daily_data']['voyage']['processed'] == voyage_string:
-                    if pd.isnull(doc['processed_daily_data']['main_lsfo']['processed']) == False and pd.isnull(doc['processed_daily_data']['stm_hrs']['processed']) == False:
-                        foc = (doc['processed_daily_data']['main_lsfo']['processed'] * 24) / doc['processed_daily_data']['stm_hrs']['processed']
+                    if pd.isnull(doc['processed_daily_data']['main_fuel']['processed']) == False and pd.isnull(doc['processed_daily_data']['stm_hrs']['processed']) == False:
+                        foc = (doc['processed_daily_data']['main_fuel']['processed'] * 24) / doc['processed_daily_data']['stm_hrs']['processed']
                         foc_list.append(self.makeDecimal(foc))
                     else:
                         foc_list.append("")
         else:
             for doc in maindb_collection.find(
                 {'ship_imo': int(self.ship_imo)},
-                {'processed_daily_data.main_lsfo.processed': 1, 'processed_daily_data.stm_hrs.processed': 1,
+                {'processed_daily_data.main_fuel.processed': 1, 'processed_daily_data.stm_hrs.processed': 1,
                  'processed_daily_data.voyage.processed': 1}
             ).sort('final_rep_dt', DESCENDING):
                 if 'L' in doc['processed_daily_data']['voyage']['processed'] and loaded == True:
-                    if pd.isnull(doc['processed_daily_data']['main_lsfo']['processed']) == False and pd.isnull(doc['processed_daily_data']['stm_hrs']['processed']) == False:
-                        foc = (doc['processed_daily_data']['main_lsfo']['processed'] * 24) / doc['processed_daily_data']['stm_hrs']['processed']
+                    if pd.isnull(doc['processed_daily_data']['main_fuel']['processed']) == False and pd.isnull(doc['processed_daily_data']['stm_hrs']['processed']) == False:
+                        foc = (doc['processed_daily_data']['main_fuel']['processed'] * 24) / doc['processed_daily_data']['stm_hrs']['processed']
                         foc_list.append(self.makeDecimal(foc))
                     else:
                         foc_list.append("")
                 elif 'B' in doc['processed_daily_data']['voyage']['processed'] and loaded == False:
-                    if pd.isnull(doc['processed_daily_data']['main_lsfo']['processed']) == False and pd.isnull(doc['processed_daily_data']['stm_hrs']['processed']) == False:
-                        foc = (doc['processed_daily_data']['main_lsfo']['processed'] * 24) / doc['processed_daily_data']['stm_hrs']['processed']
+                    if pd.isnull(doc['processed_daily_data']['main_fuel']['processed']) == False and pd.isnull(doc['processed_daily_data']['stm_hrs']['processed']) == False:
+                        foc = (doc['processed_daily_data']['main_fuel']['processed'] * 24) / doc['processed_daily_data']['stm_hrs']['processed']
                         foc_list.append(self.makeDecimal(foc))
                     else:
                         foc_list.append("")
@@ -3717,25 +3742,25 @@ class Configurator():
 
             for doc in maindb_collection.find({'ship_imo': int(self.ship_imo)}, {'processed_daily_data.voyage.processed': 1, 'baseline_pred': 1}).sort('final_rep_dt', ASCENDING):
                 if doc['processed_daily_data']['voyage']['processed'] == voyage_string and loaded == True:
-                    if pd.isnull(doc['baseline_pred']['main_lsfo']) == False:
-                        baseline.append(self.makeDecimal(doc['baseline_pred']['main_lsfo']))
+                    if pd.isnull(doc['baseline_pred']['main_fuel']) == False:
+                        baseline.append(self.makeDecimal(doc['baseline_pred']['main_fuel']))
                     else:
                         baseline.append("")
                 elif doc['processed_daily_data']['voyage']['processed'] == voyage_string and loaded == False:
-                    if pd.isnull(doc['baseline_pred']['main_lsfo']) == False:
-                        baseline.append(self.makeDecimal(doc['baseline_pred']['main_lsfo']))
+                    if pd.isnull(doc['baseline_pred']['main_fuel']) == False:
+                        baseline.append(self.makeDecimal(doc['baseline_pred']['main_fuel']))
                     else:
                         baseline.append("")
         else:
             for doc in maindb_collection.find({'ship_imo': int(self.ship_imo)}, {'processed_daily_data.voyage.processed': 1, 'baseline_pred': 1}).sort('final_rep_dt', ASCENDING):
                 if 'L' in doc['processed_daily_data']['voyage']['processed'] and loaded == True:
-                    if pd.isnull(doc['baseline_pred']['main_lsfo']) == False:
-                        baseline.append(self.makeDecimal(doc['baseline_pred']['main_lsfo']))
+                    if pd.isnull(doc['baseline_pred']['main_fuel']) == False:
+                        baseline.append(self.makeDecimal(doc['baseline_pred']['main_fuel']))
                     else:
                         baseline.append("")
                 elif 'B' in doc['processed_daily_data']['voyage']['processed'] and loaded == False:
-                    if pd.isnull(doc['baseline_pred']['main_lsfo']) == False:
-                        baseline.append(self.makeDecimal(doc['baseline_pred']['main_lsfo']))
+                    if pd.isnull(doc['baseline_pred']['main_fuel']) == False:
+                        baseline.append(self.makeDecimal(doc['baseline_pred']['main_fuel']))
                     else:
                         baseline.append("")
         #print("BASELINE END")
@@ -3861,7 +3886,7 @@ class Configurator():
                 #print("VALUES", value)
                 if doc['processed_daily_data']['voyage']['processed'] == voyage_string:
                     if value != 'final_rep_dt' and value != "":
-                        if value in doc['processed_daily_data'].keys() and pd.isnull(doc['processed_daily_data'][value]['processed']) == False:
+                        if value in doc['processed_daily_data'].keys() and pd.isnull(doc['processed_daily_data'][value]['processed']) == False and type(doc['processed_daily_data'][value]['processed'])!=str:
                             tempDict[key] = self.makeDecimal(doc['processed_daily_data'][value]['processed'])
                         else:
                             tempDict[key] = "No Data"
@@ -3909,13 +3934,13 @@ class Configurator():
                     #print("VALUES", value)
                     if doc['processed_daily_data']['voyage']['processed'] == voyage_string:
                         if value != 'final_rep_dt' and value != "":
-                            if value == 'main_lsfo':
+                            if value == 'main_fuel':
                                 tempDict[key] = fuel_cons_24_hr
                             elif value == '' and key == 'Weather corrected Baseline (t)':
                                 tempDict[key] = baseline_pred
                             elif value == '' and key == 'Difference (%)':
                                 tempDict[key] = percentage_difference
-                            elif value in doc['processed_daily_data'].keys() and value != 'main_lsfo' and pd.isnull(doc['processed_daily_data'][value]['processed']) == False:
+                            elif value in doc['processed_daily_data'].keys() and value != 'main_fuel' and pd.isnull(doc['processed_daily_data'][value]['processed']) == False:
                                 tempDict[key] = self.makeDecimal(doc['processed_daily_data'][value]['processed'])
                             else:
                                 tempDict[key] = "No Data"
@@ -3955,13 +3980,13 @@ class Configurator():
                     #print("VALUES", value)
                     if load_string in doc['processed_daily_data']['voyage']['processed'] and value != 'trim':
                         if value != 'final_rep_dt' and value != "":
-                            if value == 'main_lsfo':
+                            if value == 'main_fuel':
                                 tempDict[key] = fuel_cons_24_hr
                             elif value == '' and key == 'Weather corrected Baseline (t)':
                                 tempDict[key] = baseline_pred
                             elif value == '' and key == 'Difference (%)':
                                 tempDict[key] = percentage_difference
-                            elif value in doc['processed_daily_data'].keys() and value != 'main_lsfo' and pd.isnull(doc['processed_daily_data'][value]['processed']) == False:
+                            elif value in doc['processed_daily_data'].keys() and value != 'main_fuel' and pd.isnull(doc['processed_daily_data'][value]['processed']) == False:
                                 tempDict[key] = self.makeDecimal(doc['processed_daily_data'][value]['processed'])
                             else:
                                 tempDict[key] = "No Data"
@@ -4015,11 +4040,11 @@ class Configurator():
             startDate = None
             endDate = None
             for doc in maindb_collection.find({'ship_imo': int(self.ship_imo)}, {'processed_daily_data.voyage.processed': 1, 'final_rep_dt': 1}).sort('final_rep_dt', ASCENDING):
-                if num in doc['processed_daily_data']['voyage']['processed']:
+                if pd.isnull(doc['processed_daily_data']['voyage']['processed'])==False and num in doc['processed_daily_data']['voyage']['processed']:
                     startDate = doc['final_rep_dt'].strftime('%d/%m/%Y')
                     break
             for doc in maindb_collection.find({'ship_imo': int(self.ship_imo)}, {'processed_daily_data.voyage.processed': 1, 'final_rep_dt': 1}).sort('final_rep_dt', DESCENDING):
-                if num in doc['processed_daily_data']['voyage']['processed']:
+                if pd.isnull(doc['processed_daily_data']['voyage']['processed'])==False and num in doc['processed_daily_data']['voyage']['processed']:
                     endDate = doc['final_rep_dt'].strftime('%d/%m/%Y')
                     break
             tempdict = {'label': "Voyage No. "+num+', '+startDate+'-'+endDate, 'value': num}
@@ -4042,26 +4067,26 @@ class Configurator():
             #print("ALL FUEL CONS START")
             for doc in maindb_collection.find(
                 {'ship_imo': int(self.ship_imo), 'processed_daily_data.voyage.processed': voyage_string},
-                {'processed_daily_data.main_lsfo.processed': 1, 'final_rep_dt': 1}
+                {'processed_daily_data.main_fuel.processed': 1, 'final_rep_dt': 1}
             ).sort('final_rep_dt', ASCENDING):
-                if pd.isnull(doc['processed_daily_data']['main_lsfo']['processed']) == False:
-                    fuel_cons_list.append(self.makeDecimal(doc['processed_daily_data']['main_lsfo']['processed']))
+                if pd.isnull(doc['processed_daily_data']['main_fuel']['processed']) == False and doc['processed_daily_data']['main_fuel']['processed']!=0:
+                    fuel_cons_list.append(self.makeDecimal(doc['processed_daily_data']['main_fuel']['processed']))
                 else:
                     fuel_cons_list.append(None)
             #print("ALL FUEL CONS END")
         else:
             for doc in maindb_collection.find(
                 {'ship_imo': int(self.ship_imo)},
-                {'processed_daily_data.main_lsfo.processed': 1, 'final_rep_dt': 1, 'processed_daily_data.voyage.processed': 1}
+                {'processed_daily_data.main_fuel.processed': 1, 'final_rep_dt': 1, 'processed_daily_data.voyage.processed': 1}
             ).sort('final_rep_dt', ASCENDING):
                 if 'L' in doc['processed_daily_data']['voyage']['processed'] and loaded == True:
-                    if pd.isnull(doc['processed_daily_data']['main_lsfo']['processed']) == False:
-                        fuel_cons_list.append(self.makeDecimal(doc['processed_daily_data']['main_lsfo']['processed']))
+                    if pd.isnull(doc['processed_daily_data']['main_fuel']['processed']) == False and doc['processed_daily_data']['main_fuel']['processed']!=0:
+                        fuel_cons_list.append(self.makeDecimal(doc['processed_daily_data']['main_fuel']['processed']))
                     else:
                         fuel_cons_list.append(None)
                 elif 'B' in doc['processed_daily_data']['voyage']['processed'] and loaded == False:
-                    if pd.isnull(doc['processed_daily_data']['main_lsfo']['processed']) == False:
-                        fuel_cons_list.append(self.makeDecimal(doc['processed_daily_data']['main_lsfo']['processed']))
+                    if pd.isnull(doc['processed_daily_data']['main_fuel']['processed']) == False and doc['processed_daily_data']['main_fuel']['processed']!=0:
+                        fuel_cons_list.append(self.makeDecimal(doc['processed_daily_data']['main_fuel']['processed']))
                     else:
                         fuel_cons_list.append(None)
         return fuel_cons_list
@@ -4085,11 +4110,14 @@ class Configurator():
                 {
                     # 'processed_daily_data.speed_stw_calc.processed': 1,
                     'final_rep_dt': 1,
-                    'processed_daily_data.speed_stw.processed': 1
+                    'processed_daily_data.speed_stw.processed': 1,
+                    'processed_daily_data.speed_stw_calc.processed': 1
                 }
             ).sort('final_rep_dt', ASCENDING):
                 if pd.isnull(doc['processed_daily_data']['speed_stw']['processed']) == False:
                     speed_list.append(self.makeDecimal(doc['processed_daily_data']['speed_stw']['processed']))
+                elif pd.isnull(doc['processed_daily_data']['speed_stw_calc']['processed']) == False:
+                    speed_list.append(self.makeDecimal(doc['processed_daily_data']['speed_stw_calc']['processed']))
                 else:
                     speed_list.append(None)
             #print("SPEED END")
@@ -4100,17 +4128,22 @@ class Configurator():
                     # 'processed_daily_data.speed_stw_calc.processed': 1,
                     'final_rep_dt': 1,
                     'processed_daily_data.speed_stw.processed': 1,
-                    'processed_daily_data.voyage.processed': 1
+                    'processed_daily_data.voyage.processed': 1,
+                    'processed_daily_data.speed_stw_calc.processed': 1
                 }
             ).sort('final_rep_dt', ASCENDING):
                 if 'L' in doc['processed_daily_data']['voyage']['processed'] and loaded == True:
                     if pd.isnull(doc['processed_daily_data']['speed_stw']['processed']) == False:
                         speed_list.append(self.makeDecimal(doc['processed_daily_data']['speed_stw']['processed']))
+                    elif pd.isnull(doc['processed_daily_data']['speed_stw_calc']['processed']) == False:
+                        speed_list.append(self.makeDecimal(doc['processed_daily_data']['speed_stw_calc']['processed']))
                     else:
                         speed_list.append(None)
                 elif 'B' in doc['processed_daily_data']['voyage']['processed'] and loaded == False:
                     if pd.isnull(doc['processed_daily_data']['speed_stw']['processed']) == False:
                         speed_list.append(self.makeDecimal(doc['processed_daily_data']['speed_stw']['processed']))
+                    elif pd.isnull(doc['processed_daily_data']['speed_stw_calc']['processed']) == False:
+                        speed_list.append(self.makeDecimal(doc['processed_daily_data']['speed_stw_calc']['processed']))
                     else:
                         speed_list.append(None)
         return speed_list
