@@ -542,7 +542,7 @@ class DailyInsert:
         for w in data_available_nav:
             try:
                 if w in row:
-                    if row[w]=="  ":
+                    if row[w]=="  " or row[w]=="":
                         dest[w]=None
                     elif type(row[w])==type(datetime.now().time()):
                         dest[w]=str(row[w])
@@ -551,7 +551,7 @@ class DailyInsert:
                     else:
                         dest[w]=row[w]
                 elif identifier_mapping[w].strip() in row:
-                    if row[identifier_mapping[w]]=="  ":
+                    if row[identifier_mapping[w]]=="  " or row[identifier_mapping[w]]=="":
                         dest[w]=None
                     elif type(row[identifier_mapping[w]])==type(datetime.now().time()):
                         dest[w]=str(row[identifier_mapping[w]])
@@ -569,7 +569,7 @@ class DailyInsert:
             try:
                 if pd.isnull(i)==False:
                     if i.endswith("_fuel_file") or i.endswith("_eng_file"):
-                        if row[i]=="  ":
+                        if row[i]=="  " or row[i]=="":
                             self.common_data[i]=None
                         elif type(row[i])==type(datetime.now().time()):
                             self.common_data[i]=str(row[i])
@@ -599,8 +599,7 @@ class DailyInsert:
         s3.upload_file(self.eng, Bucket="input-templates", Key=self.eng_object_key)
 
 
-obj=DailyInsert('F:\Afzal_cs\Internship\Arvind data files\9205926noonfuel.xlsx','F:\Afzal_cs\Internship\Arvind data files\9205926noonengine.xlsx',9205926,False,True)
-# # obj=DailyInsert('F:\Afzal_cs\Internship\Arvind data files\RTM FUEL.xlsx',None,9591301,True)
-# # obj=DailyInsert(None,'F:\Afzal_cs\Internship\Arvind data files\RTM ENGINE.xlsx',9591301,True)
-obj.do_steps()
-
+# obj=DailyInsert('F:\Afzal_cs\Internship\Arvind data files\9205926noonfuel.xlsx','F:\Afzal_cs\Internship\Arvind data files\9205926noonengine.xlsx',9205926,False,True)
+# # obj=DailyInsert('F:\Afzal_cs\Internship\Arvind data files\9250505noonfuel.xlsx',None,9250505,False,True)
+# # obj=DailyInsert(None,'F:\Afzal_cs\Internship\Arvind data files\RTM ENGINE.xlsx',9591301,False,True)
+# obj.do_steps()
