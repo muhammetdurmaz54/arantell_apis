@@ -474,6 +474,9 @@ class ConfigExtractor():
                 ship['spe_limits']=ship_configs['spe_limits']
                 ship['mewma_limits']=ship_configs['mewma_limits']
                 ship['spe_limits_indices']=ship_configs['spe_limits_indices']
+                # ship['common_col']=ship_configs['common_col']
+                # ship['similar_vessel_list_names']=ship_configs['similar_vessel_list_names']
+                # ship['sister_vessel_list_names']=ship_configs['sister_vessel_list_names']
         except:
             pass
 
@@ -566,15 +569,15 @@ class ConfigExtractor():
         
         
 
-obj=ConfigExtractor(9205926,'F:\Afzal_cs\Internship\Configurator_9205926.xlsx',True)
-# obj.connect()
-# obj.read_files()
-# obj.anamoly()
-# obj.process_file()
-# obj.write_configs()
-import time
-start_time = time.time()
+# obj=ConfigExtractor(9250505,'F:\Afzal_cs\Internship\Configurator_9250505.xlsx',True)
+# # obj.connect()
+# # obj.read_files()
+# # obj.anamoly()
+# # obj.process_file()
+# # obj.write_configs()
+# import time
+# start_time = time.time()
 
-obj.do_steps()
-end_time=time.time()
-print(end_time-start_time)
+# obj.do_steps()
+# end_time=time.time()
+# print(end_time-start_time)
