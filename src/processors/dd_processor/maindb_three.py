@@ -930,18 +930,18 @@ class MainDB():
                         if pandas.isnull(main_fuel['predictions'][month][0])==False or main_fuel['predictions'][month][0]!=None:
                             first_div=main_fuel['predictions'][month][0]/pwr['predictions'][month][1]
                             second_div=first_div/stm_hrs
-                            val=second_div*10000
+                            val=second_div*1000
                             temp_list.append(val)
                         else:
                             temp_list.append(None)
                         first_div=main_fuel['predictions'][month][1]/pwr['predictions'][month][1]
                         second_div=first_div/stm_hrs
-                        val=second_div*10000
+                        val=second_div*1000
                         temp_list.append(val)
                         if pandas.isnull(main_fuel['predictions'][month][2])==False or main_fuel['predictions'][month][2]!=None :
                             first_div=main_fuel['predictions'][month][2]/pwr['predictions'][month][1]
                             second_div=first_div/stm_hrs
-                            val=second_div*10000
+                            val=second_div*1000
                             temp_list.append(val)
                         else:
                             temp_list.append(None)
@@ -1450,7 +1450,7 @@ class MainDB():
         # maindata = maindb.find({"ship_imo": int(self.ship_imo),"processed_daily_data.rep_dt.processed":{"$gte":datetime(2016,2,1,12)}})
         months=['m3','m6','m12','ly_m3','ly_m6','ly_m12']
         alpha=['zero_two','zero_one','zero_zero_five']
-
+        # variables in alpha is misleading, zero_two=alpha1,zero_one=alpha2,zerozer_five=alpha3, it can have any alpha values under alpha1,alpha2 and alpha3 variable
         indice_list=[]
         for i in indices:
             if indices[i]['Derived']!=True:
@@ -1778,62 +1778,62 @@ class MainDB():
 
 
 
-start_time = time.time()
+# start_time = time.time()
 
-# daily_obj=DailyInsert('F:\Afzal_cs\Internship\Arvind data files\RTM FUEL.xlsx','F:\Afzal_cs\Internship\Arvind data files\RTM ENGINE.xlsx',9591301,True)
-# daily_obj.do_steps()
-obj=MainDB(9105916)
-obj.get_ship_configs()
-# obj.get_main_db(0)
-first_maindict=obj.ad_all()
+# # daily_obj=DailyInsert('F:\Afzal_cs\Internship\Arvind data files\RTM FUEL.xlsx','F:\Afzal_cs\Internship\Arvind data files\RTM ENGINE.xlsx',9591301,True)
+# # daily_obj.do_steps()
+# obj=MainDB(9205926)
+# obj.get_ship_configs()
+# # obj.get_main_db(0)
+# first_maindict=obj.ad_all()
 
-# # #initialize maindb with handwritten formulas draftmean=(dft_aft+dt_fwd)/2 (dailydata)
-calc_i_cp_main_dict=obj.add_calc_i_cp(first_maindict)
-# # #adding calc _i _cp variable values in respective identifier example:speed_sog_calc=speed_sog{speed_sog_calc:value}
-# #updating equipment values 0 or 1 here
-lvl_two_main_dict=obj.maindb_lvl_two(calc_i_cp_main_dict)
-equipment_values_main_dict=obj.equipment_values(lvl_two_main_dict)
-
-
-temp_sister_vessswel_obj=obj.sister_vessel_pred(equipment_values_main_dict)
-# exit()
-# #same as ad_all (gets the value from maindb)
-base_dataframe_one=obj.create_base_dataframe(temp_sister_vessswel_obj,True)
-
-# # creates dataframe of all identifiers (currently all good vayage true)
-outlier_main_dict=obj.update_outlier_maindb_alldoc(base_dataframe_one)
-# #outlier (both outlier 1 and 2 inside this) and (remove date condition on find  before uploading in aws)
-good_voyage_main_dict=obj.update_good_voyage(outlier_main_dict)
-# #good voyage tag created here essential for predictions process
-base_dataframe_two=obj.create_base_dataframe(good_voyage_main_dict,False)
-# #call again bcz after running good voyage function now good voyage values will be false in some rows so good data for prediction will be selected now
-preds_main_dict=obj.update_maindb_predictions_alldoc(good_voyage_main_dict)
-# exit()
-# #predictions, spe, t2, ewma, cumsum all done here (remove date condition on find  before uploading in aws)
-main_fuel_spe=obj.update_main_fuel_spe(preds_main_dict)
-
-sfoc_spe=obj.update_sfoc_spe(main_fuel_spe)
-
-avg_hfo_spe=obj.update_avg_hfo_spe(sfoc_spe)
+# # # #initialize maindb with handwritten formulas draftmean=(dft_aft+dt_fwd)/2 (dailydata)
+# calc_i_cp_main_dict=obj.add_calc_i_cp(first_maindict)
+# # # #adding calc _i _cp variable values in respective identifier example:speed_sog_calc=speed_sog{speed_sog_calc:value}
+# # #updating equipment values 0 or 1 here
+# lvl_two_main_dict=obj.maindb_lvl_two(calc_i_cp_main_dict)
+# equipment_values_main_dict=obj.equipment_values(lvl_two_main_dict)
 
 
-indices_preds_main_dict=obj.update_indices(avg_hfo_spe)
+# temp_sister_vessswel_obj=obj.sister_vessel_pred(equipment_values_main_dict)
+# # exit()
+# # #same as ad_all (gets the value from maindb)
+# base_dataframe_one=obj.create_base_dataframe(temp_sister_vessswel_obj,True)
 
-obj.universal_limit()
-obj.universal_indices_limits()
-obj.ewma_limits(indices_preds_main_dict)
-obj.indice_ewma_limit(indices_preds_main_dict)
+# # # creates dataframe of all identifiers (currently all good vayage true)
+# outlier_main_dict=obj.update_outlier_maindb_alldoc(base_dataframe_one)
+# # #outlier (both outlier 1 and 2 inside this) and (remove date condition on find  before uploading in aws)
+# good_voyage_main_dict=obj.update_good_voyage(outlier_main_dict)
+# # #good voyage tag created here essential for predictions process
+# base_dataframe_two=obj.create_base_dataframe(good_voyage_main_dict,False)
+# # #call again bcz after running good voyage function now good voyage values will be false in some rows so good data for prediction will be selected now
+# preds_main_dict=obj.update_maindb_predictions_alldoc(good_voyage_main_dict)
+# # exit()
+# # #predictions, spe, t2, ewma, cumsum all done here (remove date condition on find  before uploading in aws)
+# main_fuel_spe=obj.update_main_fuel_spe(preds_main_dict)
+
+# sfoc_spe=obj.update_sfoc_spe(main_fuel_spe)
+
+# avg_hfo_spe=obj.update_avg_hfo_spe(sfoc_spe)
 
 
-cp_msg_main_dict=obj.update_cp_msg(indices_preds_main_dict)
-final_main_dict=obj.anamolies_by_config(cp_msg_main_dict)
-create_maindb_update_shipconfig=obj.final_maindb_config(final_main_dict)
+# indices_preds_main_dict=obj.update_indices(avg_hfo_spe)
 
-#temporarily added for checking spe and ewma using a diferent dataframe and formula
-# done till here  
+# obj.universal_limit()
+# obj.universal_indices_limits()
+# obj.ewma_limits(indices_preds_main_dict)
+# obj.indice_ewma_limit(indices_preds_main_dict)
 
-end_time=time.time()
-print(end_time-start_time)
+
+# cp_msg_main_dict=obj.update_cp_msg(indices_preds_main_dict)
+# final_main_dict=obj.anamolies_by_config(cp_msg_main_dict)
+# create_maindb_update_shipconfig=obj.final_maindb_config(final_main_dict)
+
+# #temporarily added for checking spe and ewma using a diferent dataframe and formula
+# # done till here  
+
+# end_time=time.time()
+# print(end_time-start_time)
 
 
 
