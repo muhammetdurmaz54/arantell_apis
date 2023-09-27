@@ -31,6 +31,8 @@ class InteractiveStatsExtractor():
         print(self.variables)
         # stats = self.configuration.get_ship_stats(actual_maindb, *variables)
         stats = self.configuration.get_ship_stats_2(close_by_date, *self.variables)
+        stats['trim']['Min'] = -0.2
+        stats['trim']['Max'] = 0.4
         print(stats)
         # for i in self.variables:
         #     try:
@@ -76,7 +78,7 @@ class InteractiveStatsExtractor():
                 tempResult[key] = tempList
             print(tempList)
             if key == 'trim':
-                stats_dict[key]['Step'] = 0.1
+                stats_dict[key]['Step'] = 0.05
             else:
                 stats_dict[key]['Step'] = len(tempList) / 2
 
