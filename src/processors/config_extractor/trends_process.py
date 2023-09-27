@@ -63,18 +63,18 @@ class TrendsExtractor():
         if 'Multi Axis' not in self.group:
             if self.include_outliers == 'true':
                 if 'Lastyear' in self.duration:
-                    a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, q, r = self.process_data()
-                    return a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, q, r
+                    a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, q, r, s = self.process_data()
+                    return a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, q, r, s
                 else:
-                    a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s = self.process_data()
-                    return a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s
+                    a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t = self.process_data()
+                    return a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t
             else:
                 if 'Lastyear' in self.duration:
-                    a, b, c, d, e, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u = self.process_data()
-                    return a, b, c, d, e, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u
+                    a, b, c, d, e, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v = self.process_data()
+                    return a, b, c, d, e, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v
                 else:
-                    a, b, c, d, e, g, h, i, j, k, l, m, n, o, p, q, r = self.process_data()
-                    return a, b, c, d, e, g, h, i, j, k, l, m, n, o, p, q, r
+                    a, b, c, d, e, g, h, i, j, k, l, m, n, o, p, q, r, s = self.process_data()
+                    return a, b, c, d, e, g, h, i, j, k, l, m, n, o, p, q, r, s
         if 'Multi Axis' in self.group:
             a, b, c, d, e, f, g, h, i, j, k, l = self.process_data()
             return a, b, c, d, e, f, g, h, i, j, k, l
@@ -1153,912 +1153,1259 @@ class TrendsExtractor():
                             # t2_limit_list.append(None)
                         
                         if self.anomalies == 'false':
-                            try:
+                            if 'ly_' in durationActual and self.compare == 'LastYear':
                                 if doc['historical'] == True:
                                     if self.noonorlogs == "noon":
                                         if doc['Logs'] == False:
-                                            new_spe = self.configuration.spe_divide(doc['processed_daily_data'][name]['SPEy'][duration_for_indices], spe_number_dict[name])
-                                            if self.include_outliers == 'true':
-                                                # if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][new_duration]) == False:
-                                                #     if doc['processed_daily_data'][name]['within_outlier_limits'][new_duration] == False:
-                                                if doc['processed_daily_data'][name]['SPEy'][duration_for_indices] < spe_number_dict[name]:
-                                                    spe_list.append(self.configuration.makeDecimal(new_spe))
-                                                    # spe_list.append(doc['processed_daily_data'][name]['SPEy'][durationActual])
-                                                    # spe_list.append(spe_number_dict[name])
-                                                else:
-                                                    spe_list.append(None)
-                                                #     else:
-                                                #         spe_list.append(None)
-                                                # else:
-                                                #     spe_list.append(None)
-                                            
-                                            if self.include_outliers == 'false':
-                                                if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices]) == False:
-                                                    if doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices] == True:
-                                                        if doc['processed_daily_data'][name]['SPEy'][duration_for_indices] < spe_number_dict[name]:
+                                            if pd.isnull(doc['processed_daily_data'][name]['pred_differences']) == False and duration_for_indices in doc['processed_daily_data'][name]['pred_differences'] and pd.isnull(doc['processed_daily_data'][name]['pred_differences'][duration_for_indices]) == False:
+                                                spe_list.append(self.configuration.makeDecimal(doc['processed_daily_data'][name]['pred_differences'][duration_for_indices]))
+                                            else:
+                                                spe_list.append(None)
+                                            # if pd.isnull(doc['processed_daily_data'][name]['obs_differences']) == False and duration_for_indices in doc['processed_daily_data'][name]['obs_differences'] and pd.isnull(doc['processed_daily_data'][name]['obs_differences'][duration_for_indices]) == False:
+                                            #     t2_list.append(self.configuration.makeDecimal(doc['processed_daily_data'][name]['obs_differences'][duration_for_indices]))
+                                            # else:
+                                            #     t2_list.append(None)
+                            else:
+                                try:
+                                    if doc['historical'] == True:
+                                        if self.noonorlogs == "noon":
+                                            if doc['Logs'] == False:
+                                                new_spe = self.configuration.spe_divide(doc['processed_daily_data'][name]['SPEy'][duration_for_indices], spe_number_dict[name])
+                                                if self.include_outliers == 'true':
+                                                    # if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][new_duration]) == False:
+                                                    #     if doc['processed_daily_data'][name]['within_outlier_limits'][new_duration] == False:
+                                                    if doc['processed_daily_data'][name]['SPEy'][duration_for_indices] < spe_number_dict[name]:
+                                                        if (name == 'main_fuel_per_dst' or name == 'speed_stw_calc' or name =='speed_sog_calc' or name == 'speed_sog' or name == 'speed_stw'):
+                                                            if ((name == 'main_fuel_per_dst' and doc['processed_daily_data'][name]['processed'] > doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                            (name == 'speed_stw_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                            (name == 'speed_sog_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                            (name == 'speed_sog' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                            (name == 'speed_stw' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1])):
+                                                                spe_list.append(self.configuration.makeDecimal(new_spe))
+                                                            else:
+                                                                spe_list.append(0)
+                                                        else:
                                                             spe_list.append(self.configuration.makeDecimal(new_spe))
-                                                            # spe_list.append(doc['processed_daily_data'][name]['SPEy'][durationActual])
-                                                            # spe_list.append(spe_number_dict[name])
+                                                        # spe_list.append(doc['processed_daily_data'][name]['SPEy'][durationActual])
+                                                        # spe_list.append(spe_number_dict[name])
+                                                    else:
+                                                        spe_list.append(None)
+                                                    #     else:
+                                                    #         spe_list.append(None)
+                                                    # else:
+                                                    #     spe_list.append(None)
+                                                
+                                                if self.include_outliers == 'false':
+                                                    if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices]) == False:
+                                                        if doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices] == True:
+                                                            if doc['processed_daily_data'][name]['SPEy'][duration_for_indices] < spe_number_dict[name]:
+                                                                if (name == 'main_fuel_per_dst' or name == 'speed_stw_calc' or name =='speed_sog_calc' or name == 'speed_sog' or name == 'speed_stw'):
+                                                                    if ((name == 'main_fuel_per_dst' and doc['processed_daily_data'][name]['processed'] > doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                                    (name == 'speed_stw_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                                    (name == 'speed_sog_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                                    (name == 'speed_sog' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                                    (name == 'speed_stw' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1])):
+                                                                        spe_list.append(self.configuration.makeDecimal(new_spe))
+                                                                    else:
+                                                                        spe_list.append(0)
+                                                                else:
+                                                                    spe_list.append(self.configuration.makeDecimal(new_spe))
+                                                                # spe_list.append(doc['processed_daily_data'][name]['SPEy'][durationActual])
+                                                                # spe_list.append(spe_number_dict[name])
+                                                            else:
+                                                                spe_list.append(None)
                                                         else:
                                                             spe_list.append(None)
                                                     else:
                                                         spe_list.append(None)
-                                                else:
-                                                    spe_list.append(None)
-                                    elif self.noonorlogs == "logs":
-                                        if doc['Logs'] == True:
-                                            new_spe = self.configuration.spe_divide(doc['processed_daily_data'][name]['SPEy'][duration_for_indices], spe_number_dict[name])
-                                            if self.include_outliers == 'true':
-                                                # if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][new_duration]) == False:
-                                                #     if doc['processed_daily_data'][name]['within_outlier_limits'][new_duration] == False:
-                                                if doc['processed_daily_data'][name]['SPEy'][duration_for_indices] < spe_number_dict[name]:
-                                                    spe_list.append(self.configuration.makeDecimal(new_spe))
-                                                    # spe_list.append(doc['processed_daily_data'][name]['SPEy'][durationActual])
-                                                    # spe_list.append(spe_number_dict[name])
-                                                else:
-                                                    spe_list.append(None)
-                                                #     else:
-                                                #         spe_list.append(None)
-                                                # else:
-                                                #     spe_list.append(None)
-                                            
-                                            if self.include_outliers == 'false':
-                                                if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices]) == False:
-                                                    if doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices] == True:
-                                                        if doc['processed_daily_data'][name]['SPEy'][duration_for_indices] < spe_number_dict[name]:
+                                        elif self.noonorlogs == "logs":
+                                            if doc['Logs'] == True:
+                                                new_spe = self.configuration.spe_divide(doc['processed_daily_data'][name]['SPEy'][duration_for_indices], spe_number_dict[name])
+                                                if self.include_outliers == 'true':
+                                                    # if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][new_duration]) == False:
+                                                    #     if doc['processed_daily_data'][name]['within_outlier_limits'][new_duration] == False:
+                                                    if doc['processed_daily_data'][name]['SPEy'][duration_for_indices] < spe_number_dict[name]:
+                                                        if (name == 'main_fuel_per_dst' or name == 'speed_stw_calc' or name =='speed_sog_calc' or name == 'speed_sog' or name == 'speed_stw'):
+                                                            if ((name == 'main_fuel_per_dst' and doc['processed_daily_data'][name]['processed'] > doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                            (name == 'speed_stw_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                            (name == 'speed_sog_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                            (name == 'speed_sog' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                            (name == 'speed_stw' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1])):
+                                                                spe_list.append(self.configuration.makeDecimal(new_spe))
+                                                            else:
+                                                                spe_list.append(0)
+                                                        else:
                                                             spe_list.append(self.configuration.makeDecimal(new_spe))
-                                                            # spe_list.append(doc['processed_daily_data'][name]['SPEy'][durationActual])
-                                                            # spe_list.append(spe_number_dict[name])
+                                                        # spe_list.append(doc['processed_daily_data'][name]['SPEy'][durationActual])
+                                                        # spe_list.append(spe_number_dict[name])
+                                                    else:
+                                                        spe_list.append(None)
+                                                    #     else:
+                                                    #         spe_list.append(None)
+                                                    # else:
+                                                    #     spe_list.append(None)
+                                                
+                                                if self.include_outliers == 'false':
+                                                    if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices]) == False:
+                                                        if doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices] == True:
+                                                            if doc['processed_daily_data'][name]['SPEy'][duration_for_indices] < spe_number_dict[name]:
+                                                                if (name == 'main_fuel_per_dst' or name == 'speed_stw_calc' or name =='speed_sog_calc' or name == 'speed_sog' or name == 'speed_stw'):
+                                                                    if ((name == 'main_fuel_per_dst' and doc['processed_daily_data'][name]['processed'] > doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                                    (name == 'speed_stw_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                                    (name == 'speed_sog_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                                    (name == 'speed_sog' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                                    (name == 'speed_stw' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1])):
+                                                                        spe_list.append(self.configuration.makeDecimal(new_spe))
+                                                                    else:
+                                                                        spe_list.append(0)
+                                                                else:
+                                                                    spe_list.append(self.configuration.makeDecimal(new_spe))
+                                                                # spe_list.append(doc['processed_daily_data'][name]['SPEy'][durationActual])
+                                                                # spe_list.append(spe_number_dict[name])
+                                                            else:
+                                                                spe_list.append(None)
                                                         else:
                                                             spe_list.append(None)
                                                     else:
                                                         spe_list.append(None)
-                                                else:
-                                                    spe_list.append(None)
-                                else:
-                                    if self.noonorlogs == "noon":
-                                        if doc['Logs'] == False:
-                                            new_spe = self.configuration.spe_divide(doc['processed_daily_data'][name]['SPEy'][duration_for_indices], doc['spe_limits'][name][duration_for_indices]['zero_zero_five'])
-                                            if self.include_outliers == 'true':
-                                                # if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][new_duration]) == False:
-                                                #     if doc['processed_daily_data'][name]['within_outlier_limits'][new_duration] == False:
-                                                if doc['processed_daily_data'][name]['SPEy'][duration_for_indices] < spe_number_dict[name]:
-                                                    spe_list.append(self.configuration.makeDecimal(new_spe))
-                                                    # spe_list.append(doc['processed_daily_data'][name]['SPEy'][durationActual])
-                                                    # spe_list.append(spe_number_dict[name])
-                                                else:
-                                                    spe_list.append(None)
-                                                #     else:
-                                                #         spe_list.append(None)
-                                                # else:
-                                                #     spe_list.append(None)
-                                            
-                                            if self.include_outliers == 'false':
-                                                if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices]) == False:
-                                                    if doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices] == True:
-                                                        if doc['processed_daily_data'][name]['SPEy'][duration_for_indices] < spe_number_dict[name]:
+                                    else:
+                                        if self.noonorlogs == "noon":
+                                            if doc['Logs'] == False:
+                                                new_spe = self.configuration.spe_divide(doc['processed_daily_data'][name]['SPEy'][duration_for_indices], doc['spe_limits'][name][duration_for_indices]['zero_zero_five'])
+                                                if self.include_outliers == 'true':
+                                                    # if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][new_duration]) == False:
+                                                    #     if doc['processed_daily_data'][name]['within_outlier_limits'][new_duration] == False:
+                                                    if doc['processed_daily_data'][name]['SPEy'][duration_for_indices] < spe_number_dict[name]:
+                                                        if (name == 'main_fuel_per_dst' or name == 'speed_stw_calc' or name =='speed_sog_calc' or name == 'speed_sog' or name == 'speed_stw'):
+                                                            if ((name == 'main_fuel_per_dst' and doc['processed_daily_data'][name]['processed'] > doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                            (name == 'speed_stw_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                            (name == 'speed_sog_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                            (name == 'speed_sog' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                            (name == 'speed_stw' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1])):
+                                                                spe_list.append(self.configuration.makeDecimal(new_spe))
+                                                            else:
+                                                                spe_list.append(0)
+                                                        else:
                                                             spe_list.append(self.configuration.makeDecimal(new_spe))
-                                                            # spe_list.append(doc['processed_daily_data'][name]['SPEy'][durationActual])
-                                                            # spe_list.append(spe_number_dict[name])
+                                                        # spe_list.append(doc['processed_daily_data'][name]['SPEy'][durationActual])
+                                                        # spe_list.append(spe_number_dict[name])
+                                                    else:
+                                                        spe_list.append(None)
+                                                    #     else:
+                                                    #         spe_list.append(None)
+                                                    # else:
+                                                    #     spe_list.append(None)
+                                                
+                                                if self.include_outliers == 'false':
+                                                    if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices]) == False:
+                                                        if doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices] == True:
+                                                            if doc['processed_daily_data'][name]['SPEy'][duration_for_indices] < spe_number_dict[name]:
+                                                                if (name == 'main_fuel_per_dst' or name == 'speed_stw_calc' or name =='speed_sog_calc' or name == 'speed_sog' or name == 'speed_stw'):
+                                                                    if ((name == 'main_fuel_per_dst' and doc['processed_daily_data'][name]['processed'] > doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                                    (name == 'speed_stw_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                                    (name == 'speed_sog_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                                    (name == 'speed_sog' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                                    (name == 'speed_stw' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1])):
+                                                                        spe_list.append(self.configuration.makeDecimal(new_spe))
+                                                                    else:
+                                                                        spe_list.append(0)
+                                                                else:
+                                                                    spe_list.append(self.configuration.makeDecimal(new_spe))
+                                                                # spe_list.append(doc['processed_daily_data'][name]['SPEy'][durationActual])
+                                                                # spe_list.append(spe_number_dict[name])
+                                                            else:
+                                                                spe_list.append(None)
                                                         else:
                                                             spe_list.append(None)
                                                     else:
                                                         spe_list.append(None)
-                                                else:
-                                                    spe_list.append(None)
-                                    elif self.noonorlogs == "logs":
-                                        if doc['Logs'] == True:
-                                            new_spe = self.configuration.spe_divide(doc['processed_daily_data'][name]['SPEy'][duration_for_indices], doc['spe_limits'][name][duration_for_indices]['zero_zero_five'])
-                                            if self.include_outliers == 'true':
-                                                # if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][new_duration]) == False:
-                                                #     if doc['processed_daily_data'][name]['within_outlier_limits'][new_duration] == False:
-                                                if doc['processed_daily_data'][name]['SPEy'][duration_for_indices] < spe_number_dict[name]:
-                                                    spe_list.append(self.configuration.makeDecimal(new_spe))
-                                                    # spe_list.append(doc['processed_daily_data'][name]['SPEy'][durationActual])
-                                                    # spe_list.append(spe_number_dict[name])
-                                                else:
-                                                    spe_list.append(None)
-                                                #     else:
-                                                #         spe_list.append(None)
-                                                # else:
-                                                #     spe_list.append(None)
-                                            
-                                            if self.include_outliers == 'false':
-                                                if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices]) == False:
-                                                    if doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices] == True:
-                                                        if doc['processed_daily_data'][name]['SPEy'][duration_for_indices] < spe_number_dict[name]:
+                                        elif self.noonorlogs == "logs":
+                                            if doc['Logs'] == True:
+                                                new_spe = self.configuration.spe_divide(doc['processed_daily_data'][name]['SPEy'][duration_for_indices], doc['spe_limits'][name][duration_for_indices]['zero_zero_five'])
+                                                if self.include_outliers == 'true':
+                                                    # if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][new_duration]) == False:
+                                                    #     if doc['processed_daily_data'][name]['within_outlier_limits'][new_duration] == False:
+                                                    if doc['processed_daily_data'][name]['SPEy'][duration_for_indices] < spe_number_dict[name]:
+                                                        if (name == 'main_fuel_per_dst' or name == 'speed_stw_calc' or name =='speed_sog_calc' or name == 'speed_sog' or name == 'speed_stw'):
+                                                            if ((name == 'main_fuel_per_dst' and doc['processed_daily_data'][name]['processed'] > doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                            (name == 'speed_stw_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                            (name == 'speed_sog_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                            (name == 'speed_sog' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                            (name == 'speed_stw' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1])):
+                                                                spe_list.append(self.configuration.makeDecimal(new_spe))
+                                                            else:
+                                                                spe_list.append(0)
+                                                        else:
                                                             spe_list.append(self.configuration.makeDecimal(new_spe))
-                                                            # spe_list.append(doc['processed_daily_data'][name]['SPEy'][durationActual])
-                                                            # spe_list.append(spe_number_dict[name])
+                                                        # spe_list.append(doc['processed_daily_data'][name]['SPEy'][durationActual])
+                                                        # spe_list.append(spe_number_dict[name])
+                                                    else:
+                                                        spe_list.append(None)
+                                                    #     else:
+                                                    #         spe_list.append(None)
+                                                    # else:
+                                                    #     spe_list.append(None)
+                                                
+                                                if self.include_outliers == 'false':
+                                                    if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices]) == False:
+                                                        if doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices] == True:
+                                                            if doc['processed_daily_data'][name]['SPEy'][duration_for_indices] < spe_number_dict[name]:
+                                                                if (name == 'main_fuel_per_dst' or name == 'speed_stw_calc' or name =='speed_sog_calc' or name == 'speed_sog' or name == 'speed_stw'):
+                                                                    if ((name == 'main_fuel_per_dst' and doc['processed_daily_data'][name]['processed'] > doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                                    (name == 'speed_stw_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                                    (name == 'speed_sog_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                                    (name == 'speed_sog' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                                    (name == 'speed_stw' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1])):
+                                                                        spe_list.append(self.configuration.makeDecimal(new_spe))
+                                                                    else:
+                                                                        spe_list.append(0)
+                                                                else:
+                                                                    spe_list.append(self.configuration.makeDecimal(new_spe))
+                                                                # spe_list.append(doc['processed_daily_data'][name]['SPEy'][durationActual])
+                                                                # spe_list.append(spe_number_dict[name])
+                                                            else:
+                                                                spe_list.append(None)
                                                         else:
                                                             spe_list.append(None)
                                                     else:
                                                         spe_list.append(None)
-                                                else:
-                                                    spe_list.append(None)
-                            except KeyError:
-                                spe_list.append(None)
-                            except TypeError:
-                                spe_list.append(None)
-                            except IndexError:
-                                spe_list.append(None)
-                            
-                            try:
-                                # if doc['historical'] == True:
-                                if self.noonorlogs == "noon":
-                                    if doc['Logs'] == False:
-                                        if doc['processed_daily_data'][name]['is_not_spe_anamolous'][duration_for_indices][2] == True:
-                                            spe_limit_list.append(self.configuration.makeDecimal(spe_limit_global))
-                                            # spe_limit_list.append(doc['processed_daily_data'][name]['Q_y'][durationActual][1])
-                                            # spe_limit_list.append(spe_number_dict[name])
-                                        else:
-                                            spe_limit_list.append(None)
-                                elif self.noonorlogs == "logs":
-                                    if doc['Logs'] == True:
-                                        if doc['processed_daily_data'][name]['is_not_spe_anamolous'][duration_for_indices][2] == True:
-                                            spe_limit_list.append(self.configuration.makeDecimal(spe_limit_global))
-                                            # spe_limit_list.append(doc['processed_daily_data'][name]['Q_y'][durationActual][1])
-                                            # spe_limit_list.append(spe_number_dict[name])
-                                        else:
-                                            spe_limit_list.append(None)
-                            except KeyError:
-                                spe_limit_list.append(None)
-                            except TypeError:
-                                spe_limit_list.append(None)
-                            except IndexError:
-                                spe_limit_list.append(None)
-                            
-                            #T2----------------------------------------------------------------------
-                            try:
-                                # if doc['processed_daily_data'][name]['t2_anamoly'][durationActual][0] == True:
-                                if doc['historical'] == True:
+                                except KeyError:
+                                    spe_list.append(None)
+                                except TypeError:
+                                    spe_list.append(None)
+                                except IndexError:
+                                    spe_list.append(None)
+                                
+                                try:
+                                    # if doc['historical'] == True:
                                     if self.noonorlogs == "noon":
                                         if doc['Logs'] == False:
-                                            new_t2 = self.configuration.t2_divide(doc['processed_daily_data'][name]['t2_initial'][duration_for_indices], t2_number_dict[name])
-                                            if self.include_outliers == 'true':
-                                                # if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][new_duration]) == False:
-                                                #     if doc['processed_daily_data'][name]['within_outlier_limits'][new_duration] == False:
-                                                if doc['processed_daily_data'][name]['t2_initial'][duration_for_indices] < t2_number_dict[name]:
-                                                    t2_list.append(self.configuration.makeDecimal(new_t2))
-                                                    # t2_list.append(doc['processed_daily_data'][name]['t2_initial'][durationActual])
-                                                else:
-                                                    t2_list.append(None)
-                                                #     else:
-                                                #         t2_list.append(None)
-                                                # else:
-                                                #     t2_list.append(None)
+                                            if doc['processed_daily_data'][name]['is_not_spe_anamolous'][duration_for_indices][2] == True:
+                                                spe_limit_list.append(self.configuration.makeDecimal(spe_limit_global))
+                                                # spe_limit_list.append(doc['processed_daily_data'][name]['Q_y'][durationActual][1])
+                                                # spe_limit_list.append(spe_number_dict[name])
+                                            else:
+                                                spe_limit_list.append(None)
+                                    elif self.noonorlogs == "logs":
+                                        if doc['Logs'] == True:
+                                            if doc['processed_daily_data'][name]['is_not_spe_anamolous'][duration_for_indices][2] == True:
+                                                spe_limit_list.append(self.configuration.makeDecimal(spe_limit_global))
+                                                # spe_limit_list.append(doc['processed_daily_data'][name]['Q_y'][durationActual][1])
+                                                # spe_limit_list.append(spe_number_dict[name])
+                                            else:
+                                                spe_limit_list.append(None)
+                                except KeyError:
+                                    spe_limit_list.append(None)
+                                except TypeError:
+                                    spe_limit_list.append(None)
+                                except IndexError:
+                                    spe_limit_list.append(None)
+                                
+                                #T2----------------------------------------------------------------------
+                                try:
+                                    # if doc['processed_daily_data'][name]['t2_anamoly'][durationActual][0] == True:
+                                    if doc['historical'] == True:
+                                        if self.noonorlogs == "noon":
+                                            if doc['Logs'] == False:
+                                                new_t2 = self.configuration.t2_divide(doc['processed_daily_data'][name]['t2_initial'][duration_for_indices], t2_number_dict[name])
+                                                if self.include_outliers == 'true':
+                                                    # if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][new_duration]) == False:
+                                                    #     if doc['processed_daily_data'][name]['within_outlier_limits'][new_duration] == False:
+                                                    if doc['processed_daily_data'][name]['t2_initial'][duration_for_indices] < t2_number_dict[name]:
+                                                        t2_list.append(self.configuration.makeDecimal(new_t2))
+                                                        # t2_list.append(doc['processed_daily_data'][name]['t2_initial'][durationActual])
+                                                    else:
+                                                        t2_list.append(None)
+                                                    #     else:
+                                                    #         t2_list.append(None)
+                                                    # else:
+                                                    #     t2_list.append(None)
 
-                                            if self.include_outliers == 'false':
-                                                if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices]) == False:
-                                                    if doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices] == True:
-                                                        if doc['processed_daily_data'][name]['t2_initial'][duration_for_indices] < t2_number_dict[name]:
-                                                            t2_list.append(self.configuration.makeDecimal(new_t2))
-                                                            # t2_list.append(doc['processed_daily_data'][name]['t2_initial'][durationActual])
+                                                if self.include_outliers == 'false':
+                                                    if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices]) == False:
+                                                        if doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices] == True:
+                                                            if doc['processed_daily_data'][name]['t2_initial'][duration_for_indices] < t2_number_dict[name]:
+                                                                t2_list.append(self.configuration.makeDecimal(new_t2))
+                                                                # t2_list.append(doc['processed_daily_data'][name]['t2_initial'][durationActual])
+                                                            else:
+                                                                t2_list.append(None)
                                                         else:
                                                             t2_list.append(None)
                                                     else:
                                                         t2_list.append(None)
-                                                else:
-                                                    t2_list.append(None)
-                                    elif self.noonorlogs == "logs":
-                                        if doc['Logs'] == True:
-                                            new_t2 = self.configuration.t2_divide(doc['processed_daily_data'][name]['t2_initial'][duration_for_indices], t2_number_dict[name])
-                                            if self.include_outliers == 'true':
-                                                # if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][new_duration]) == False:
-                                                #     if doc['processed_daily_data'][name]['within_outlier_limits'][new_duration] == False:
-                                                if doc['processed_daily_data'][name]['t2_initial'][duration_for_indices] < t2_number_dict[name]:
-                                                    t2_list.append(self.configuration.makeDecimal(new_t2))
-                                                    # t2_list.append(doc['processed_daily_data'][name]['t2_initial'][durationActual])
-                                                else:
-                                                    t2_list.append(None)
-                                                #     else:
-                                                #         t2_list.append(None)
-                                                # else:
-                                                #     t2_list.append(None)
+                                        elif self.noonorlogs == "logs":
+                                            if doc['Logs'] == True:
+                                                new_t2 = self.configuration.t2_divide(doc['processed_daily_data'][name]['t2_initial'][duration_for_indices], t2_number_dict[name])
+                                                if self.include_outliers == 'true':
+                                                    # if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][new_duration]) == False:
+                                                    #     if doc['processed_daily_data'][name]['within_outlier_limits'][new_duration] == False:
+                                                    if doc['processed_daily_data'][name]['t2_initial'][duration_for_indices] < t2_number_dict[name]:
+                                                        t2_list.append(self.configuration.makeDecimal(new_t2))
+                                                        # t2_list.append(doc['processed_daily_data'][name]['t2_initial'][durationActual])
+                                                    else:
+                                                        t2_list.append(None)
+                                                    #     else:
+                                                    #         t2_list.append(None)
+                                                    # else:
+                                                    #     t2_list.append(None)
 
-                                            if self.include_outliers == 'false':
-                                                if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices]) == False:
-                                                    if doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices] == True:
-                                                        if doc['processed_daily_data'][name]['t2_initial'][duration_for_indices] < t2_number_dict[name]:
-                                                            t2_list.append(self.configuration.makeDecimal(new_t2))
-                                                            # t2_list.append(doc['processed_daily_data'][name]['t2_initial'][durationActual])
+                                                if self.include_outliers == 'false':
+                                                    if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices]) == False:
+                                                        if doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices] == True:
+                                                            if doc['processed_daily_data'][name]['t2_initial'][duration_for_indices] < t2_number_dict[name]:
+                                                                t2_list.append(self.configuration.makeDecimal(new_t2))
+                                                                # t2_list.append(doc['processed_daily_data'][name]['t2_initial'][durationActual])
+                                                            else:
+                                                                t2_list.append(None)
                                                         else:
                                                             t2_list.append(None)
                                                     else:
                                                         t2_list.append(None)
-                                                else:
-                                                    t2_list.append(None)
-                                else:
-                                    if self.noonorlogs == "noon":
-                                        if doc['Logs'] == False:
-                                            new_t2 = self.configuration.t2_divide(doc['processed_daily_data'][name]['t2_initial'][duration_for_indices], doc['t2_limits'][name]['zero_two'])
-                                            if self.include_outliers == 'true':
-                                                # if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][new_duration]) == False:
-                                                #     if doc['processed_daily_data'][name]['within_outlier_limits'][new_duration] == False:
-                                                if doc['processed_daily_data'][name]['t2_initial'][duration_for_indices] < t2_number_dict[name]:
-                                                    t2_list.append(self.configuration.makeDecimal(new_t2))
-                                                    # t2_list.append(doc['processed_daily_data'][name]['t2_initial'][durationActual])
-                                                else:
-                                                    t2_list.append(None)
-                                                #     else:
-                                                #         t2_list.append(None)
-                                                # else:
-                                                #     t2_list.append(None)
+                                    else:
+                                        if self.noonorlogs == "noon":
+                                            if doc['Logs'] == False:
+                                                new_t2 = self.configuration.t2_divide(doc['processed_daily_data'][name]['t2_initial'][duration_for_indices], doc['t2_limits'][name]['zero_two'])
+                                                if self.include_outliers == 'true':
+                                                    # if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][new_duration]) == False:
+                                                    #     if doc['processed_daily_data'][name]['within_outlier_limits'][new_duration] == False:
+                                                    if doc['processed_daily_data'][name]['t2_initial'][duration_for_indices] < t2_number_dict[name]:
+                                                        t2_list.append(self.configuration.makeDecimal(new_t2))
+                                                        # t2_list.append(doc['processed_daily_data'][name]['t2_initial'][durationActual])
+                                                    else:
+                                                        t2_list.append(None)
+                                                    #     else:
+                                                    #         t2_list.append(None)
+                                                    # else:
+                                                    #     t2_list.append(None)
 
-                                            if self.include_outliers == 'false':
-                                                if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices]) == False:
-                                                    if doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices] == True:
-                                                        if doc['processed_daily_data'][name]['t2_initial'][duration_for_indices] < t2_number_dict[name]:
-                                                            t2_list.append(self.configuration.makeDecimal(new_t2))
-                                                            # t2_list.append(doc['processed_daily_data'][name]['t2_initial'][durationActual])
+                                                if self.include_outliers == 'false':
+                                                    if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices]) == False:
+                                                        if doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices] == True:
+                                                            if doc['processed_daily_data'][name]['t2_initial'][duration_for_indices] < t2_number_dict[name]:
+                                                                t2_list.append(self.configuration.makeDecimal(new_t2))
+                                                                # t2_list.append(doc['processed_daily_data'][name]['t2_initial'][durationActual])
+                                                            else:
+                                                                t2_list.append(None)
                                                         else:
                                                             t2_list.append(None)
                                                     else:
                                                         t2_list.append(None)
-                                                else:
-                                                    t2_list.append(None)
-                                    elif self.noonorlogs == "logs":
-                                        if doc['Logs'] == True:
-                                            new_t2 = self.configuration.t2_divide(doc['processed_daily_data'][name]['t2_initial'][duration_for_indices], doc['t2_limits'][name]['zero_two'])
-                                            if self.include_outliers == 'true':
-                                                # if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][new_duration]) == False:
-                                                #     if doc['processed_daily_data'][name]['within_outlier_limits'][new_duration] == False:
-                                                if doc['processed_daily_data'][name]['t2_initial'][duration_for_indices] < t2_number_dict[name]:
-                                                    t2_list.append(self.configuration.makeDecimal(new_t2))
-                                                    # t2_list.append(doc['processed_daily_data'][name]['t2_initial'][durationActual])
-                                                else:
-                                                    t2_list.append(None)
-                                                #     else:
-                                                #         t2_list.append(None)
-                                                # else:
-                                                #     t2_list.append(None)
+                                        elif self.noonorlogs == "logs":
+                                            if doc['Logs'] == True:
+                                                new_t2 = self.configuration.t2_divide(doc['processed_daily_data'][name]['t2_initial'][duration_for_indices], doc['t2_limits'][name]['zero_two'])
+                                                if self.include_outliers == 'true':
+                                                    # if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][new_duration]) == False:
+                                                    #     if doc['processed_daily_data'][name]['within_outlier_limits'][new_duration] == False:
+                                                    if doc['processed_daily_data'][name]['t2_initial'][duration_for_indices] < t2_number_dict[name]:
+                                                        t2_list.append(self.configuration.makeDecimal(new_t2))
+                                                        # t2_list.append(doc['processed_daily_data'][name]['t2_initial'][durationActual])
+                                                    else:
+                                                        t2_list.append(None)
+                                                    #     else:
+                                                    #         t2_list.append(None)
+                                                    # else:
+                                                    #     t2_list.append(None)
 
-                                            if self.include_outliers == 'false':
-                                                if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices]) == False:
-                                                    if doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices] == True:
-                                                        if doc['processed_daily_data'][name]['t2_initial'][duration_for_indices] < t2_number_dict[name]:
-                                                            t2_list.append(self.configuration.makeDecimal(new_t2))
-                                                            # t2_list.append(doc['processed_daily_data'][name]['t2_initial'][durationActual])
+                                                if self.include_outliers == 'false':
+                                                    if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices]) == False:
+                                                        if doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices] == True:
+                                                            if doc['processed_daily_data'][name]['t2_initial'][duration_for_indices] < t2_number_dict[name]:
+                                                                t2_list.append(self.configuration.makeDecimal(new_t2))
+                                                                # t2_list.append(doc['processed_daily_data'][name]['t2_initial'][durationActual])
+                                                            else:
+                                                                t2_list.append(None)
                                                         else:
                                                             t2_list.append(None)
                                                     else:
                                                         t2_list.append(None)
-                                                else:
-                                                    t2_list.append(None)
-                            except KeyError:
-                                t2_list.append(None)
-                            except TypeError:
-                                t2_list.append(None)
-                            except IndexError:
-                                t2_list.append(None)
-                            
-                            try:
-                                if self.noonorlogs == "noon":
-                                    if doc['Logs'] == False:
-                                        if doc['processed_daily_data'][name]['is_not_t2_anamolous'][duration_for_indices][0] == True:
-                                            t2_limit_list.append(self.configuration.makeDecimal(t2_limit_global))
-                                            # t2_limit_list.append(doc['processed_daily_data'][name]['ucl_crit_beta'][durationActual])
-                                            # t2_limit_list.append(t2_number_dict[name])
-                                        else:
-                                            t2_limit_list.append(None)
-                                elif self.noonorlogs == "logs":
-                                    if doc['Logs'] == True:
-                                        if doc['processed_daily_data'][name]['is_not_t2_anamolous'][duration_for_indices][0] == True:
-                                            t2_limit_list.append(self.configuration.makeDecimal(t2_limit_global))
-                                            # t2_limit_list.append(doc['processed_daily_data'][name]['ucl_crit_beta'][durationActual])
-                                            # t2_limit_list.append(t2_number_dict[name])
-                                        else:
-                                            t2_limit_list.append(None)
-                            except KeyError:
-                                t2_limit_list.append(None)
-                            except TypeError:
-                                t2_limit_list.append(None)
-                            except IndexError:
-                                t2_limit_list.append(None)
-                            #EWMA-----------------------------------------------------------------------
-                            try:
-                                # if doc['processed_daily_data'][name]['t2_anamoly'][durationActual][0] == True:
-                                if doc['historical'] == True:
+                                except KeyError:
+                                    t2_list.append(None)
+                                except TypeError:
+                                    t2_list.append(None)
+                                except IndexError:
+                                    t2_list.append(None)
+                                
+                                try:
                                     if self.noonorlogs == "noon":
                                         if doc['Logs'] == False:
-                                            new_ewma = self.configuration.ewma_divide(doc['processed_daily_data'][name]['ewma'][duration_for_indices][2], ewma_number_dict[name])
-                                            if self.include_outliers == 'true':
-                                                # if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][new_duration]) == False:
-                                                #     if doc['processed_daily_data'][name]['within_outlier_limits'][new_duration] == False:
-                                                if doc['processed_daily_data'][name]['ewma'][duration_for_indices][2] < ewma_number_dict[name]:
-                                                    ewma_list.append(self.configuration.makeDecimal(new_ewma))
-                                                    # ewma_list.append(doc['processed_daily_data'][name]['ewma'][durationActual][2])
-                                                else:
-                                                    ewma_list.append(None)
-                                                #     else:
-                                                #         ewma_list.append(None)
-                                                # else:
-                                                #     ewma_list.append(None)
-                                            
-                                            if self.include_outliers == 'false':
-                                                if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices]) == False:
-                                                    if doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices] == True:
-                                                        if doc['processed_daily_data'][name]['ewma'][duration_for_indices][2] < ewma_number_dict[name]:
-                                                            ewma_list.append(self.configuration.makeDecimal(new_ewma))
-                                                            # ewma_list.append(doc['processed_daily_data'][name]['ewma'][durationActual][2])
-                                                        else:
-                                                            ewma_list.append(None)
-                                                    else:
-                                                        ewma_list.append(None)
-                                                else:
-                                                    ewma_list.append(None)
+                                            if doc['processed_daily_data'][name]['is_not_t2_anamolous'][duration_for_indices][0] == True:
+                                                t2_limit_list.append(self.configuration.makeDecimal(t2_limit_global))
+                                                # t2_limit_list.append(doc['processed_daily_data'][name]['ucl_crit_beta'][durationActual])
+                                                # t2_limit_list.append(t2_number_dict[name])
+                                            else:
+                                                t2_limit_list.append(None)
                                     elif self.noonorlogs == "logs":
                                         if doc['Logs'] == True:
-                                            new_ewma = self.configuration.ewma_divide(doc['processed_daily_data'][name]['ewma'][duration_for_indices][2], ewma_number_dict[name])
-                                            if self.include_outliers == 'true':
-                                                # if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][new_duration]) == False:
-                                                #     if doc['processed_daily_data'][name]['within_outlier_limits'][new_duration] == False:
-                                                if doc['processed_daily_data'][name]['ewma'][duration_for_indices][2] < ewma_number_dict[name]:
-                                                    ewma_list.append(self.configuration.makeDecimal(new_ewma))
-                                                    # ewma_list.append(doc['processed_daily_data'][name]['ewma'][durationActual][2])
-                                                else:
-                                                    ewma_list.append(None)
-                                                #     else:
-                                                #         ewma_list.append(None)
-                                                # else:
-                                                #     ewma_list.append(None)
-                                            
-                                            if self.include_outliers == 'false':
-                                                if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices]) == False:
-                                                    if doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices] == True:
-                                                        if doc['processed_daily_data'][name]['ewma'][duration_for_indices][2] < ewma_number_dict[name]:
+                                            if doc['processed_daily_data'][name]['is_not_t2_anamolous'][duration_for_indices][0] == True:
+                                                t2_limit_list.append(self.configuration.makeDecimal(t2_limit_global))
+                                                # t2_limit_list.append(doc['processed_daily_data'][name]['ucl_crit_beta'][durationActual])
+                                                # t2_limit_list.append(t2_number_dict[name])
+                                            else:
+                                                t2_limit_list.append(None)
+                                except KeyError:
+                                    t2_limit_list.append(None)
+                                except TypeError:
+                                    t2_limit_list.append(None)
+                                except IndexError:
+                                    t2_limit_list.append(None)
+                                #EWMA-----------------------------------------------------------------------
+                                try:
+                                    # if doc['processed_daily_data'][name]['t2_anamoly'][durationActual][0] == True:
+                                    if doc['historical'] == True:
+                                        if self.noonorlogs == "noon":
+                                            if doc['Logs'] == False:
+                                                new_ewma = self.configuration.ewma_divide(doc['processed_daily_data'][name]['ewma'][duration_for_indices][2], ewma_number_dict[name])
+                                                if self.include_outliers == 'true':
+                                                    # if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][new_duration]) == False:
+                                                    #     if doc['processed_daily_data'][name]['within_outlier_limits'][new_duration] == False:
+                                                    if doc['processed_daily_data'][name]['ewma'][duration_for_indices][2] < ewma_number_dict[name]:
+                                                        if (name == 'main_fuel_per_dst' or name == 'speed_stw_calc' or name =='speed_sog_calc' or name == 'speed_sog' or name == 'speed_stw'):
+                                                            if ((name == 'main_fuel_per_dst' and doc['processed_daily_data'][name]['processed'] > doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                            (name == 'speed_stw_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                            (name == 'speed_sog_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                            (name == 'speed_sog' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                            (name == 'speed_stw' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1])):
+                                                                ewma_list.append(self.configuration.makeDecimal(new_ewma))
+                                                            else:
+                                                                ewma_list.append(0)
+                                                        else:
                                                             ewma_list.append(self.configuration.makeDecimal(new_ewma))
-                                                            # ewma_list.append(doc['processed_daily_data'][name]['ewma'][durationActual][2])
+                                                        # ewma_list.append(doc['processed_daily_data'][name]['ewma'][durationActual][2])
+                                                    else:
+                                                        ewma_list.append(None)
+                                                    #     else:
+                                                    #         ewma_list.append(None)
+                                                    # else:
+                                                    #     ewma_list.append(None)
+                                                
+                                                if self.include_outliers == 'false':
+                                                    if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices]) == False:
+                                                        if doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices] == True:
+                                                            if doc['processed_daily_data'][name]['ewma'][duration_for_indices][2] < ewma_number_dict[name]:
+                                                                if (name == 'main_fuel_per_dst' or name == 'speed_stw_calc' or name =='speed_sog_calc' or name == 'speed_sog' or name == 'speed_stw'):
+                                                                    if ((name == 'main_fuel_per_dst' and doc['processed_daily_data'][name]['processed'] > doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                                    (name == 'speed_stw_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                                    (name == 'speed_sog_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                                    (name == 'speed_sog' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                                    (name == 'speed_stw' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1])):
+                                                                        ewma_list.append(self.configuration.makeDecimal(new_ewma))
+                                                                    else:
+                                                                        ewma_list.append(0)
+                                                                else:
+                                                                    ewma_list.append(self.configuration.makeDecimal(new_ewma))
+                                                                # ewma_list.append(doc['processed_daily_data'][name]['ewma'][durationActual][2])
+                                                            else:
+                                                                ewma_list.append(None)
                                                         else:
                                                             ewma_list.append(None)
                                                     else:
                                                         ewma_list.append(None)
-                                                else:
-                                                    ewma_list.append(None)
-                                else:
+                                        elif self.noonorlogs == "logs":
+                                            if doc['Logs'] == True:
+                                                new_ewma = self.configuration.ewma_divide(doc['processed_daily_data'][name]['ewma'][duration_for_indices][2], ewma_number_dict[name])
+                                                if self.include_outliers == 'true':
+                                                    # if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][new_duration]) == False:
+                                                    #     if doc['processed_daily_data'][name]['within_outlier_limits'][new_duration] == False:
+                                                    if doc['processed_daily_data'][name]['ewma'][duration_for_indices][2] < ewma_number_dict[name]:
+                                                        if (name == 'main_fuel_per_dst' or name == 'speed_stw_calc' or name =='speed_sog_calc' or name == 'speed_sog' or name == 'speed_stw'):
+                                                            if ((name == 'main_fuel_per_dst' and doc['processed_daily_data'][name]['processed'] > doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                            (name == 'speed_stw_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                            (name == 'speed_sog_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                            (name == 'speed_sog' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                            (name == 'speed_stw' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1])):
+                                                                ewma_list.append(self.configuration.makeDecimal(new_ewma))
+                                                            else:
+                                                                ewma_list.append(0)
+                                                        else:
+                                                            ewma_list.append(self.configuration.makeDecimal(new_ewma))
+                                                        # ewma_list.append(doc['processed_daily_data'][name]['ewma'][durationActual][2])
+                                                    else:
+                                                        ewma_list.append(None)
+                                                    #     else:
+                                                    #         ewma_list.append(None)
+                                                    # else:
+                                                    #     ewma_list.append(None)
+                                                
+                                                if self.include_outliers == 'false':
+                                                    if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices]) == False:
+                                                        if doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices] == True:
+                                                            if doc['processed_daily_data'][name]['ewma'][duration_for_indices][2] < ewma_number_dict[name]:
+                                                                if (name == 'main_fuel_per_dst' or name == 'speed_stw_calc' or name =='speed_sog_calc' or name == 'speed_sog' or name == 'speed_stw'):
+                                                                    if ((name == 'main_fuel_per_dst' and doc['processed_daily_data'][name]['processed'] > doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                                    (name == 'speed_stw_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                                    (name == 'speed_sog_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                                    (name == 'speed_sog' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                                    (name == 'speed_stw' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1])):
+                                                                        ewma_list.append(self.configuration.makeDecimal(new_ewma))
+                                                                    else:
+                                                                        ewma_list.append(0)
+                                                                else:
+                                                                    ewma_list.append(self.configuration.makeDecimal(new_ewma))
+                                                                # ewma_list.append(doc['processed_daily_data'][name]['ewma'][durationActual][2])
+                                                            else:
+                                                                ewma_list.append(None)
+                                                        else:
+                                                            ewma_list.append(None)
+                                                    else:
+                                                        ewma_list.append(None)
+                                    else:
+                                        if self.noonorlogs == "noon":
+                                            if doc['Logs'] == False:
+                                                new_ewma = self.configuration.ewma_divide(doc['processed_daily_data'][name]['ewma'][duration_for_indices][2], doc['ewma_limits'][name][duration_for_indices][2])
+                                                if self.include_outliers == 'true':
+                                                    # if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][new_duration]) == False:
+                                                    #     if doc['processed_daily_data'][name]['within_outlier_limits'][new_duration] == False:
+                                                    if doc['processed_daily_data'][name]['ewma'][duration_for_indices][2] < ewma_number_dict[name]:
+                                                        if (name == 'main_fuel_per_dst' or name == 'speed_stw_calc' or name =='speed_sog_calc' or name == 'speed_sog' or name == 'speed_stw'):
+                                                            if ((name == 'main_fuel_per_dst' and doc['processed_daily_data'][name]['processed'] > doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                            (name == 'speed_stw_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                            (name == 'speed_sog_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                            (name == 'speed_sog' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                            (name == 'speed_stw' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1])):
+                                                                ewma_list.append(self.configuration.makeDecimal(new_ewma))
+                                                            else:
+                                                                ewma_list.append(0)
+                                                        else:
+                                                            ewma_list.append(self.configuration.makeDecimal(new_ewma))
+                                                        # ewma_list.append(doc['processed_daily_data'][name]['ewma'][durationActual][2])
+                                                    else:
+                                                        ewma_list.append(None)
+                                                    #     else:
+                                                    #         ewma_list.append(None)
+                                                    # else:
+                                                    #     ewma_list.append(None)
+                                                
+                                                if self.include_outliers == 'false':
+                                                    if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices]) == False:
+                                                        if doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices] == True:
+                                                            if doc['processed_daily_data'][name]['ewma'][duration_for_indices][2] < ewma_number_dict[name]:
+                                                                if (name == 'main_fuel_per_dst' or name == 'speed_stw_calc' or name =='speed_sog_calc' or name == 'speed_sog' or name == 'speed_stw'):
+                                                                    if ((name == 'main_fuel_per_dst' and doc['processed_daily_data'][name]['processed'] > doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                                    (name == 'speed_stw_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                                    (name == 'speed_sog_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                                    (name == 'speed_sog' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                                    (name == 'speed_stw' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1])):
+                                                                        ewma_list.append(self.configuration.makeDecimal(new_ewma))
+                                                                    else:
+                                                                        ewma_list.append(0)
+                                                                else:
+                                                                    ewma_list.append(self.configuration.makeDecimal(new_ewma))
+                                                                # ewma_list.append(doc['processed_daily_data'][name]['ewma'][durationActual][2])
+                                                            else:
+                                                                ewma_list.append(None)
+                                                        else:
+                                                            ewma_list.append(None)
+                                                    else:
+                                                        ewma_list.append(None)
+                                        elif self.noonorlogs == "logs":
+                                            if doc['Logs'] == True:
+                                                new_ewma = self.configuration.ewma_divide(doc['processed_daily_data'][name]['ewma'][duration_for_indices][2], doc['ewma_limits'][name][duration_for_indices][2])
+                                                if self.include_outliers == 'true':
+                                                    # if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][new_duration]) == False:
+                                                    #     if doc['processed_daily_data'][name]['within_outlier_limits'][new_duration] == False:
+                                                    if doc['processed_daily_data'][name]['ewma'][duration_for_indices][2] < ewma_number_dict[name]:
+                                                        if (name == 'main_fuel_per_dst' or name == 'speed_stw_calc' or name =='speed_sog_calc' or name == 'speed_sog' or name == 'speed_stw'):
+                                                            if ((name == 'main_fuel_per_dst' and doc['processed_daily_data'][name]['processed'] > doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                            (name == 'speed_stw_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                            (name == 'speed_sog_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                            (name == 'speed_sog' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                            (name == 'speed_stw' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1])):
+                                                                ewma_list.append(self.configuration.makeDecimal(new_ewma))
+                                                            else:
+                                                                ewma_list.append(0)
+                                                        else:
+                                                            ewma_list.append(self.configuration.makeDecimal(new_ewma))
+                                                        # ewma_list.append(doc['processed_daily_data'][name]['ewma'][durationActual][2])
+                                                    else:
+                                                        ewma_list.append(None)
+                                                    #     else:
+                                                    #         ewma_list.append(None)
+                                                    # else:
+                                                    #     ewma_list.append(None)
+                                                
+                                                if self.include_outliers == 'false':
+                                                    if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices]) == False:
+                                                        if doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices] == True:
+                                                            if doc['processed_daily_data'][name]['ewma'][duration_for_indices][2] < ewma_number_dict[name]:
+                                                                if (name == 'main_fuel_per_dst' or name == 'speed_stw_calc' or name =='speed_sog_calc' or name == 'speed_sog' or name == 'speed_stw'):
+                                                                    if ((name == 'main_fuel_per_dst' and doc['processed_daily_data'][name]['processed'] > doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                                    (name == 'speed_stw_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                                    (name == 'speed_sog_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                                    (name == 'speed_sog' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                                    (name == 'speed_stw' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1])):
+                                                                        ewma_list.append(self.configuration.makeDecimal(new_ewma))
+                                                                    else:
+                                                                        ewma_list.append(0)
+                                                                else:
+                                                                    ewma_list.append(self.configuration.makeDecimal(new_ewma))
+                                                                # ewma_list.append(doc['processed_daily_data'][name]['ewma'][durationActual][2])
+                                                            else:
+                                                                ewma_list.append(None)
+                                                        else:
+                                                            ewma_list.append(None)
+                                                    else:
+                                                        ewma_list.append(None)
+                                except KeyError:
+                                    ewma_list.append(None)
+                                except TypeError:
+                                    ewma_list.append(None)
+                                except IndexError:
+                                    ewma_list.append(None)
+                                
+                                try:
+                                    # if doc['historical'] == True:
                                     if self.noonorlogs == "noon":
                                         if doc['Logs'] == False:
-                                            new_ewma = self.configuration.ewma_divide(doc['processed_daily_data'][name]['ewma'][duration_for_indices][2], doc['ewma_limits'][name][duration_for_indices][2])
-                                            if self.include_outliers == 'true':
-                                                # if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][new_duration]) == False:
-                                                #     if doc['processed_daily_data'][name]['within_outlier_limits'][new_duration] == False:
-                                                if doc['processed_daily_data'][name]['ewma'][duration_for_indices][2] < ewma_number_dict[name]:
-                                                    ewma_list.append(self.configuration.makeDecimal(new_ewma))
-                                                    # ewma_list.append(doc['processed_daily_data'][name]['ewma'][durationActual][2])
-                                                else:
-                                                    ewma_list.append(None)
-                                                #     else:
-                                                #         ewma_list.append(None)
-                                                # else:
-                                                #     ewma_list.append(None)
-                                            
-                                            if self.include_outliers == 'false':
-                                                if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices]) == False:
-                                                    if doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices] == True:
-                                                        if doc['processed_daily_data'][name]['ewma'][duration_for_indices][2] < ewma_number_dict[name]:
-                                                            ewma_list.append(self.configuration.makeDecimal(new_ewma))
-                                                            # ewma_list.append(doc['processed_daily_data'][name]['ewma'][durationActual][2])
-                                                        else:
-                                                            ewma_list.append(None)
-                                                    else:
-                                                        ewma_list.append(None)
-                                                else:
-                                                    ewma_list.append(None)
+                                            if doc['processed_daily_data'][name]['is_not_ewma_anamolous'][duration_for_indices][2] == True:
+                                                ewma_limit_list.append(self.configuration.makeDecimal(ewma_limit_global))
+                                                # t2_limit_list.append(doc['processed_daily_data'][name]['ucl_crit_beta'][durationActual])
+                                                # ewma_limit_list.append(ewma_number_dict[name])
+                                            else:
+                                                ewma_limit_list.append(None)
                                     elif self.noonorlogs == "logs":
                                         if doc['Logs'] == True:
-                                            new_ewma = self.configuration.ewma_divide(doc['processed_daily_data'][name]['ewma'][duration_for_indices][2], doc['ewma_limits'][name][duration_for_indices][2])
-                                            if self.include_outliers == 'true':
-                                                # if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][new_duration]) == False:
-                                                #     if doc['processed_daily_data'][name]['within_outlier_limits'][new_duration] == False:
-                                                if doc['processed_daily_data'][name]['ewma'][duration_for_indices][2] < ewma_number_dict[name]:
-                                                    ewma_list.append(self.configuration.makeDecimal(new_ewma))
-                                                    # ewma_list.append(doc['processed_daily_data'][name]['ewma'][durationActual][2])
-                                                else:
-                                                    ewma_list.append(None)
-                                                #     else:
-                                                #         ewma_list.append(None)
-                                                # else:
-                                                #     ewma_list.append(None)
-                                            
-                                            if self.include_outliers == 'false':
-                                                if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices]) == False:
-                                                    if doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices] == True:
-                                                        if doc['processed_daily_data'][name]['ewma'][duration_for_indices][2] < ewma_number_dict[name]:
-                                                            ewma_list.append(self.configuration.makeDecimal(new_ewma))
-                                                            # ewma_list.append(doc['processed_daily_data'][name]['ewma'][durationActual][2])
-                                                        else:
-                                                            ewma_list.append(None)
-                                                    else:
-                                                        ewma_list.append(None)
-                                                else:
-                                                    ewma_list.append(None)
-                            except KeyError:
-                                ewma_list.append(None)
-                            except TypeError:
-                                ewma_list.append(None)
-                            except IndexError:
-                                ewma_list.append(None)
-                            
-                            try:
-                                # if doc['historical'] == True:
-                                if self.noonorlogs == "noon":
-                                    if doc['Logs'] == False:
-                                        if doc['processed_daily_data'][name]['is_not_ewma_anamolous'][duration_for_indices][2] == True:
-                                            ewma_limit_list.append(self.configuration.makeDecimal(ewma_limit_global))
-                                            # t2_limit_list.append(doc['processed_daily_data'][name]['ucl_crit_beta'][durationActual])
-                                            # ewma_limit_list.append(ewma_number_dict[name])
-                                        else:
-                                            ewma_limit_list.append(None)
-                                elif self.noonorlogs == "logs":
-                                    if doc['Logs'] == True:
-                                        if doc['processed_daily_data'][name]['is_not_ewma_anamolous'][duration_for_indices][2] == True:
-                                            ewma_limit_list.append(self.configuration.makeDecimal(ewma_limit_global))
-                                            # t2_limit_list.append(doc['processed_daily_data'][name]['ucl_crit_beta'][durationActual])
-                                            # ewma_limit_list.append(ewma_number_dict[name])
-                                        else:
-                                            ewma_limit_list.append(None)
-                            except KeyError:
-                                ewma_limit_list.append(None)
-                            except TypeError:
-                                ewma_limit_list.append(None)
-                            except IndexError:
-                                ewma_limit_list.append(None)
+                                            if doc['processed_daily_data'][name]['is_not_ewma_anamolous'][duration_for_indices][2] == True:
+                                                ewma_limit_list.append(self.configuration.makeDecimal(ewma_limit_global))
+                                                # t2_limit_list.append(doc['processed_daily_data'][name]['ucl_crit_beta'][durationActual])
+                                                # ewma_limit_list.append(ewma_number_dict[name])
+                                            else:
+                                                ewma_limit_list.append(None)
+                                except KeyError:
+                                    ewma_limit_list.append(None)
+                                except TypeError:
+                                    ewma_limit_list.append(None)
+                                except IndexError:
+                                    ewma_limit_list.append(None)
                         
                         if self.anomalies == 'true':
-                            try:
+                            if 'ly_' in durationActual and self.compare == 'LastYear':
                                 if doc['historical'] == True:
                                     if self.noonorlogs == "noon":
                                         if doc['Logs'] == False:
-                                            new_spe = self.configuration.spe_divide(doc['processed_daily_data'][name]['SPEy'][duration_for_indices], spe_number_dict[name])
-                                            if self.include_outliers == 'true':
-                                                # if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][new_duration]) == False:
-                                                #     if doc['processed_daily_data'][name]['within_outlier_limits'][new_duration] == False:
-                                                        # if doc['processed_daily_data'][name]['SPEy'][durationActual] < spe_number_dict[name]:
-                                                spe_list.append(self.configuration.makeDecimal(new_spe))
-                                                            # spe_list.append(doc['processed_daily_data'][name]['SPEy'][durationActual])
-                                                            # spe_list.append(spe_number_dict[name])
-                                                        # else:
-                                                        #     spe_list.append(None)
-                                                #     else:
-                                                #         spe_list.append(None)
-                                                # else:
-                                                #     spe_list.append(None)
-                                            
-                                            if self.include_outliers == 'false':
-                                                if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices]) == False:
-                                                    if doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices] == True:
-                                                        # if doc['processed_daily_data'][name]['SPEy'][durationActual] < spe_number_dict[name]:
+                                            if pd.isnull(doc['processed_daily_data'][name]['pred_differences']) == False and duration_for_indices in doc['processed_daily_data'][name]['pred_differences'] and pd.isnull(doc['processed_daily_data'][name]['pred_differences'][duration_for_indices]) == False:
+                                                spe_list.append(self.configuration.makeDecimal(doc['processed_daily_data'][name]['pred_differences'][duration_for_indices]))
+                                            else:
+                                                spe_list.append(None)
+                                            # if pd.isnull(doc['processed_daily_data'][name]['obs_differences']) == False and duration_for_indices in doc['processed_daily_data'][name]['obs_differences'] and pd.isnull(doc['processed_daily_data'][name]['obs_differences'][duration_for_indices]) == False:
+                                            #     t2_list.append(self.configuration.makeDecimal(doc['processed_daily_data'][name]['obs_differences'][duration_for_indices]))
+                                            # else:
+                                            #     t2_list.append(None)
+                            else:
+                                try:
+                                    if doc['historical'] == True:
+                                        if self.noonorlogs == "noon":
+                                            if doc['Logs'] == False:
+                                                new_spe = self.configuration.spe_divide(doc['processed_daily_data'][name]['SPEy'][duration_for_indices], spe_number_dict[name])
+                                                if self.include_outliers == 'true':
+                                                    # if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][new_duration]) == False:
+                                                    #     if doc['processed_daily_data'][name]['within_outlier_limits'][new_duration] == False:
+                                                            # if doc['processed_daily_data'][name]['SPEy'][durationActual] < spe_number_dict[name]:
+                                                    if (name == 'main_fuel_per_dst' or name == 'speed_stw_calc' or name =='speed_sog_calc' or name == 'speed_sog' or name == 'speed_stw'):
+                                                        if ((name == 'main_fuel_per_dst' and doc['processed_daily_data'][name]['processed'] > doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                        (name == 'speed_stw_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                        (name == 'speed_sog_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                        (name == 'speed_sog' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                        (name == 'speed_stw' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1])):
+                                                            spe_list.append(self.configuration.makeDecimal(new_spe))
+                                                        else:
+                                                            spe_list.append(0)
+                                                    else:
                                                         spe_list.append(self.configuration.makeDecimal(new_spe))
-                                                            # spe_list.append(doc['processed_daily_data'][name]['SPEy'][durationActual])
-                                                            # spe_list.append(spe_number_dict[name])
-                                                        # else:
-                                                        #     spe_list.append(None)
+                                                                # spe_list.append(doc['processed_daily_data'][name]['SPEy'][durationActual])
+                                                                # spe_list.append(spe_number_dict[name])
+                                                            # else:
+                                                            #     spe_list.append(None)
+                                                    #     else:
+                                                    #         spe_list.append(None)
+                                                    # else:
+                                                    #     spe_list.append(None)
+                                                
+                                                if self.include_outliers == 'false':
+                                                    if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices]) == False:
+                                                        if doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices] == True:
+                                                            # if doc['processed_daily_data'][name]['SPEy'][durationActual] < spe_number_dict[name]:
+                                                            if (name == 'main_fuel_per_dst' or name == 'speed_stw_calc' or name =='speed_sog_calc' or name == 'speed_sog' or name == 'speed_stw'):
+                                                                if ((name == 'main_fuel_per_dst' and doc['processed_daily_data'][name]['processed'] > doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                                (name == 'speed_stw_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                                (name == 'speed_sog_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                                (name == 'speed_sog' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                                (name == 'speed_stw' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1])):
+                                                                    spe_list.append(self.configuration.makeDecimal(new_spe))
+                                                                else:
+                                                                    spe_list.append(0)
+                                                            else:
+                                                                spe_list.append(self.configuration.makeDecimal(new_spe))
+                                                                # spe_list.append(doc['processed_daily_data'][name]['SPEy'][durationActual])
+                                                                # spe_list.append(spe_number_dict[name])
+                                                            # else:
+                                                            #     spe_list.append(None)
+                                                        else:
+                                                            spe_list.append(None)
                                                     else:
                                                         spe_list.append(None)
-                                                else:
-                                                    spe_list.append(None)
-                                    elif self.noonorlogs == "logs":
-                                        if doc['Logs'] == True:
-                                            new_spe = self.configuration.spe_divide(doc['processed_daily_data'][name]['SPEy'][duration_for_indices], spe_number_dict[name])
-                                            if self.include_outliers == 'true':
-                                                # if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][new_duration]) == False:
-                                                #     if doc['processed_daily_data'][name]['within_outlier_limits'][new_duration] == False:
-                                                        # if doc['processed_daily_data'][name]['SPEy'][durationActual] < spe_number_dict[name]:
-                                                spe_list.append(self.configuration.makeDecimal(new_spe))
-                                                            # spe_list.append(doc['processed_daily_data'][name]['SPEy'][durationActual])
-                                                            # spe_list.append(spe_number_dict[name])
-                                                        # else:
-                                                        #     spe_list.append(None)
-                                                #     else:
-                                                #         spe_list.append(None)
-                                                # else:
-                                                #     spe_list.append(None)
-                                            
-                                            if self.include_outliers == 'false':
-                                                if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices]) == False:
-                                                    if doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices] == True:
-                                                        # if doc['processed_daily_data'][name]['SPEy'][durationActual] < spe_number_dict[name]:
+                                        elif self.noonorlogs == "logs":
+                                            if doc['Logs'] == True:
+                                                new_spe = self.configuration.spe_divide(doc['processed_daily_data'][name]['SPEy'][duration_for_indices], spe_number_dict[name])
+                                                if self.include_outliers == 'true':
+                                                    # if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][new_duration]) == False:
+                                                    #     if doc['processed_daily_data'][name]['within_outlier_limits'][new_duration] == False:
+                                                            # if doc['processed_daily_data'][name]['SPEy'][durationActual] < spe_number_dict[name]:
+                                                    if (name == 'main_fuel_per_dst' or name == 'speed_stw_calc' or name =='speed_sog_calc' or name == 'speed_sog' or name == 'speed_stw'):
+                                                        if ((name == 'main_fuel_per_dst' and doc['processed_daily_data'][name]['processed'] > doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                        (name == 'speed_stw_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                        (name == 'speed_sog_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                        (name == 'speed_sog' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                        (name == 'speed_stw' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1])):
+                                                            spe_list.append(self.configuration.makeDecimal(new_spe))
+                                                        else:
+                                                            spe_list.append(0)
+                                                    else:
                                                         spe_list.append(self.configuration.makeDecimal(new_spe))
-                                                            # spe_list.append(doc['processed_daily_data'][name]['SPEy'][durationActual])
-                                                            # spe_list.append(spe_number_dict[name])
-                                                        # else:
-                                                        #     spe_list.append(None)
+                                                                # spe_list.append(doc['processed_daily_data'][name]['SPEy'][durationActual])
+                                                                # spe_list.append(spe_number_dict[name])
+                                                            # else:
+                                                            #     spe_list.append(None)
+                                                    #     else:
+                                                    #         spe_list.append(None)
+                                                    # else:
+                                                    #     spe_list.append(None)
+                                                
+                                                if self.include_outliers == 'false':
+                                                    if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices]) == False:
+                                                        if doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices] == True:
+                                                            # if doc['processed_daily_data'][name]['SPEy'][durationActual] < spe_number_dict[name]:
+                                                            if (name == 'main_fuel_per_dst' or name == 'speed_stw_calc' or name =='speed_sog_calc' or name == 'speed_sog' or name == 'speed_stw'):
+                                                                if ((name == 'main_fuel_per_dst' and doc['processed_daily_data'][name]['processed'] > doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                                (name == 'speed_stw_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                                (name == 'speed_sog_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                                (name == 'speed_sog' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                                (name == 'speed_stw' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1])):
+                                                                    spe_list.append(self.configuration.makeDecimal(new_spe))
+                                                                else:
+                                                                    spe_list.append(0)
+                                                            else:
+                                                                spe_list.append(self.configuration.makeDecimal(new_spe))
+                                                                # spe_list.append(doc['processed_daily_data'][name]['SPEy'][durationActual])
+                                                                # spe_list.append(spe_number_dict[name])
+                                                            # else:
+                                                            #     spe_list.append(None)
+                                                        else:
+                                                            spe_list.append(None)
                                                     else:
                                                         spe_list.append(None)
-                                                else:
-                                                    spe_list.append(None)
-                                else:
-                                    if self.noonorlogs == "noon":
-                                        if doc['Logs'] == False:
-                                            new_spe = self.configuration.spe_divide(doc['processed_daily_data'][name]['SPEy'][duration_for_indices], doc['spe_limits'][name][duration_for_indices]['zero_zero_five'])
-                                            if self.include_outliers == 'true':
-                                                # if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][new_duration]) == False:
-                                                #     if doc['processed_daily_data'][name]['within_outlier_limits'][new_duration] == False:
-                                                        # if doc['processed_daily_data'][name]['SPEy'][durationActual] < spe_number_dict[name]:
-                                                spe_list.append(self.configuration.makeDecimal(new_spe))
-                                                            # spe_list.append(doc['processed_daily_data'][name]['SPEy'][durationActual])
-                                                            # spe_list.append(spe_number_dict[name])
-                                                        # else:
-                                                        #     spe_list.append(None)
-                                                #     else:
-                                                #         spe_list.append(None)
-                                                # else:
-                                                #     spe_list.append(None)
-                                            
-                                            if self.include_outliers == 'false':
-                                                if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices]) == False:
-                                                    if doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices] == True:
-                                                        # if doc['processed_daily_data'][name]['SPEy'][durationActual] < spe_number_dict[name]:
+                                    else:
+                                        if self.noonorlogs == "noon":
+                                            if doc['Logs'] == False:
+                                                new_spe = self.configuration.spe_divide(doc['processed_daily_data'][name]['SPEy'][duration_for_indices], doc['spe_limits'][name][duration_for_indices]['zero_zero_five'])
+                                                if self.include_outliers == 'true':
+                                                    # if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][new_duration]) == False:
+                                                    #     if doc['processed_daily_data'][name]['within_outlier_limits'][new_duration] == False:
+                                                            # if doc['processed_daily_data'][name]['SPEy'][durationActual] < spe_number_dict[name]:
+                                                    if (name == 'main_fuel_per_dst' or name == 'speed_stw_calc' or name =='speed_sog_calc' or name == 'speed_sog' or name == 'speed_stw'):
+                                                        if ((name == 'main_fuel_per_dst' and doc['processed_daily_data'][name]['processed'] > doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                        (name == 'speed_stw_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                        (name == 'speed_sog_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                        (name == 'speed_sog' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                        (name == 'speed_stw' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1])):
+                                                            spe_list.append(self.configuration.makeDecimal(new_spe))
+                                                        else:
+                                                            spe_list.append(0)
+                                                    else:
                                                         spe_list.append(self.configuration.makeDecimal(new_spe))
-                                                            # spe_list.append(doc['processed_daily_data'][name]['SPEy'][durationActual])
-                                                            # spe_list.append(spe_number_dict[name])
-                                                        # else:
-                                                        #     spe_list.append(None)
+                                                                # spe_list.append(doc['processed_daily_data'][name]['SPEy'][durationActual])
+                                                                # spe_list.append(spe_number_dict[name])
+                                                            # else:
+                                                            #     spe_list.append(None)
+                                                    #     else:
+                                                    #         spe_list.append(None)
+                                                    # else:
+                                                    #     spe_list.append(None)
+                                                
+                                                if self.include_outliers == 'false':
+                                                    if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices]) == False:
+                                                        if doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices] == True:
+                                                            # if doc['processed_daily_data'][name]['SPEy'][durationActual] < spe_number_dict[name]:
+                                                            if (name == 'main_fuel_per_dst' or name == 'speed_stw_calc' or name =='speed_sog_calc' or name == 'speed_sog' or name == 'speed_stw'):
+                                                                if ((name == 'main_fuel_per_dst' and doc['processed_daily_data'][name]['processed'] > doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                                (name == 'speed_stw_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                                (name == 'speed_sog_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                                (name == 'speed_sog' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                                (name == 'speed_stw' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1])):
+                                                                    spe_list.append(self.configuration.makeDecimal(new_spe))
+                                                                else:
+                                                                    spe_list.append(0)
+                                                            else:
+                                                                spe_list.append(self.configuration.makeDecimal(new_spe))
+                                                                # spe_list.append(doc['processed_daily_data'][name]['SPEy'][durationActual])
+                                                                # spe_list.append(spe_number_dict[name])
+                                                            # else:
+                                                            #     spe_list.append(None)
+                                                        else:
+                                                            spe_list.append(None)
                                                     else:
                                                         spe_list.append(None)
-                                                else:
-                                                    spe_list.append(None)
-                                    elif self.noonorlogs == "logs":
-                                        if doc['Logs'] == True:
-                                            new_spe = self.configuration.spe_divide(doc['processed_daily_data'][name]['SPEy'][duration_for_indices], doc['spe_limits'][name][duration_for_indices]['zero_zero_five'])
-                                            if self.include_outliers == 'true':
-                                                # if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][new_duration]) == False:
-                                                #     if doc['processed_daily_data'][name]['within_outlier_limits'][new_duration] == False:
-                                                        # if doc['processed_daily_data'][name]['SPEy'][durationActual] < spe_number_dict[name]:
-                                                spe_list.append(self.configuration.makeDecimal(new_spe))
-                                                            # spe_list.append(doc['processed_daily_data'][name]['SPEy'][durationActual])
-                                                            # spe_list.append(spe_number_dict[name])
-                                                        # else:
-                                                        #     spe_list.append(None)
-                                                #     else:
-                                                #         spe_list.append(None)
-                                                # else:
-                                                #     spe_list.append(None)
-                                            
-                                            if self.include_outliers == 'false':
-                                                if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices]) == False:
-                                                    if doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices] == True:
-                                                        # if doc['processed_daily_data'][name]['SPEy'][durationActual] < spe_number_dict[name]:
+                                        elif self.noonorlogs == "logs":
+                                            if doc['Logs'] == True:
+                                                new_spe = self.configuration.spe_divide(doc['processed_daily_data'][name]['SPEy'][duration_for_indices], doc['spe_limits'][name][duration_for_indices]['zero_zero_five'])
+                                                if self.include_outliers == 'true':
+                                                    # if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][new_duration]) == False:
+                                                    #     if doc['processed_daily_data'][name]['within_outlier_limits'][new_duration] == False:
+                                                            # if doc['processed_daily_data'][name]['SPEy'][durationActual] < spe_number_dict[name]:
+                                                    if (name == 'main_fuel_per_dst' or name == 'speed_stw_calc' or name =='speed_sog_calc' or name == 'speed_sog' or name == 'speed_stw'):
+                                                        if ((name == 'main_fuel_per_dst' and doc['processed_daily_data'][name]['processed'] > doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                        (name == 'speed_stw_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                        (name == 'speed_sog_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                        (name == 'speed_sog' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                        (name == 'speed_stw' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1])):
+                                                            spe_list.append(self.configuration.makeDecimal(new_spe))
+                                                        else:
+                                                            spe_list.append(0)
+                                                    else:
                                                         spe_list.append(self.configuration.makeDecimal(new_spe))
-                                                            # spe_list.append(doc['processed_daily_data'][name]['SPEy'][durationActual])
-                                                            # spe_list.append(spe_number_dict[name])
-                                                        # else:
-                                                        #     spe_list.append(None)
+                                                                # spe_list.append(doc['processed_daily_data'][name]['SPEy'][durationActual])
+                                                                # spe_list.append(spe_number_dict[name])
+                                                            # else:
+                                                            #     spe_list.append(None)
+                                                    #     else:
+                                                    #         spe_list.append(None)
+                                                    # else:
+                                                    #     spe_list.append(None)
+                                                
+                                                if self.include_outliers == 'false':
+                                                    if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices]) == False:
+                                                        if doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices] == True:
+                                                            # if doc['processed_daily_data'][name]['SPEy'][durationActual] < spe_number_dict[name]:
+                                                            if (name == 'main_fuel_per_dst' or name == 'speed_stw_calc' or name =='speed_sog_calc' or name == 'speed_sog' or name == 'speed_stw'):
+                                                                if ((name == 'main_fuel_per_dst' and doc['processed_daily_data'][name]['processed'] > doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                                (name == 'speed_stw_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                                (name == 'speed_sog_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                                (name == 'speed_sog' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                                (name == 'speed_stw' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1])):
+                                                                    spe_list.append(self.configuration.makeDecimal(new_spe))
+                                                                else:
+                                                                    spe_list.append(0)
+                                                            else:
+                                                                spe_list.append(self.configuration.makeDecimal(new_spe))
+                                                                # spe_list.append(doc['processed_daily_data'][name]['SPEy'][durationActual])
+                                                                # spe_list.append(spe_number_dict[name])
+                                                            # else:
+                                                            #     spe_list.append(None)
+                                                        else:
+                                                            spe_list.append(None)
                                                     else:
                                                         spe_list.append(None)
-                                                else:
-                                                    spe_list.append(None)
-                            except KeyError:
-                                spe_list.append(None)
-                            except TypeError:
-                                spe_list.append(None)
-                            except IndexError:
-                                spe_list.append(None)
-                            
-                            try:
-                                # if doc['historical'] == True:
-                                if self.noonorlogs == "noon":
-                                    if doc['Logs'] == False:
-                                        # if doc['processed_daily_data'][name]['is_not_spe_anamolous'][durationActual][2] == True:
-                                        spe_limit_list.append(self.configuration.makeDecimal(spe_limit_global))
-                                            # spe_limit_list.append(doc['processed_daily_data'][name]['Q_y'][durationActual][1])
-                                            # spe_limit_list.append(spe_number_dict[name])
-                                        # else:
-                                        #     spe_limit_list.append(None)
-                                elif self.noonorlogs == "logs":
-                                    if doc['Logs'] == True:
-                                        # if doc['processed_daily_data'][name]['is_not_spe_anamolous'][durationActual][2] == True:
-                                        spe_limit_list.append(self.configuration.makeDecimal(spe_limit_global))
-                                            # spe_limit_list.append(doc['processed_daily_data'][name]['Q_y'][durationActual][1])
-                                            # spe_limit_list.append(spe_number_dict[name])
-                                        # else:
-                                        #     spe_limit_list.append(None)
-                            except KeyError:
-                                spe_limit_list.append(None)
-                            except TypeError:
-                                spe_limit_list.append(None)
-                            except IndexError:
-                                spe_limit_list.append(None)
-                            
-                            #T2----------------------------------------------------------------------
-                            try:
-                                # if doc['processed_daily_data'][name]['t2_anamoly'][durationActual][0] == True:
-                                if doc['historical'] == True:
+                                except KeyError:
+                                    spe_list.append(None)
+                                except TypeError:
+                                    spe_list.append(None)
+                                except IndexError:
+                                    spe_list.append(None)
+                                
+                                try:
+                                    # if doc['historical'] == True:
                                     if self.noonorlogs == "noon":
                                         if doc['Logs'] == False:
-                                            new_t2 = self.configuration.t2_divide(doc['processed_daily_data'][name]['t2_initial'][duration_for_indices], t2_number_dict[name])
-                                            if self.include_outliers == 'true':
-                                                # if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][new_duration]) == False:
-                                                #     if doc['processed_daily_data'][name]['within_outlier_limits'][new_duration] == False:
-                                                        # if doc['processed_daily_data'][name]['t2_initial'][durationActual] < t2_number_dict[name]:
-                                                t2_list.append(self.configuration.makeDecimal(new_t2))
-                                                            # t2_list.append(doc['processed_daily_data'][name]['t2_initial'][durationActual])
-                                                        # else:
-                                                        #     t2_list.append(None)
-                                                #     else:
-                                                #         t2_list.append(None)
-                                                # else:
-                                                #     t2_list.append(None)
-                                            
-
-                                            if self.include_outliers == 'false':
-                                                if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices]) == False:
-                                                    if doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices] == True:
-                                                        # if doc['processed_daily_data'][name]['t2_initial'][durationActual] < t2_number_dict[name]:
-                                                        t2_list.append(self.configuration.makeDecimal(new_t2))
-                                                            # t2_list.append(doc['processed_daily_data'][name]['t2_initial'][durationActual])
-                                                        # else:
-                                                        #     t2_list.append(None)
-                                                    else:
-                                                        t2_list.append(None)
-                                                else:
-                                                    t2_list.append(None)
+                                            # if doc['processed_daily_data'][name]['is_not_spe_anamolous'][durationActual][2] == True:
+                                            spe_limit_list.append(self.configuration.makeDecimal(spe_limit_global))
+                                                # spe_limit_list.append(doc['processed_daily_data'][name]['Q_y'][durationActual][1])
+                                                # spe_limit_list.append(spe_number_dict[name])
+                                            # else:
+                                            #     spe_limit_list.append(None)
                                     elif self.noonorlogs == "logs":
                                         if doc['Logs'] == True:
-                                            new_t2 = self.configuration.t2_divide(doc['processed_daily_data'][name]['t2_initial'][duration_for_indices], t2_number_dict[name])
-                                            if self.include_outliers == 'true':
-                                                # if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][new_duration]) == False:
-                                                #     if doc['processed_daily_data'][name]['within_outlier_limits'][new_duration] == False:
-                                                        # if doc['processed_daily_data'][name]['t2_initial'][durationActual] < t2_number_dict[name]:
-                                                t2_list.append(self.configuration.makeDecimal(new_t2))
-                                                            # t2_list.append(doc['processed_daily_data'][name]['t2_initial'][durationActual])
-                                                        # else:
-                                                        #     t2_list.append(None)
-                                                #     else:
-                                                #         t2_list.append(None)
-                                                # else:
-                                                #     t2_list.append(None)
-                                            
+                                            # if doc['processed_daily_data'][name]['is_not_spe_anamolous'][durationActual][2] == True:
+                                            spe_limit_list.append(self.configuration.makeDecimal(spe_limit_global))
+                                                # spe_limit_list.append(doc['processed_daily_data'][name]['Q_y'][durationActual][1])
+                                                # spe_limit_list.append(spe_number_dict[name])
+                                            # else:
+                                            #     spe_limit_list.append(None)
+                                except KeyError:
+                                    spe_limit_list.append(None)
+                                except TypeError:
+                                    spe_limit_list.append(None)
+                                except IndexError:
+                                    spe_limit_list.append(None)
+                                
+                                #T2----------------------------------------------------------------------
+                                try:
+                                    # if doc['processed_daily_data'][name]['t2_anamoly'][durationActual][0] == True:
+                                    if doc['historical'] == True:
+                                        if self.noonorlogs == "noon":
+                                            if doc['Logs'] == False:
+                                                new_t2 = self.configuration.t2_divide(doc['processed_daily_data'][name]['t2_initial'][duration_for_indices], t2_number_dict[name])
+                                                if self.include_outliers == 'true':
+                                                    # if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][new_duration]) == False:
+                                                    #     if doc['processed_daily_data'][name]['within_outlier_limits'][new_duration] == False:
+                                                            # if doc['processed_daily_data'][name]['t2_initial'][durationActual] < t2_number_dict[name]:
+                                                    t2_list.append(self.configuration.makeDecimal(new_t2))
+                                                                # t2_list.append(doc['processed_daily_data'][name]['t2_initial'][durationActual])
+                                                            # else:
+                                                            #     t2_list.append(None)
+                                                    #     else:
+                                                    #         t2_list.append(None)
+                                                    # else:
+                                                    #     t2_list.append(None)
+                                                
 
-                                            if self.include_outliers == 'false':
-                                                if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices]) == False:
-                                                    if doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices] == True:
-                                                        # if doc['processed_daily_data'][name]['t2_initial'][durationActual] < t2_number_dict[name]:
-                                                        t2_list.append(self.configuration.makeDecimal(new_t2))
-                                                            # t2_list.append(doc['processed_daily_data'][name]['t2_initial'][durationActual])
-                                                        # else:
-                                                        #     t2_list.append(None)
+                                                if self.include_outliers == 'false':
+                                                    if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices]) == False:
+                                                        if doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices] == True:
+                                                            # if doc['processed_daily_data'][name]['t2_initial'][durationActual] < t2_number_dict[name]:
+                                                            t2_list.append(self.configuration.makeDecimal(new_t2))
+                                                                # t2_list.append(doc['processed_daily_data'][name]['t2_initial'][durationActual])
+                                                            # else:
+                                                            #     t2_list.append(None)
+                                                        else:
+                                                            t2_list.append(None)
                                                     else:
                                                         t2_list.append(None)
-                                                else:
-                                                    t2_list.append(None)
-                                else:
+                                        elif self.noonorlogs == "logs":
+                                            if doc['Logs'] == True:
+                                                new_t2 = self.configuration.t2_divide(doc['processed_daily_data'][name]['t2_initial'][duration_for_indices], t2_number_dict[name])
+                                                if self.include_outliers == 'true':
+                                                    # if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][new_duration]) == False:
+                                                    #     if doc['processed_daily_data'][name]['within_outlier_limits'][new_duration] == False:
+                                                            # if doc['processed_daily_data'][name]['t2_initial'][durationActual] < t2_number_dict[name]:
+                                                    t2_list.append(self.configuration.makeDecimal(new_t2))
+                                                                # t2_list.append(doc['processed_daily_data'][name]['t2_initial'][durationActual])
+                                                            # else:
+                                                            #     t2_list.append(None)
+                                                    #     else:
+                                                    #         t2_list.append(None)
+                                                    # else:
+                                                    #     t2_list.append(None)
+                                                
+
+                                                if self.include_outliers == 'false':
+                                                    if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices]) == False:
+                                                        if doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices] == True:
+                                                            # if doc['processed_daily_data'][name]['t2_initial'][durationActual] < t2_number_dict[name]:
+                                                            t2_list.append(self.configuration.makeDecimal(new_t2))
+                                                                # t2_list.append(doc['processed_daily_data'][name]['t2_initial'][durationActual])
+                                                            # else:
+                                                            #     t2_list.append(None)
+                                                        else:
+                                                            t2_list.append(None)
+                                                    else:
+                                                        t2_list.append(None)
+                                    else:
+                                        if self.noonorlogs == "noon":
+                                            if doc['Logs'] == False:
+                                                new_t2 = self.configuration.t2_divide(doc['processed_daily_data'][name]['t2_initial'][duration_for_indices], doc['t2_limits'][name]['zero_two'])
+                                                if self.include_outliers == 'true':
+                                                    # if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][new_duration]) == False:
+                                                    #     if doc['processed_daily_data'][name]['within_outlier_limits'][new_duration] == False:
+                                                            # if doc['processed_daily_data'][name]['t2_initial'][durationActual] < t2_number_dict[name]:
+                                                    t2_list.append(self.configuration.makeDecimal(new_t2))
+                                                                # t2_list.append(doc['processed_daily_data'][name]['t2_initial'][durationActual])
+                                                            # else:
+                                                            #     t2_list.append(None)
+                                                    #     else:
+                                                    #         t2_list.append(None)
+                                                    # else:
+                                                    #     t2_list.append(None)
+                                                
+
+                                                if self.include_outliers == 'false':
+                                                    if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices]) == False:
+                                                        if doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices] == True:
+                                                            # if doc['processed_daily_data'][name]['t2_initial'][durationActual] < t2_number_dict[name]:
+                                                            t2_list.append(self.configuration.makeDecimal(new_t2))
+                                                                # t2_list.append(doc['processed_daily_data'][name]['t2_initial'][durationActual])
+                                                            # else:
+                                                            #     t2_list.append(None)
+                                                        else:
+                                                            t2_list.append(None)
+                                                    else:
+                                                        t2_list.append(None)
+                                        elif self.noonorlogs == "logs":
+                                            if doc['Logs'] == True:
+                                                new_t2 = self.configuration.t2_divide(doc['processed_daily_data'][name]['t2_initial'][duration_for_indices], doc['t2_limits'][name]['zero_two'])
+                                                if self.include_outliers == 'true':
+                                                    # if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][new_duration]) == False:
+                                                    #     if doc['processed_daily_data'][name]['within_outlier_limits'][new_duration] == False:
+                                                            # if doc['processed_daily_data'][name]['t2_initial'][durationActual] < t2_number_dict[name]:
+                                                    t2_list.append(self.configuration.makeDecimal(new_t2))
+                                                                # t2_list.append(doc['processed_daily_data'][name]['t2_initial'][durationActual])
+                                                            # else:
+                                                            #     t2_list.append(None)
+                                                    #     else:
+                                                    #         t2_list.append(None)
+                                                    # else:
+                                                    #     t2_list.append(None)
+                                                
+
+                                                if self.include_outliers == 'false':
+                                                    if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices]) == False:
+                                                        if doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices] == True:
+                                                            # if doc['processed_daily_data'][name]['t2_initial'][durationActual] < t2_number_dict[name]:
+                                                            t2_list.append(self.configuration.makeDecimal(new_t2))
+                                                                # t2_list.append(doc['processed_daily_data'][name]['t2_initial'][durationActual])
+                                                            # else:
+                                                            #     t2_list.append(None)
+                                                        else:
+                                                            t2_list.append(None)
+                                                    else:
+                                                        t2_list.append(None)
+                                except KeyError:
+                                    t2_list.append(None)
+                                except TypeError:
+                                    t2_list.append(None)
+                                except IndexError:
+                                    t2_list.append(None)
+                                
+                                try:
                                     if self.noonorlogs == "noon":
                                         if doc['Logs'] == False:
-                                            new_t2 = self.configuration.t2_divide(doc['processed_daily_data'][name]['t2_initial'][duration_for_indices], doc['t2_limits'][name]['zero_two'])
-                                            if self.include_outliers == 'true':
-                                                # if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][new_duration]) == False:
-                                                #     if doc['processed_daily_data'][name]['within_outlier_limits'][new_duration] == False:
-                                                        # if doc['processed_daily_data'][name]['t2_initial'][durationActual] < t2_number_dict[name]:
-                                                t2_list.append(self.configuration.makeDecimal(new_t2))
-                                                            # t2_list.append(doc['processed_daily_data'][name]['t2_initial'][durationActual])
-                                                        # else:
-                                                        #     t2_list.append(None)
-                                                #     else:
-                                                #         t2_list.append(None)
-                                                # else:
-                                                #     t2_list.append(None)
-                                            
-
-                                            if self.include_outliers == 'false':
-                                                if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices]) == False:
-                                                    if doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices] == True:
-                                                        # if doc['processed_daily_data'][name]['t2_initial'][durationActual] < t2_number_dict[name]:
-                                                        t2_list.append(self.configuration.makeDecimal(new_t2))
-                                                            # t2_list.append(doc['processed_daily_data'][name]['t2_initial'][durationActual])
-                                                        # else:
-                                                        #     t2_list.append(None)
-                                                    else:
-                                                        t2_list.append(None)
-                                                else:
-                                                    t2_list.append(None)
+                                            # if doc['processed_daily_data'][name]['is_not_t2_anamolous'][durationActual][0] == True:
+                                            t2_limit_list.append(self.configuration.makeDecimal(t2_limit_global))
+                                                # t2_limit_list.append(doc['processed_daily_data'][name]['ucl_crit_beta'][durationActual])
+                                                # t2_limit_list.append(t2_number_dict[name])
+                                            # else:
+                                            #     t2_limit_list.append(None)
                                     elif self.noonorlogs == "logs":
                                         if doc['Logs'] == True:
-                                            new_t2 = self.configuration.t2_divide(doc['processed_daily_data'][name]['t2_initial'][duration_for_indices], doc['t2_limits'][name]['zero_two'])
-                                            if self.include_outliers == 'true':
-                                                # if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][new_duration]) == False:
-                                                #     if doc['processed_daily_data'][name]['within_outlier_limits'][new_duration] == False:
-                                                        # if doc['processed_daily_data'][name]['t2_initial'][durationActual] < t2_number_dict[name]:
-                                                t2_list.append(self.configuration.makeDecimal(new_t2))
-                                                            # t2_list.append(doc['processed_daily_data'][name]['t2_initial'][durationActual])
-                                                        # else:
-                                                        #     t2_list.append(None)
-                                                #     else:
-                                                #         t2_list.append(None)
-                                                # else:
-                                                #     t2_list.append(None)
-                                            
-
-                                            if self.include_outliers == 'false':
-                                                if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices]) == False:
-                                                    if doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices] == True:
-                                                        # if doc['processed_daily_data'][name]['t2_initial'][durationActual] < t2_number_dict[name]:
-                                                        t2_list.append(self.configuration.makeDecimal(new_t2))
-                                                            # t2_list.append(doc['processed_daily_data'][name]['t2_initial'][durationActual])
-                                                        # else:
-                                                        #     t2_list.append(None)
+                                            # if doc['processed_daily_data'][name]['is_not_t2_anamolous'][durationActual][0] == True:
+                                            t2_limit_list.append(self.configuration.makeDecimal(t2_limit_global))
+                                                # t2_limit_list.append(doc['processed_daily_data'][name]['ucl_crit_beta'][durationActual])
+                                                # t2_limit_list.append(t2_number_dict[name])
+                                            # else:
+                                            #     t2_limit_list.append(None)
+                                except KeyError:
+                                    t2_limit_list.append(None)
+                                except TypeError:
+                                    t2_limit_list.append(None)
+                                except IndexError:
+                                    t2_limit_list.append(None)
+                                #EWMA-----------------------------------------------------------------------
+                                try:
+                                    # if doc['processed_daily_data'][name]['t2_anamoly'][durationActual][0] == True:
+                                    if doc['historical'] == True:
+                                        if self.noonorlogs == "noon":
+                                            if doc['Logs'] == False:
+                                                new_ewma = self.configuration.ewma_divide(doc['processed_daily_data'][name]['ewma'][duration_for_indices][2], ewma_number_dict[name])
+                                                if self.include_outliers == 'true':
+                                                    # if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][new_duration]) == False:
+                                                    #     if doc['processed_daily_data'][name]['within_outlier_limits'][new_duration] == False:
+                                                            # if doc['processed_daily_data'][name]['ewma'][durationActual][2] < ewma_number_dict[name]:
+                                                    if (name == 'main_fuel_per_dst' or name == 'speed_stw_calc' or name =='speed_sog_calc' or name == 'speed_sog' or name == 'speed_stw'):
+                                                        if ((name == 'main_fuel_per_dst' and doc['processed_daily_data'][name]['processed'] > doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                        (name == 'speed_stw_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                        (name == 'speed_sog_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                        (name == 'speed_sog' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                        (name == 'speed_stw' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1])):
+                                                            
+                                                            ewma_list.append(self.configuration.makeDecimal(new_ewma))
+                                                        else:
+                                                            ewma_list.append(0)
                                                     else:
-                                                        t2_list.append(None)
-                                                else:
-                                                    t2_list.append(None)
-                            except KeyError:
-                                t2_list.append(None)
-                            except TypeError:
-                                t2_list.append(None)
-                            except IndexError:
-                                t2_list.append(None)
-                            
-                            try:
-                                if self.noonorlogs == "noon":
-                                    if doc['Logs'] == False:
-                                        # if doc['processed_daily_data'][name]['is_not_t2_anamolous'][durationActual][0] == True:
-                                        t2_limit_list.append(self.configuration.makeDecimal(t2_limit_global))
-                                            # t2_limit_list.append(doc['processed_daily_data'][name]['ucl_crit_beta'][durationActual])
-                                            # t2_limit_list.append(t2_number_dict[name])
-                                        # else:
-                                        #     t2_limit_list.append(None)
-                                elif self.noonorlogs == "logs":
-                                    if doc['Logs'] == True:
-                                        # if doc['processed_daily_data'][name]['is_not_t2_anamolous'][durationActual][0] == True:
-                                        t2_limit_list.append(self.configuration.makeDecimal(t2_limit_global))
-                                            # t2_limit_list.append(doc['processed_daily_data'][name]['ucl_crit_beta'][durationActual])
-                                            # t2_limit_list.append(t2_number_dict[name])
-                                        # else:
-                                        #     t2_limit_list.append(None)
-                            except KeyError:
-                                t2_limit_list.append(None)
-                            except TypeError:
-                                t2_limit_list.append(None)
-                            except IndexError:
-                                t2_limit_list.append(None)
-                            #EWMA-----------------------------------------------------------------------
-                            try:
-                                # if doc['processed_daily_data'][name]['t2_anamoly'][durationActual][0] == True:
-                                if doc['historical'] == True:
+                                                        ewma_list.append(self.configuration.makeDecimal(new_ewma))
+                                                                # ewma_list.append(doc['processed_daily_data'][name]['ewma'][durationActual][2])
+                                                            # else:
+                                                            #     ewma_list.append(None)
+                                                    #     else:
+                                                    #         ewma_list.append(None)
+                                                    # else:
+                                                    #     ewma_list.append(None)
+                                                
+                                                if self.include_outliers == 'false':
+                                                    if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices]) == False:
+                                                        if doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices] == True:
+                                                            # if doc['processed_daily_data'][name]['ewma'][durationActual][2] < ewma_number_dict[name]:
+                                                            if (name == 'main_fuel_per_dst' or name == 'speed_stw_calc' or name =='speed_sog_calc' or name == 'speed_sog' or name == 'speed_stw'):
+                                                                if ((name == 'main_fuel_per_dst' and doc['processed_daily_data'][name]['processed'] > doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                                (name == 'speed_stw_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                                (name == 'speed_sog_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                                (name == 'speed_sog' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                                (name == 'speed_stw' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1])):
+                                                                    ewma_list.append(self.configuration.makeDecimal(new_ewma))
+                                                                else:
+                                                                    ewma_list.append(0)
+                                                            else:
+                                                                ewma_list.append(self.configuration.makeDecimal(new_ewma))
+                                                                # ewma_list.append(doc['processed_daily_data'][name]['ewma'][durationActual][2])
+                                                            # else:
+                                                            #     ewma_list.append(None)
+                                                        else:
+                                                            ewma_list.append(None)
+                                                    else:
+                                                        ewma_list.append(None)
+                                        elif self.noonorlogs == "logs":
+                                            if doc['Logs'] == True:
+                                                new_ewma = self.configuration.ewma_divide(doc['processed_daily_data'][name]['ewma'][duration_for_indices][2], ewma_number_dict[name])
+                                                if self.include_outliers == 'true':
+                                                    # if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][new_duration]) == False:
+                                                    #     if doc['processed_daily_data'][name]['within_outlier_limits'][new_duration] == False:
+                                                            # if doc['processed_daily_data'][name]['ewma'][durationActual][2] < ewma_number_dict[name]:
+                                                    if (name == 'main_fuel_per_dst' or name == 'speed_stw_calc' or name =='speed_sog_calc' or name == 'speed_sog' or name == 'speed_stw'):
+                                                        if ((name == 'main_fuel_per_dst' and doc['processed_daily_data'][name]['processed'] > doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                        (name == 'speed_stw_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                        (name == 'speed_sog_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                        (name == 'speed_sog' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                        (name == 'speed_stw' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1])):
+                                                            ewma_list.append(self.configuration.makeDecimal(new_ewma))
+                                                        else:
+                                                            ewma_list.append(0)
+                                                    else:
+                                                        ewma_list.append(self.configuration.makeDecimal(new_ewma))
+                                                                # ewma_list.append(doc['processed_daily_data'][name]['ewma'][durationActual][2])
+                                                            # else:
+                                                            #     ewma_list.append(None)
+                                                    #     else:
+                                                    #         ewma_list.append(None)
+                                                    # else:
+                                                    #     ewma_list.append(None)
+                                                
+                                                if self.include_outliers == 'false':
+                                                    if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices]) == False:
+                                                        if doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices] == True:
+                                                            if (name == 'main_fuel_per_dst' or name == 'speed_stw_calc' or name =='speed_sog_calc' or name == 'speed_sog' or name == 'speed_stw'):
+                                                                if ((name == 'main_fuel_per_dst' and doc['processed_daily_data'][name]['processed'] > doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                                (name == 'speed_stw_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                                (name == 'speed_sog_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                                (name == 'speed_sog' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                                (name == 'speed_stw' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1])):
+                                                                # if doc['processed_daily_data'][name]['ewma'][durationActual][2] < ewma_number_dict[name]:
+                                                                    ewma_list.append(self.configuration.makeDecimal(new_ewma))
+                                                                else:
+                                                                    ewma_list.append(0)
+                                                            else:
+                                                                ewma_list.append(self.configuration.makeDecimal(new_ewma))
+                                                                # ewma_list.append(doc['processed_daily_data'][name]['ewma'][durationActual][2])
+                                                            # else:
+                                                            #     ewma_list.append(None)
+                                                        else:
+                                                            ewma_list.append(None)
+                                                    else:
+                                                        ewma_list.append(None)
+                                    else:
+                                        if self.noonorlogs == "noon":
+                                            if doc['Logs'] == False:
+                                                new_ewma = self.configuration.ewma_divide(doc['processed_daily_data'][name]['ewma'][duration_for_indices][2], doc['ewma_limits'][name][duration_for_indices][2])
+                                                if self.include_outliers == 'true':
+                                                    # if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][new_duration]) == False:
+                                                    #     if doc['processed_daily_data'][name]['within_outlier_limits'][new_duration] == False:
+                                                            # if doc['processed_daily_data'][name]['ewma'][durationActual][2] < ewma_number_dict[name]:
+                                                    if (name == 'main_fuel_per_dst' or name == 'speed_stw_calc' or name =='speed_sog_calc' or name == 'speed_sog' or name == 'speed_stw'):
+                                                        if ((name == 'main_fuel_per_dst' and doc['processed_daily_data'][name]['processed'] > doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                        (name == 'speed_stw_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                        (name == 'speed_sog_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                        (name == 'speed_sog' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                        (name == 'speed_stw' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1])):
+                                                            ewma_list.append(self.configuration.makeDecimal(new_ewma))
+                                                        else:
+                                                            ewma_list.append(0)
+                                                    else:
+                                                        ewma_list.append(self.configuration.makeDecimal(new_ewma))
+                                                                # ewma_list.append(doc['processed_daily_data'][name]['ewma'][durationActual][2])
+                                                            # else:
+                                                            #     ewma_list.append(None)
+                                                    #     else:
+                                                    #         ewma_list.append(None)
+                                                    # else:
+                                                    #     ewma_list.append(None)
+                                                
+                                                if self.include_outliers == 'false':
+                                                    if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices]) == False:
+                                                        if doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices] == True:
+                                                            # if doc['processed_daily_data'][name]['ewma'][durationActual][2] < ewma_number_dict[name]:
+                                                            if (name == 'main_fuel_per_dst' or name == 'speed_stw_calc' or name =='speed_sog_calc' or name == 'speed_sog' or name == 'speed_stw'):
+                                                                if ((name == 'main_fuel_per_dst' and doc['processed_daily_data'][name]['processed'] > doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                                (name == 'speed_stw_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                                (name == 'speed_sog_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                                (name == 'speed_sog' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                                (name == 'speed_stw' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1])):
+                                                                    ewma_list.append(self.configuration.makeDecimal(new_ewma))
+                                                                else:
+                                                                    ewma_list.append(0)
+                                                            else:
+                                                                ewma_list.append(self.configuration.makeDecimal(new_ewma))
+                                                                # ewma_list.append(doc['processed_daily_data'][name]['ewma'][durationActual][2])
+                                                            # else:
+                                                            #     ewma_list.append(None)
+                                                        else:
+                                                            ewma_list.append(None)
+                                                    else:
+                                                        ewma_list.append(None)
+                                        elif self.noonorlogs == "logs":
+                                            if doc['Logs'] == True:
+                                                new_ewma = self.configuration.ewma_divide(doc['processed_daily_data'][name]['ewma'][duration_for_indices][2], doc['ewma_limits'][name][duration_for_indices][2])
+                                                if self.include_outliers == 'true':
+                                                    # if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][new_duration]) == False:
+                                                    #     if doc['processed_daily_data'][name]['within_outlier_limits'][new_duration] == False:
+                                                            # if doc['processed_daily_data'][name]['ewma'][durationActual][2] < ewma_number_dict[name]:
+                                                    if (name == 'main_fuel_per_dst' or name == 'speed_stw_calc' or name =='speed_sog_calc' or name == 'speed_sog' or name == 'speed_stw'):
+                                                        if ((name == 'main_fuel_per_dst' and doc['processed_daily_data'][name]['processed'] > doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                        (name == 'speed_stw_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                        (name == 'speed_sog_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                        (name == 'speed_sog' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                        (name == 'speed_stw' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1])):
+                                                            ewma_list.append(self.configuration.makeDecimal(new_ewma))
+                                                        else:
+                                                            ewma_list.append(0)
+                                                    else:
+                                                        ewma_list.append(self.configuration.makeDecimal(new_ewma))
+                                                                # ewma_list.append(doc['processed_daily_data'][name]['ewma'][durationActual][2])
+                                                            # else:
+                                                            #     ewma_list.append(None)
+                                                    #     else:
+                                                    #         ewma_list.append(None)
+                                                    # else:
+                                                    #     ewma_list.append(None)
+                                                
+                                                if self.include_outliers == 'false':
+                                                    if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices]) == False:
+                                                        if doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices] == True:
+                                                            # if doc['processed_daily_data'][name]['ewma'][durationActual][2] < ewma_number_dict[name]:
+                                                            if (name == 'main_fuel_per_dst' or name == 'speed_stw_calc' or name =='speed_sog_calc' or name == 'speed_sog' or name == 'speed_stw'):
+                                                                if ((name == 'main_fuel_per_dst' and doc['processed_daily_data'][name]['processed'] > doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                                (name == 'speed_stw_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                                (name == 'speed_sog_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                                (name == 'speed_sog' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                                (name == 'speed_stw' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1])):
+                                                                    ewma_list.append(self.configuration.makeDecimal(new_ewma))
+                                                                else:
+                                                                    ewma_list.append(0)
+                                                            else:
+                                                                ewma_list.append(self.configuration.makeDecimal(new_ewma))
+                                                                # ewma_list.append(doc['processed_daily_data'][name]['ewma'][durationActual][2])
+                                                            # else:
+                                                            #     ewma_list.append(None)
+                                                        else:
+                                                            ewma_list.append(None)
+                                                    else:
+                                                        ewma_list.append(None)
+                                except KeyError:
+                                    ewma_list.append(None)
+                                except TypeError:
+                                    ewma_list.append(None)
+                                except IndexError:
+                                    ewma_list.append(None)
+                                
+                                try:
+                                    # if doc['historical'] == True:
                                     if self.noonorlogs == "noon":
                                         if doc['Logs'] == False:
-                                            new_ewma = self.configuration.ewma_divide(doc['processed_daily_data'][name]['ewma'][duration_for_indices][2], ewma_number_dict[name])
-                                            if self.include_outliers == 'true':
-                                                # if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][new_duration]) == False:
-                                                #     if doc['processed_daily_data'][name]['within_outlier_limits'][new_duration] == False:
-                                                        # if doc['processed_daily_data'][name]['ewma'][durationActual][2] < ewma_number_dict[name]:
-                                                ewma_list.append(self.configuration.makeDecimal(new_ewma))
-                                                            # ewma_list.append(doc['processed_daily_data'][name]['ewma'][durationActual][2])
-                                                        # else:
-                                                        #     ewma_list.append(None)
-                                                #     else:
-                                                #         ewma_list.append(None)
-                                                # else:
-                                                #     ewma_list.append(None)
-                                            
-                                            if self.include_outliers == 'false':
-                                                if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices]) == False:
-                                                    if doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices] == True:
-                                                        # if doc['processed_daily_data'][name]['ewma'][durationActual][2] < ewma_number_dict[name]:
-                                                        ewma_list.append(self.configuration.makeDecimal(new_ewma))
-                                                            # ewma_list.append(doc['processed_daily_data'][name]['ewma'][durationActual][2])
-                                                        # else:
-                                                        #     ewma_list.append(None)
-                                                    else:
-                                                        ewma_list.append(None)
-                                                else:
-                                                    ewma_list.append(None)
+                                            # if doc['processed_daily_data'][name]['is_not_ewma_anamolous'][durationActual][2] == True:
+                                            ewma_limit_list.append(self.configuration.makeDecimal(ewma_limit_global))
+                                                # t2_limit_list.append(doc['processed_daily_data'][name]['ucl_crit_beta'][durationActual])
+                                                # ewma_limit_list.append(ewma_number_dict[name])
+                                            # else:
+                                            #     ewma_limit_list.append(None)
                                     elif self.noonorlogs == "logs":
                                         if doc['Logs'] == True:
-                                            new_ewma = self.configuration.ewma_divide(doc['processed_daily_data'][name]['ewma'][duration_for_indices][2], ewma_number_dict[name])
-                                            if self.include_outliers == 'true':
-                                                # if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][new_duration]) == False:
-                                                #     if doc['processed_daily_data'][name]['within_outlier_limits'][new_duration] == False:
-                                                        # if doc['processed_daily_data'][name]['ewma'][durationActual][2] < ewma_number_dict[name]:
-                                                ewma_list.append(self.configuration.makeDecimal(new_ewma))
-                                                            # ewma_list.append(doc['processed_daily_data'][name]['ewma'][durationActual][2])
-                                                        # else:
-                                                        #     ewma_list.append(None)
-                                                #     else:
-                                                #         ewma_list.append(None)
-                                                # else:
-                                                #     ewma_list.append(None)
-                                            
-                                            if self.include_outliers == 'false':
-                                                if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices]) == False:
-                                                    if doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices] == True:
-                                                        # if doc['processed_daily_data'][name]['ewma'][durationActual][2] < ewma_number_dict[name]:
-                                                        ewma_list.append(self.configuration.makeDecimal(new_ewma))
-                                                            # ewma_list.append(doc['processed_daily_data'][name]['ewma'][durationActual][2])
-                                                        # else:
-                                                        #     ewma_list.append(None)
-                                                    else:
-                                                        ewma_list.append(None)
-                                                else:
-                                                    ewma_list.append(None)
-                                else:
-                                    if self.noonorlogs == "noon":
-                                        if doc['Logs'] == False:
-                                            new_ewma = self.configuration.ewma_divide(doc['processed_daily_data'][name]['ewma'][duration_for_indices][2], doc['ewma_limits'][name][duration_for_indices][2])
-                                            if self.include_outliers == 'true':
-                                                # if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][new_duration]) == False:
-                                                #     if doc['processed_daily_data'][name]['within_outlier_limits'][new_duration] == False:
-                                                        # if doc['processed_daily_data'][name]['ewma'][durationActual][2] < ewma_number_dict[name]:
-                                                ewma_list.append(self.configuration.makeDecimal(new_ewma))
-                                                            # ewma_list.append(doc['processed_daily_data'][name]['ewma'][durationActual][2])
-                                                        # else:
-                                                        #     ewma_list.append(None)
-                                                #     else:
-                                                #         ewma_list.append(None)
-                                                # else:
-                                                #     ewma_list.append(None)
-                                            
-                                            if self.include_outliers == 'false':
-                                                if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices]) == False:
-                                                    if doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices] == True:
-                                                        # if doc['processed_daily_data'][name]['ewma'][durationActual][2] < ewma_number_dict[name]:
-                                                        ewma_list.append(self.configuration.makeDecimal(new_ewma))
-                                                            # ewma_list.append(doc['processed_daily_data'][name]['ewma'][durationActual][2])
-                                                        # else:
-                                                        #     ewma_list.append(None)
-                                                    else:
-                                                        ewma_list.append(None)
-                                                else:
-                                                    ewma_list.append(None)
-                                    elif self.noonorlogs == "logs":
-                                        if doc['Logs'] == True:
-                                            new_ewma = self.configuration.ewma_divide(doc['processed_daily_data'][name]['ewma'][duration_for_indices][2], doc['ewma_limits'][name][duration_for_indices][2])
-                                            if self.include_outliers == 'true':
-                                                # if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][new_duration]) == False:
-                                                #     if doc['processed_daily_data'][name]['within_outlier_limits'][new_duration] == False:
-                                                        # if doc['processed_daily_data'][name]['ewma'][durationActual][2] < ewma_number_dict[name]:
-                                                ewma_list.append(self.configuration.makeDecimal(new_ewma))
-                                                            # ewma_list.append(doc['processed_daily_data'][name]['ewma'][durationActual][2])
-                                                        # else:
-                                                        #     ewma_list.append(None)
-                                                #     else:
-                                                #         ewma_list.append(None)
-                                                # else:
-                                                #     ewma_list.append(None)
-                                            
-                                            if self.include_outliers == 'false':
-                                                if pd.isnull(doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices]) == False:
-                                                    if doc['processed_daily_data'][name]['within_outlier_limits'][duration_for_indices] == True:
-                                                        # if doc['processed_daily_data'][name]['ewma'][durationActual][2] < ewma_number_dict[name]:
-                                                        ewma_list.append(self.configuration.makeDecimal(new_ewma))
-                                                            # ewma_list.append(doc['processed_daily_data'][name]['ewma'][durationActual][2])
-                                                        # else:
-                                                        #     ewma_list.append(None)
-                                                    else:
-                                                        ewma_list.append(None)
-                                                else:
-                                                    ewma_list.append(None)
-                            except KeyError:
-                                ewma_list.append(None)
-                            except TypeError:
-                                ewma_list.append(None)
-                            except IndexError:
-                                ewma_list.append(None)
-                            
-                            try:
-                                # if doc['historical'] == True:
-                                if self.noonorlogs == "noon":
-                                    if doc['Logs'] == False:
-                                        # if doc['processed_daily_data'][name]['is_not_ewma_anamolous'][durationActual][2] == True:
-                                        ewma_limit_list.append(self.configuration.makeDecimal(ewma_limit_global))
-                                            # t2_limit_list.append(doc['processed_daily_data'][name]['ucl_crit_beta'][durationActual])
-                                            # ewma_limit_list.append(ewma_number_dict[name])
-                                        # else:
-                                        #     ewma_limit_list.append(None)
-                                elif self.noonorlogs == "logs":
-                                    if doc['Logs'] == True:
-                                        # if doc['processed_daily_data'][name]['is_not_ewma_anamolous'][durationActual][2] == True:
-                                        ewma_limit_list.append(self.configuration.makeDecimal(ewma_limit_global))
-                                            # t2_limit_list.append(doc['processed_daily_data'][name]['ucl_crit_beta'][durationActual])
-                                            # ewma_limit_list.append(ewma_number_dict[name])
-                                        # else:
-                                        #     ewma_limit_list.append(None)
-                            except KeyError:
-                                ewma_limit_list.append(None)
-                            except TypeError:
-                                ewma_limit_list.append(None)
-                            except IndexError:
-                                ewma_limit_list.append(None)
+                                            # if doc['processed_daily_data'][name]['is_not_ewma_anamolous'][durationActual][2] == True:
+                                            ewma_limit_list.append(self.configuration.makeDecimal(ewma_limit_global))
+                                                # t2_limit_list.append(doc['processed_daily_data'][name]['ucl_crit_beta'][durationActual])
+                                                # ewma_limit_list.append(ewma_number_dict[name])
+                                            # else:
+                                            #     ewma_limit_list.append(None)
+                                except KeyError:
+                                    ewma_limit_list.append(None)
+                                except TypeError:
+                                    ewma_limit_list.append(None)
+                                except IndexError:
+                                    ewma_limit_list.append(None)
 
                         #print("SPE!!!!!", name)
 
@@ -2232,13 +2579,27 @@ class TrendsExtractor():
                                 if self.noonorlogs == "noon":
                                     if doc['Logs'] == False:
                                         if pd.isnull(doc['processed_daily_data'][name]['predictions'][durationActual][1]) == False:
-                                            explist.append(self.configuration.makeDecimal(doc['processed_daily_data'][name]['predictions'][durationActual][1]))
+                                            if ((name == 'main_fuel_per_dst' and doc['processed_daily_data'][name]['processed'] > doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                            (name == 'speed_stw_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                            (name == 'speed_sog_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                            (name == 'speed_sog' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                            (name == 'speed_stw' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1])):
+                                                explist.append(self.configuration.makeDecimal(doc['processed_daily_data'][name]['predictions'][durationActual][1]))
+                                            else:
+                                                explist.append(self.configuration.makeDecimal(doc['processed_daily_data'][name]['predictions'][durationActual][1]))
                                         else:
                                             explist.append(None)
                                 elif self.noonorlogs == "logs":
                                     if doc['Logs'] == True:
                                         if pd.isnull(doc['processed_daily_data'][name]['predictions'][durationActual][1]) == False:
-                                            explist.append(self.configuration.makeDecimal(doc['processed_daily_data'][name]['predictions'][durationActual][1]))
+                                            if ((name == 'main_fuel_per_dst' and doc['processed_daily_data'][name]['processed'] > doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                            (name == 'speed_stw_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                            (name == 'speed_sog_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                            (name == 'speed_sog' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                            (name == 'speed_stw' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1])):
+                                                explist.append(self.configuration.makeDecimal(doc['processed_daily_data'][name]['predictions'][durationActual][1]))
+                                            else:
+                                                explist.append(self.configuration.makeDecimal(doc['processed_daily_data'][name]['predictions'][durationActual][1]))
                                         else:
                                             explist.append(None)
                             except TypeError:
@@ -2254,7 +2615,14 @@ class TrendsExtractor():
                                     if doc['Logs'] == False:
                                         if doc['processed_daily_data'][name]['predictions'][durationActual][0] != -np.inf:
                                             if pd.isnull(doc['processed_daily_data'][name]['predictions'][durationActual][0]) == False:
-                                                lowerlist.append(self.configuration.makeDecimal(doc['processed_daily_data'][name]['predictions'][durationActual][0]))
+                                                if ((name == 'main_fuel_per_dst' and doc['processed_daily_data'][name]['processed'] > doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                (name == 'speed_stw_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                (name == 'speed_sog_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                (name == 'speed_sog' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                (name == 'speed_stw' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1])):
+                                                    lowerlist.append(self.configuration.makeDecimal(doc['processed_daily_data'][name]['predictions'][durationActual][0]))
+                                                else:
+                                                    lowerlist.append(self.configuration.makeDecimal(doc['processed_daily_data'][name]['predictions'][durationActual][0]))
                                             else:
                                                 lowerlist.append(None)
                                         else:
@@ -2263,7 +2631,14 @@ class TrendsExtractor():
                                     if doc['Logs'] == True:
                                         if doc['processed_daily_data'][name]['predictions'][durationActual][0] != -np.inf:
                                             if pd.isnull(doc['processed_daily_data'][name]['predictions'][durationActual][0]) == False:
-                                                lowerlist.append(self.configuration.makeDecimal(doc['processed_daily_data'][name]['predictions'][durationActual][0]))
+                                                if ((name == 'main_fuel_per_dst' and doc['processed_daily_data'][name]['processed'] > doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                (name == 'speed_stw_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                (name == 'speed_sog_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                (name == 'speed_sog' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                (name == 'speed_stw' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1])):
+                                                    lowerlist.append(self.configuration.makeDecimal(doc['processed_daily_data'][name]['predictions'][durationActual][0]))
+                                                else:
+                                                    lowerlist.append(self.configuration.makeDecimal(doc['processed_daily_data'][name]['predictions'][durationActual][0]))
                                             else:
                                                 lowerlist.append(None)
                                         else:
@@ -2281,7 +2656,14 @@ class TrendsExtractor():
                                     if doc['Logs'] == False:
                                         if doc['processed_daily_data'][name]['predictions'][durationActual][2] != np.inf:
                                             if pd.isnull(doc['processed_daily_data'][name]['predictions'][durationActual][2]) == False:
-                                                upperlist.append(self.configuration.makeDecimal(doc['processed_daily_data'][name]['predictions'][durationActual][2]))
+                                                if ((name == 'main_fuel_per_dst' and doc['processed_daily_data'][name]['processed'] > doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                (name == 'speed_stw_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                (name == 'speed_sog_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                (name == 'speed_sog' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                (name == 'speed_stw' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1])):
+                                                    upperlist.append(self.configuration.makeDecimal(doc['processed_daily_data'][name]['predictions'][durationActual][2]))
+                                                else:
+                                                    upperlist.append(self.configuration.makeDecimal(doc['processed_daily_data'][name]['predictions'][durationActual][2]))
                                             else:
                                                 upperlist.append(None)
                                         else:
@@ -2290,7 +2672,14 @@ class TrendsExtractor():
                                     if doc['Logs'] == True:
                                         if doc['processed_daily_data'][name]['predictions'][durationActual][2] != np.inf:
                                             if pd.isnull(doc['processed_daily_data'][name]['predictions'][durationActual][2]) == False:
-                                                upperlist.append(self.configuration.makeDecimal(doc['processed_daily_data'][name]['predictions'][durationActual][2]))
+                                                if ((name == 'main_fuel_per_dst' and doc['processed_daily_data'][name]['processed'] > doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                (name == 'speed_stw_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                (name == 'speed_sog_calc' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                (name == 'speed_sog' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1]) or
+                                                (name == 'speed_stw' and doc['processed_daily_data'][name]['processed'] < doc['processed_daily_data'][name]['predictions'][durationActual][1])):
+                                                    upperlist.append(self.configuration.makeDecimal(doc['processed_daily_data'][name]['predictions'][durationActual][2]))
+                                                else:
+                                                    upperlist.append(self.configuration.makeDecimal(doc['processed_daily_data'][name]['predictions'][durationActual][2]))
                                             else:
                                                 upperlist.append(None)
                                         else:
@@ -2699,18 +3088,22 @@ class TrendsExtractor():
             subgroup_dict_new = self.configuration.get_subgroup_names_for_custom_groups(subgroup_dict, "", corrected_group) if len(self.individual_params) > 1 else subgroup_dict
             weather_data = self.get_weather_parameters()
             short_names = self.short_names_for_weather_params(list(weather_data.keys()))
+            if self.sisterorsimilar:
+                sister_or_similar_name = self.get_name_of_sister_or_similar(self.compare)
+            else:
+                sister_or_similar_name = ""
             #print("END CORRECTED GRP")
             
             if self.include_outliers == 'true':
                 if 'ly_' in durationActual:
-                    return corrected_group, datadict, expecteddict, lowerdict, upperdict, lyexpecteddict, lylowerdict, lyupperdict, outlierdict, loaded_ballast_list, spedict, spelimitdict, t2dict, t2limitdict, ewmadict, ewmalimitdict, spe_messages_dict, subgroup_dict_new, outlier_messages_dict, weather_data, short_names, sisterepecteddict
+                    return corrected_group, datadict, expecteddict, lowerdict, upperdict, lyexpecteddict, lylowerdict, lyupperdict, outlierdict, loaded_ballast_list, spedict, spelimitdict, t2dict, t2limitdict, ewmadict, ewmalimitdict, spe_messages_dict, subgroup_dict_new, outlier_messages_dict, weather_data, short_names, sisterepecteddict, sister_or_similar_name
                 else:
-                    return corrected_group, datadict, expecteddict, lowerdict, upperdict, outlierdict, loaded_ballast_list, spedict, spelimitdict, t2dict, t2limitdict, ewmadict, ewmalimitdict, spe_messages_dict, subgroup_dict_new, outlier_messages_dict, weather_data, short_names, sisterepecteddict
+                    return corrected_group, datadict, expecteddict, lowerdict, upperdict, outlierdict, loaded_ballast_list, spedict, spelimitdict, t2dict, t2limitdict, ewmadict, ewmalimitdict, spe_messages_dict, subgroup_dict_new, outlier_messages_dict, weather_data, short_names, sisterepecteddict, sister_or_similar_name
             else:
                 if 'ly_' in durationActual:
-                    return corrected_group, datadict, expecteddict, lowerdict, upperdict, lyexpecteddict, lylowerdict, lyupperdict, loaded_ballast_list, spedict, spelimitdict, t2dict, t2limitdict, ewmadict, ewmalimitdict, spe_messages_dict, subgroup_dict_new, weather_data, short_names, sisterepecteddict
+                    return corrected_group, datadict, expecteddict, lowerdict, upperdict, lyexpecteddict, lylowerdict, lyupperdict, loaded_ballast_list, spedict, spelimitdict, t2dict, t2limitdict, ewmadict, ewmalimitdict, spe_messages_dict, subgroup_dict_new, weather_data, short_names, sisterepecteddict, sister_or_similar_name
                 else:
-                    return corrected_group, datadict, expecteddict, lowerdict, upperdict, loaded_ballast_list, spedict, spelimitdict, t2dict, t2limitdict, ewmadict, ewmalimitdict, spe_messages_dict, subgroup_dict_new, weather_data, short_names, sisterepecteddict
+                    return corrected_group, datadict, expecteddict, lowerdict, upperdict, loaded_ballast_list, spedict, spelimitdict, t2dict, t2limitdict, ewmadict, ewmalimitdict, spe_messages_dict, subgroup_dict_new, weather_data, short_names, sisterepecteddict, sister_or_similar_name
     
     def process_fuel_consumption(self):
         ''' Returns the dictionary of all the variables for Fuel Consumption sorted by date(final_rep_dt)'''
@@ -2864,6 +3257,18 @@ class TrendsExtractor():
     #     groupList = self.configuration.get_generic_group_selection()
     #     return groupList
     # #print("END GENERIC GROUP SELECTION")
+
+    def get_name_of_sister_or_similar(self, imo):
+        '''
+            Gets the name of the sister vessel or the similar vessel.
+        '''
+        ship_info = self.configuration.get_dict_for_ships("")
+
+        for i in ship_info:
+            if int(imo) == int(i['value']):
+                name = i['label']
+        
+        return name
 
     def short_names_for_weather_params(self, params):
         '''
