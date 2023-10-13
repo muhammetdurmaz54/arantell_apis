@@ -1,3 +1,5 @@
+# react application backend for overview page
+
 from src.processors.config_extractor.configurator import Configurator
 # import sys
 # sys.path.insert(1,"D:\\Internship\\Repository\\Aranti\\arantell_apis\\src")
