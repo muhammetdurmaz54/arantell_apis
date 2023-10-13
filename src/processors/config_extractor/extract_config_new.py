@@ -1,3 +1,5 @@
+# not react application backend, this is the first step for any ship to get on board. configurator file is edited manually as per historical data of ship and uploaded in config db
+
 import sys
 from tokenize import group
 from numpy.core.numeric import outer
