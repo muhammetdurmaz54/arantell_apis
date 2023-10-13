@@ -1,3 +1,5 @@
+# react application backend for daily issues
+
 import sys
 from time import process_time_ns
 # sys.path.insert(1,"D:\\Internship\\Repository\\Aranti\\arantell_apis")
@@ -128,12 +130,14 @@ class DailyIssueExtractor():
         
         # categoryDictDataDecimal = self.configuration.get_decimal_control_on_daily_values(categoryDictData)
         new_category_dict = self.get_corrected_daily_data(categoryDict=categoryDict, categoryDictData=newCategoryDictData)
-        outlier_list, operational_list, spe_list = self.get_parameters_with_issues(newCategoryDictData)
+        outlier_list, operational_list, spe_list, spe_dict_with_alpha = self.get_parameters_with_issues(newCategoryDictData)
+        # print("speeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",spe_list)
+        equipment_list=self.equipment_with_issues(spe_list,spe_dict_with_alpha)
         week_list = self.get_date_range(dateList, self.dateString) if self.dateString != "" else self.get_date_range(dateList, dateList[-1])
         outlier_dict, operational_dict, spe_dict = self.read_date_for_range_of_dates(week_list, outlier_list, operational_list, spe_list)
         frequencyCategoryDictData = self.put_frequency_in_data(newCategoryDictData, outlier_dict, operational_dict, spe_dict)
         
-        return categoryList, new_category_dict, column_headers, subcategoryDict, dateList, frequencyCategoryDictData, issues, static_data_for_charter_party, charter_party_values, charter_party_prediction_values, compliance_messages, listOfVesselParticularKeys, issuesCount
+        return categoryList, new_category_dict, column_headers, subcategoryDict, dateList, frequencyCategoryDictData, issues, static_data_for_charter_party, charter_party_values, charter_party_prediction_values, compliance_messages, listOfVesselParticularKeys, issuesCount, equipment_list
 
 
         # return categoryDict, column_headers, subcategoryDict, dateList, latestRes
@@ -295,6 +299,7 @@ class DailyIssueExtractor():
         outlier_list=[]
         operational_list=[]
         spe_list=[]
+        spe_dict_with_alpha={}
         for category in categoryDictData.keys():
             # print("CATEGORY ", category)
             if category != 'VESSEL PARTICULARS':
@@ -325,21 +330,58 @@ class DailyIssueExtractor():
 
                                 elif 'spe_messages' in categoryDictData[category][i][subcategory][j] and pd.isnull(categoryDictData[category][i][subcategory][j]['spe_messages']) == False and pd.isnull(categoryDictData[category][i][subcategory][j]['spe_messages']['m6'][2]) == False:
                                     spe_list.append(categoryDictData[category][i][subcategory][j]['identifier'])
+                                    split_str=categoryDictData[category][i][subcategory][j]['spe_messages']['m6'][2].split("alpha:")
+                                    if split_str[1][:4]==' 0.0':
+                                        alpha_val="alpha:0.05"
+                                    else:
+                                        alpha_val='alpha:'+split_str[1][:4]
+                                    spe_dict_with_alpha[categoryDictData[category][i][subcategory][j]['identifier']]=alpha_val
                                 elif 'spe_messages' in categoryDictData[category][i][subcategory][j] and pd.isnull(categoryDictData[category][i][subcategory][j]['spe_messages']) == False and pd.isnull(categoryDictData[category][i][subcategory][j]['spe_messages']['m6'][1]) == False:
                                     spe_list.append(categoryDictData[category][i][subcategory][j]['identifier'])
+                                    split_str=categoryDictData[category][i][subcategory][j]['spe_messages']['m6'][1].split("alpha:")
+                                    if split_str[1][:4]==' 0.0':
+                                        alpha_val="alpha:0.05"
+                                    else:
+                                        alpha_val='alpha:'+split_str[1][:4]
+                                    spe_dict_with_alpha[categoryDictData[category][i][subcategory][j]['identifier']]=alpha_val
                                 elif 'spe_messages' in categoryDictData[category][i][subcategory][j] and pd.isnull(categoryDictData[category][i][subcategory][j]['spe_messages']) == False and pd.isnull(categoryDictData[category][i][subcategory][j]['spe_messages']['m6'][0]) == False:
                                     spe_list.append(categoryDictData[category][i][subcategory][j]['identifier'])
+                                    split_str=categoryDictData[category][i][subcategory][j]['spe_messages']['m6'][0].split("alpha:")
+                                    if split_str[1][:4]==' 0.0':
+                                        alpha_val="alpha:0.05"
+                                    else:
+                                        alpha_val='alpha:'+split_str[1][:4]
+                                    spe_dict_with_alpha[categoryDictData[category][i][subcategory][j]['identifier']]=alpha_val
                                 elif 'spe_messages' in categoryDictData[category][i][subcategory][j] and pd.isnull(categoryDictData[category][i][subcategory][j]['spe_messages']) == False and pd.isnull(categoryDictData[category][i][subcategory][j]['spe_messages']['m12'][2]) == False:
                                     spe_list.append(categoryDictData[category][i][subcategory][j]['identifier'])
+                                    split_str=categoryDictData[category][i][subcategory][j]['spe_messages']['m12'][2].split("alpha:")
+                                    if split_str[1][:4]==' 0.0':
+                                        alpha_val="alpha:0.05"
+                                    else:
+                                        alpha_val='alpha:'+split_str[1][:4]
+                                    spe_dict_with_alpha[categoryDictData[category][i][subcategory][j]['identifier']]=alpha_val
                                 elif 'spe_messages' in categoryDictData[category][i][subcategory][j] and pd.isnull(categoryDictData[category][i][subcategory][j]['spe_messages']) == False and pd.isnull(categoryDictData[category][i][subcategory][j]['spe_messages']['m12'][1]) == False:
                                     spe_list.append(categoryDictData[category][i][subcategory][j]['identifier'])
+                                    split_str=categoryDictData[category][i][subcategory][j]['spe_messages']['m12'][1].split("alpha:")
+                                    if split_str[1][:4]==' 0.0':
+                                        alpha_val="alpha:0.05"
+                                    else:
+                                        alpha_val='alpha:'+split_str[1][:4]
+                                    spe_dict_with_alpha[categoryDictData[category][i][subcategory][j]['identifier']]=alpha_val
                                 elif 'spe_messages' in categoryDictData[category][i][subcategory][j] and pd.isnull(categoryDictData[category][i][subcategory][j]['spe_messages']) == False and pd.isnull(categoryDictData[category][i][subcategory][j]['spe_messages']['m12'][0]) == False:
                                     spe_list.append(categoryDictData[category][i][subcategory][j]['identifier'])
+                                    split_str=categoryDictData[category][i][subcategory][j]['spe_messages']['m12'][0].split("alpha:")
+                                    if split_str[1][:4]==' 0.0':
+                                        alpha_val="alpha:0.05"
+                                    else:
+                                        alpha_val='alpha:'+split_str[1][:4]
+                                    spe_dict_with_alpha[categoryDictData[category][i][subcategory][j]['identifier']]=alpha_val
                             except KeyError:
                                 print("EXCEPT")
                             j = j + 1
-        
-        return outlier_list, operational_list, spe_list
+        # print("alphaaas",spe_dict_with_alpha)
+        # print(spe_list)
+        return outlier_list, operational_list, spe_list, spe_dict_with_alpha
     
     def get_date_range(self, dateList, selected_date):
         '''
@@ -485,7 +527,35 @@ class DailyIssueExtractor():
         return categoryDictData
 
 
-
+    def equipment_with_issues(self, param_list, param_dict_with_alhpas):
+        equipment_dict={}
+        if param_list!=None and len(param_list)>0:
+            for i in param_list:
+                param_associated_equipment_list=[]
+                ship_res = self.ship_config.find({'ship_imo': self.ship_imo},)
+                ship_res = loads(dumps(ship_res))
+                param_equip=ship_res[0]['data'][str(i)]['Equipment_block']
+                param_short_name=ship_res[0]['data'][str(i)]['short_names'] 
+                if pd.isnull(param_equip)==False:
+                    param_equip_short_name=ship_res[0]['data'][param_equip]['short_names']
+                    if param_equip_short_name in equipment_dict.keys():
+                        equipment_dict[param_equip_short_name].append(param_short_name+"--"+param_dict_with_alhpas[str(i)])
+                    else:
+                        param_associated_equipment_list.append(param_short_name+"--"+param_dict_with_alhpas[str(i)])
+                        equipment_dict[param_equip_short_name]=param_associated_equipment_list
+        final_str=''
+        # print(equipment_dict)
+        for key in equipment_dict:
+            for items in equipment_dict[key]:
+                spl_item=items.split('--')
+                final_str=final_str+str(spl_item[0])+" "+"associated with equipment "+str(key)+" is exceeding spe threshold at "+spl_item[1]+".\n"
+            
+               
+        if len(equipment_dict)==0:
+            final_str=" "          
+        # print(final_str)
+        # print("config",type(final_str))
+        return final_str
 
 
 # res = DailyReportExtractor(9591301)
