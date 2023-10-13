@@ -1,3 +1,6 @@
+# not react application backend, this code is for reading ais data from zylalabs api and storing in database in each secified hours repectively
+
+
 import requests
 # import pandas
 # from bs4 import BeautifulSoup
