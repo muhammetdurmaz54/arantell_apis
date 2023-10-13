@@ -1,3 +1,5 @@
+# flask main backend code from where each responses are generated in api
+
 import sys
 import os
 from dotenv import load_dotenv
