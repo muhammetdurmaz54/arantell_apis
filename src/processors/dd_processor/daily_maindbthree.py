@@ -1,3 +1,6 @@
+# react application backend for processing(formula/predictions) daily data/row and storing in maindb. this is triggered when user gives input through frontend spreadsheet  
+
+
 from email.errors import NonPrintableDefect
 from logging import NOTSET
 from pickle import TRUE
