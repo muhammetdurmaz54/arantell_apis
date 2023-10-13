@@ -1,3 +1,5 @@
+# not react application backend, gpt code
+
 from langchain.llms import OpenAI
 import openai
 from langchain.chat_models import ChatOpenAI
