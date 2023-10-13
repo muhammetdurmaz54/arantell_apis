@@ -1,3 +1,5 @@
+# not react application backend, historical daily data/rows processing and inserting raw values 
+
 
 from asyncio.windows_events import NULL
 from math import nan
