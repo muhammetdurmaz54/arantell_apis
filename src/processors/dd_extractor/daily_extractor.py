@@ -1,3 +1,5 @@
+# react application backend for daily data/row processing and inserting raw values when user gives input through frontend spreadsheet
+
 from math import nan
 from os import error
 import os
@@ -402,7 +404,7 @@ class DailyDataExtractor:
         else:
             return floatnum
 
-obj=DailyDataExtractor(None,None,9205926,True,False)
-obj.connect()
-msg=obj.dailydata_insert()
-print(msg)
+# obj=DailyDataExtractor(None,None,9205926,True,False)
+# obj.connect()
+# msg=obj.dailydata_insert()
+# print(msg)
