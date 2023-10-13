@@ -1,3 +1,5 @@
+# not react application backend, part of maindb process this code is for processing indices
+
 from __future__ import division
 import os
 from dotenv import load_dotenv
