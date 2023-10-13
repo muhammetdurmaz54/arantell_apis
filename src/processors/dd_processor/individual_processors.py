@@ -1,3 +1,6 @@
+# not react application backend, part of maindb process this code is for individual processor(formulas) when it is called first time
+
+
 from ast import expr_context
 from configparser import NoOptionError
 from datetime import date
@@ -1033,7 +1036,7 @@ class IndividualProcessors():
             curknots=self.daily_data['data']['curknots']
             if pandas.isnull(report)==True or report.strip()=="":
                 current_dir_rel=0
-                base_dict['processed']=speed_sog-round(curknots*(math.cos(math.radians(current_dir_rel))))
+                base_dict['processed']=speed_sog+round(curknots*(math.cos(math.radians(current_dir_rel))))
             else:
                 if report=="F" or report=="f" or report=="+":
                     current_dir_rel=180
@@ -1044,7 +1047,7 @@ class IndividualProcessors():
                 else:    
                     vessel_head=self.daily_data['data']['vessel_head']
                     current_dir_rel=self.to_degree(report)-vessel_head
-                base_dict['processed']=speed_sog-round(curknots*(math.cos(math.radians(current_dir_rel))))
+                base_dict['processed']=speed_sog+round(curknots*(math.cos(math.radians(current_dir_rel))))
                 base_dict['is_read']=True
                 base_dict['is_processed']=False
             # print(report,processed)
