@@ -1,3 +1,5 @@
+# all main function of react application backend, all these functions are called in application.py. this file inherits/calls other functions from ither fiels in config_extractor_folder
+
 from decimal import DivisionByZero
 # from math import isfinite, isnan
 import sys
