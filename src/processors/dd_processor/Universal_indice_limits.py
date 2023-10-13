@@ -1,3 +1,5 @@
+# not react application backend, a part of maindb process calculating limits for indices
+
 import os
 from dotenv import load_dotenv
 from numpy.core.defchararray import index
