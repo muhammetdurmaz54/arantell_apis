@@ -1,3 +1,6 @@
+# not react application backend, part of maindb process this code is for individual processor(formulas) when it is called second time
+
+
 from msilib.schema import Error
 import re
 from numpy import zeros_like
