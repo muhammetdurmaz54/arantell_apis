@@ -1,3 +1,5 @@
+# not react application backend, maindb whole process code
+
 
 from email.errors import NonPrintableDefect
 from logging import NOTSET
