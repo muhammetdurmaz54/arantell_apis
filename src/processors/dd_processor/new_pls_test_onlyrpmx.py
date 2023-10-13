@@ -1,3 +1,5 @@
+# not react application backend, new pls method trial by using only rpm as main column
+
 import pandas 
 import random
 # from bson import json_util
