@@ -1,3 +1,5 @@
+# not react application backend, this is the prediction processor for each parater in maindb process
+
 from __future__ import division
 from numpy import outer, testing
 
