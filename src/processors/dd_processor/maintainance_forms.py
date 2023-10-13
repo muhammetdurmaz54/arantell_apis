@@ -1,3 +1,5 @@
+# not react application backend, to create maintainance forms if needed
+
 from datetime import date, datetime
 from dotenv import load_dotenv
 import sys
