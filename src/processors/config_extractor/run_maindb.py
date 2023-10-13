@@ -1,3 +1,5 @@
+# react application backend for initiating maindb process when user gives inputs in frontend spreadsheet
+
 from pymongo import MongoClient
 import os
 from src.processors.dd_processor.daily_maindbtwo import MainDB
