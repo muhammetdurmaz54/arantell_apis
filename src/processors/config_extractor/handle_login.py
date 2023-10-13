@@ -1,3 +1,5 @@
+# react application backend for checking login info 
+
 import base64
 from pymongo import MongoClient
 from dotenv import load_dotenv
