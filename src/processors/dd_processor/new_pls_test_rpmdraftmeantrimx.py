@@ -1,3 +1,5 @@
+# not react application backend, new pls method trial by using rpm,draftmean and trim multiple columns
+
 import pandas 
 import random
 # from bson import json_util
