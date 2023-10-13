@@ -1,3 +1,5 @@
+# react application backend for getting subgroup names
+
 import pandas as pd
 
 def get_subgroup_names(groupname):
